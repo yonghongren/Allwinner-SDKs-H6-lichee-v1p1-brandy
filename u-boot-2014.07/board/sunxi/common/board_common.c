@@ -705,6 +705,8 @@ int update_fdt_para_for_kernel(void *dtb_base)
 	return 0;
 
 }
+
+// this is conditionally defined
 extern u8 uboot_shell ;
 
 #ifdef CONFIG_DETECT_RTC_BOOT_MODE
@@ -737,7 +739,7 @@ int set_bootcmd_from_rtc(int mode, char *bootcmd)
 		break;
 	case SUNXI_UBOOT_FLAG:
 		pr_msg("uboot shell detected, will uboot shell\n");
-		uboot_shell = 1;
+		// uboot_shell = 1;
 		break;
 	default:
 		ret = -1;

@@ -6,6 +6,7 @@
  */
 #include "tv_ac200.h"
 #include "tv_ac200_lowlevel.h"
+#undef DEBUG
 #define DEBUG 0
 
 s32 aw1683_wr_reg(__u16 sub_addr, __u16 data)

@@ -1095,7 +1095,7 @@ static char sunxi_read_oem_unlock_ability(void)
 		printf("cant find part named frp\n");
 	} else {
 		part_sectors = sunxi_partition_get_size_byname("frp");
-#if DEBUG
+#ifdef DEBUG
 		printf("start block = 0x%x, part_sectors = %d\n", start_block, part_sectors);
 #endif
 		/*read the last block of frp part to addr[]*/
