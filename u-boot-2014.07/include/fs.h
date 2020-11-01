@@ -77,8 +77,6 @@ int fs_write(const char *filename, ulong addr, int offset, int len);
  */
 int do_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 		int fstype);
-int do_aw_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
-				int fstype);
 int do_ls(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 		int fstype);
 int file_exists(const char *dev_type, const char *dev_part, const char *file,

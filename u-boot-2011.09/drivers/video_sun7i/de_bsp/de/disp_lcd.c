@@ -514,16 +514,14 @@ void LCD_get_sys_config(__u32 screen_id, __disp_lcd_cfg_t *lcd_cfg)
 
 //lcd_pwm
     lcd_cfg->lcd_pwm_used= 0;
-    #ifdef CONFIG_SUN6I_RESERVE
 
+    #ifdef CONFIG_SUN6I_RESERVE
     gpio_info = &(lcd_cfg->lcd_pwm);
     ret = OSAL_Script_FetchParser_Data(primary_key,"lcd_pwm", (int *)gpio_info, sizeof(disp_gpio_set_t)/sizeof(int));
     if(ret == 0)
     {
         lcd_cfg->lcd_pwm_used = 1;
         lcd_cfg->lcd_pwm_ch = 0;
-
-        __inf("lcd_pwm_used=%d,lcd_pwm_ch=%d\n", lcd_cfg->lcd_pwm_used, lcd_cfg->lcd_pwm_ch);
     }
 
     #else
@@ -536,8 +534,7 @@ void LCD_get_sys_config(__u32 screen_id, __disp_lcd_cfg_t *lcd_cfg)
     ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_pwm_ch", &value, 1);
     if(ret == 0)
         lcd_cfg->lcd_pwm_ch = value;
-
-    #endif
+	#endif
 #if 0
 //lcd_gpio
     for(i=0; i<4; i++)
@@ -809,12 +806,12 @@ __s32 TCON_get_start_delay(__u32 screen_id, __u32 tcon_index)
 	return 0;
 }
 
+
 #ifdef CONFIG_SUN6I_RESERVE
 
 static __u32 pwm_read_reg(__u32 offset)
 {
 	__u32 value = 0;
-
 	value = sys_get_wvalue(gdisp.init_para.reg_base[DISP_MOD_PWM]+offset);
 
 	return value;
@@ -833,6 +830,7 @@ __s32 pwm_enable(__u32 channel)
 
 	tmp = pwm_read_reg(channel*0x10);
 	tmp |= (1<<4);
+	//tmp |= (1<<6);			//add by zq
 	pwm_write_reg(channel*0x10,tmp);
 
 	gdisp.pwm[channel].enable = 1;
@@ -965,6 +963,7 @@ __s32 pwm_set_duty_ns(__u32 channel, __u32 duty_ns)
 
 __s32 LCD_PWM_EN(__u32 screen_id, __bool b_en)
 {
+
     #ifdef CONFIG_SUN6I_RESERVE
 	if(gdisp.screen[screen_id].lcd_cfg.lcd_pwm_used) {
 		disp_gpio_set_t  gpio_info[1];
@@ -986,8 +985,10 @@ __s32 LCD_PWM_EN(__u32 screen_id, __bool b_en)
 	}
 
     #else
-    if(b_en)
+    if(b_en) {
+		//sunxi_pwm_get_sys_config(gdisp.screen[screen_id].lcd_cfg.lcd_pwm_ch);
         sunxi_pwm_enable(gdisp.screen[screen_id].lcd_cfg.lcd_pwm_ch);
+    }
     else
         sunxi_pwm_disable(gdisp.screen[screen_id].lcd_cfg.lcd_pwm_ch);
 
@@ -1009,18 +1010,20 @@ __s32 bsp_disp_lcd_pwm_disable(__u32 screen_id)
 __s32 LCD_BL_EN(__u32 screen_id, __bool b_en)
 {
 	disp_gpio_set_t  gpio_info[1];
-	__hdle hdl;
 
 	if(gdisp.screen[screen_id].lcd_cfg.lcd_bl_en_used) {
 		memcpy(gpio_info, &(gdisp.screen[screen_id].lcd_cfg.lcd_bl_en), sizeof(disp_gpio_set_t));
-
 		if(!b_en)	{
 			gpio_info->data = (gpio_info->data==0)?1:0;
 			gpio_info->mul_sel = 7;
 		}
-
+		#ifdef CONFIG_ARCH_SUN7I
+		__hdle hdl;
 		hdl = OSAL_GPIO_Request(gpio_info, 1);
 		OSAL_GPIO_Release(hdl, 2);
+		#else
+		axp_set_supply_status(0, PMU_SUPPLY_GPIO1LDO, 0, gpio_info->data);
+		#endif
 	}
 
 	return 0;
@@ -1042,8 +1045,7 @@ __s32 LCD_POWER_EN_EXT(__u32 sel, __bool b_en)
 	__hdle hdl;
 	//printf("LCD_POWER_EN_EXT, sel=%d, b_en=%d\n", sel, b_en);
 
-	//if(gdisp.screen[sel].lcd_cfg.lcd_power_used) {
-	if(1) {
+	if(gdisp.screen[sel].lcd_cfg.lcd_power_used) {
 		if(gpanel_info[sel].lcd_if == LCD_IF_EXT_DSI) {
 			if(b_en) {
 				//axp_set_eldo3(1); //eldo3 1.2v
@@ -1373,6 +1375,7 @@ __s32 disp_lcdc_init(__u32 screen_id)
 		OSAL_InterruptEnable(gdisp.init_para.irq[DISP_MOD_LCD1]);
 #endif
 	}
+
 	if(gdisp.screen[screen_id].lcd_cfg.lcd_used) {
 		/* pwm config */
 		if(gdisp.screen[screen_id].lcd_cfg.lcd_pwm_used == 1)	{
@@ -1398,7 +1401,7 @@ __s32 disp_lcdc_init(__u32 screen_id)
 			DE_INF("[PWM]backlight_bright=%d,period_ns=%d,duty_ns=%d\n",(__u32)backlight_bright,(__u32)period_ns, (__u32)pwm_info.duty_ns);
 
                         #ifdef CONFIG_SUN6I_RESERVE
-			pwm_set_para(gdisp.screen[screen_id].lcd_cfg.lcd_pwm_ch, &pwm_info);
+						pwm_set_para(gdisp.screen[screen_id].lcd_cfg.lcd_pwm_ch, &pwm_info);
 
                         #else
                             sunxi_pwm_set_polarity(gdisp.screen[screen_id].lcd_cfg.lcd_pwm_ch, pwm_info.active_state);
@@ -2033,7 +2036,7 @@ __s32 bsp_disp_lcd_set_bright(__u32 screen_id, __u32  bright, __u32 from_iep)
 #ifdef CONFIG_SUN6I_RESERVE
 		pwm_set_duty_ns(gdisp.screen[screen_id].lcd_cfg.lcd_pwm_ch, duty_ns);
 #else
-                    sunxi_pwm_config(gdisp.screen[screen_id].lcd_cfg.lcd_pwm_ch, duty_ns, period_ns);
+		sunxi_pwm_config(gdisp.screen[screen_id].lcd_cfg.lcd_pwm_ch, duty_ns, period_ns);
 
 #endif
 	}
@@ -2136,6 +2139,7 @@ __s32 bsp_disp_lcd_set_panel_funs(char *drv_name, __lcd_panel_fun_t * lcd_cfg)
 	for(screen_id=0; screen_id<num_screens; screen_id++) {
 		memset(name, 0, 32);
 		bsp_disp_lcd_get_driver_name(screen_id, name);
+
 		if(!strcmp(drv_name, name))	{
 			memset(&lcd_panel_fun[screen_id], 0, sizeof(__lcd_panel_fun_t));
 			lcd_panel_fun[screen_id].cfg_panel_info= lcd_cfg->cfg_panel_info;

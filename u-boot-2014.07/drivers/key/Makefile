@@ -1,7 +1,7 @@
 ifndef CONFIG_GPADC_KEY
-obj-y += sunxi_key.o
+obj-$(CONFIG_SUNXI_PHY_KEY) += sunxi_key.o
 else
-obj-y += sunxi_gpkey.o
+obj-$(CONFIG_SUNXI_PHY_KEY) += sunxi_gpkey.o
 endif
 
 

@@ -69,6 +69,7 @@ extern int mmc_unregister(int dev_num);
 /* support 4 mmc hosts */
 struct mmc mmc_dev[MAX_MMC_NUM];
 struct sunxi_mmc_host mmc_host[MAX_MMC_NUM];
+struct sunxi_mmc reg_bakup;
 
 int sunxi_clock_get_pll6(void)
 {
@@ -115,9 +116,38 @@ static int mmc_resource_init(int sdc_no)
 	return 0;
 }
 
+static void mmc_host_ahb_gate_rst_onoff(struct sunxi_mmc_host* mmchost, int on)
+{
+	u32 rval = 0;
+	u32 sdc_no = mmchost->mmc_no;
+
+	/* config ahb clock */
+	if (on)
+	{
+		rval = readl(mmchost->hclkbase);
+		rval |= (1 << (8 + sdc_no));
+		writel(rval, mmchost->hclkbase);
+
+		rval = readl(mmchost->hclkrst);
+		rval |= (1 << (8 + sdc_no));
+		writel(rval, mmchost->hclkrst);
+	}
+	else
+	{
+		rval = readl(mmchost->hclkbase);
+		rval &= (~(1 << (8 + sdc_no)));
+		writel(rval, mmchost->hclkbase);
+
+		rval = readl(mmchost->hclkrst);
+		rval &= (~(1 << (8 + sdc_no)));
+		writel(rval, mmchost->hclkrst);
+	}
+}
+
+
+
 static int mmc_clk_io_onoff(int sdc_no, int onoff, const normal_gpio_cfg *gpio_info, int offset)
 {
-	unsigned int rval;
 	struct sunxi_mmc_host* mmchost = &mmc_host[sdc_no];
 
 	if(sdc_no == 0)
@@ -126,16 +156,11 @@ static int mmc_clk_io_onoff(int sdc_no, int onoff, const normal_gpio_cfg *gpio_i
 	}
 	else // if(sdc_no == 2)
 	{
-		boot_set_gpio((void *)(gpio_info + offset), 10, 1);
+		boot_set_gpio((void *)(gpio_info + offset), 11, 1);
 	}
-	/* config ahb clock */
-	rval = readl(mmchost->hclkbase);
-	rval |= (1 << (8 + sdc_no));
-	writel(rval, mmchost->hclkbase);
 
-	rval = readl(mmchost->hclkrst);
-	rval |= (1 << (8 + sdc_no));
-	writel(rval, mmchost->hclkrst);
+	mmc_host_ahb_gate_rst_onoff(mmchost, 1);
+
 	/* config mod clock */
 	writel(0x80000000, mmchost->mclkbase);
 	mmchost->mclk = 24000000;
@@ -264,6 +289,7 @@ static int mmc_2xmode_config_clock(struct mmc *mmc, unsigned clk)
 	mmcdbg("mmc %d mclkbase 0x%x\n",mmchost->mmc_no, readl(mmchost->mclkbase));
 
 	/*NTSR*/
+	rntsr |= (1U<<4); /* tx phase 1, rx phase 1 */
 	rntsr |= (1<<31);
 	mmcdbg("mmc %d rntsr 0x%x\n",mmchost->mmc_no,rntsr);
 	writel(rntsr, &mmchost->reg->ntsr);
@@ -355,9 +381,32 @@ static int mmc_2xmode_config_clock(struct mmc *mmc, unsigned clk)
 
 }
 
+static int mmc_2xmode_set_phase(struct mmc *mmc, u32 tx_phase, u32 rx_phase)
+{
+	struct sunxi_mmc_host* mmchost = (struct sunxi_mmc_host *)mmc->priv;
+	unsigned int rval = readl(&mmchost->reg->ntsr);
+	int ret = 0;
 
+	if (!(mmchost->mmc_no == 2) )
+	{
+		return 0;
+	}
 
+	rval &=~((3<<4)|(3));
+	rval |= ((rx_phase&3)<<4)|(tx_phase&3);
+	rval &= ~(1<<31);
+	writel(rval, &mmchost->reg->ntsr);
+	rval |= (1<<31);
+	writel(rval, &mmchost->reg->ntsr);
+	mmcinfo("mmc %d set phase %x\n", mmchost->mmc_no, readl(&mmchost->reg->ntsr));
+	ret = mmc_update_clk(mmc);
+	if (ret) {
+		mmcinfo("mmc %d set phase udate clk fail! %x\n", mmchost->mmc_no, readl(&mmchost->reg->ntsr));
+		return -1;
+	}
 
+	return 0;
+}
 
 static void mmc_set_ios(struct mmc *mmc)
 {
@@ -534,6 +583,76 @@ static int mmc_trans_data_by_dma(struct mmc *mmc, struct mmc_data *data)
 	return 0;
 }
 
+
+void sunxi_mci_regs_save(struct sunxi_mmc_host* mmchost)
+{
+	memset((void*)&reg_bakup, 0, sizeof(struct sunxi_mmc));
+
+	reg_bakup.gctrl		= readl(&mmchost->reg->gctrl);
+	reg_bakup.clkcr		= readl(&mmchost->reg->clkcr);
+	reg_bakup.timeout	= readl(&mmchost->reg->timeout);
+	reg_bakup.width	= readl(&mmchost->reg->width);
+	reg_bakup.imask	= readl(&mmchost->reg->imask);
+	reg_bakup.ftrglevel	= readl(&mmchost->reg->ftrglevel);
+	reg_bakup.funcsel	= readl(&mmchost->reg->funcsel);
+	reg_bakup.dbgc	= readl(&mmchost->reg->dbgc);
+	reg_bakup.dmac	= readl(&mmchost->reg->dmac);
+	reg_bakup.thldc	= readl(&mmchost->reg->thldc);
+	reg_bakup.ntsr		= readl(&mmchost->reg->ntsr);
+
+#if 0
+	printf("======================= save regs ===========================\n");
+	{
+		__u32 i;
+		char* base =  (char*)&reg_bakup;
+		char* name = "mmc";
+		u32 len = 0x100;
+
+		printf("dump %s registers:", name);
+		for (i=0; i<len; i+=4) {
+			if (!(i&0xf))
+				printf("\n0x%p : ", base + i);
+			printf("0x%08x ", smc_readl((uint)base + i));
+		}
+		printf("\n");
+	}
+#endif
+}
+
+void sunxi_mci_regs_restore(struct sunxi_mmc_host* mmchost)
+{
+	writel(reg_bakup.gctrl   , &mmchost->reg->gctrl);
+	writel(reg_bakup.clkcr    , &mmchost->reg->clkcr);
+	writel(reg_bakup.timeout , &mmchost->reg->timeout);
+	writel(reg_bakup.width  , &mmchost->reg->width);
+	writel(reg_bakup.imask  , &mmchost->reg->imask);
+	writel(reg_bakup.ftrglevel, &mmchost->reg->ftrglevel);
+	writel(reg_bakup.funcsel , &mmchost->reg->funcsel);
+	writel(reg_bakup.dbgc  , &mmchost->reg->dbgc);
+	writel(reg_bakup.dmac  , &mmchost->reg->dmac);
+	writel(reg_bakup.thldc  , &mmchost->reg->thldc);
+	writel(reg_bakup.ntsr   , &mmchost->reg->ntsr);
+
+#if 0
+	//dumphex32("mmc", (char*)mmchost->reg, 0x100);
+	printf("======================= restore regs -===========================\n");
+	{
+		__u32 i;
+		char* base =  (char*)mmchost->reg;
+		char* name = "mmc";
+		u32 len = 0x100;
+
+		printf("dump %s registers:", name);
+		for (i=0; i<len; i+=4) {
+			if (!(i&0xf))
+				printf("\n0x%p : ", base + i);
+			printf("0x%08x ", smc_readl((uint)base + i));
+		}
+		printf("\n");
+	}
+#endif
+}
+
 static int mmc_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 			struct mmc_data *data)
 {
@@ -553,6 +672,10 @@ static int mmc_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 		mmcdbg("mmc %d cmd %d check rsp busy\n",mmchost ->mmc_no, cmd->cmdidx);
 	if (cmd->cmdidx == 12)
 		return 0;
+
+	/* update clk for each cmd to clear 2xclk phase */
+	mmc_update_clk(mmc);
+
 	/*
 	 * CMDREG
 	 * CMD[5:0]	: Command index
@@ -725,9 +848,24 @@ out:
 	}
 	if (error) {
 		dumphex32("mmc", (char*)mmchost->reg, 0x100);
-		writel(0x7, &mmchost->reg->gctrl);
-		while(readl(&mmchost->reg->gctrl)&0x7);
-		mmc_update_clk(mmc);
+
+		#if 1
+			sunxi_mci_regs_save(mmchost);
+			mmc_host_ahb_gate_rst_onoff(mmchost, 0);
+			mmc_host_ahb_gate_rst_onoff(mmchost, 1);
+			sunxi_mci_regs_restore(mmchost);
+		#endif
+
+		#if 0  /* global reset will clear reg0x0 bit10 and clear ddr mode. */
+			writel(0x7, &mmchost->reg->gctrl);
+			while(readl(&mmchost->reg->gctrl)&0x7){
+			}
+		#endif
+
+		if (mmc_update_clk(mmc)) {
+			mmcinfo("mmc_send_cmd: udpate clock fail\n");
+		}
+
 		mmcinfo("mmc %d cmd %d err %x\n",mmchost ->mmc_no, cmd->cmdidx, error);
 	}
 	writel(0xffffffff, &mmchost->reg->rint);
@@ -756,6 +894,7 @@ int sunxi_mmc_init(int sdc_no, unsigned bus_width, const normal_gpio_cfg *gpio_i
 	mmc->set_ios = mmc_set_ios;
 	mmc->init = mmc_core_init;
 	mmc->update_phase = mmc_update_phase;
+	mmc->set_phase = mmc_2xmode_set_phase;
 
 	mmc->voltages = MMC_VDD_29_30|MMC_VDD_30_31|MMC_VDD_31_32|MMC_VDD_32_33|
 	                MMC_VDD_33_34|MMC_VDD_34_35|MMC_VDD_35_36;

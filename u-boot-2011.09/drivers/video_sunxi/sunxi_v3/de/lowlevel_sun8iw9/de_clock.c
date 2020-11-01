@@ -27,9 +27,9 @@ static s32 de_clk_set_div(u32 clk_no, u32 div)
 
 	for(i=0; i<(sizeof(de_clk_tbl)/sizeof(de_clk_para)); i++) {
 		if((de_clk_tbl[i].clk_no == clk_no)) {
-			reg_val = readl(de_clk_tbl[i].mod_div_adr + de_base);
+			reg_val = disp_readl(de_clk_tbl[i].mod_div_adr + de_base);
 			reg_val = SET_BITS(de_clk_tbl[i].mod_div_shift, de_clk_tbl[i].mod_div_width, reg_val, (div - 1));
-			writel(reg_val, de_clk_tbl[i].mod_div_adr + de_base);
+			disp_writel(reg_val, de_clk_tbl[i].mod_div_adr + de_base);
 
 			return 0;
 		}
@@ -55,33 +55,33 @@ static s32 __de_clk_enable(u32 clk_no, u32 enable)
 
 				if(de_clk_tbl[i].ahb_reset_shift < 32)
 				{
-					reg_val = readl(de_clk_tbl[i].ahb_reset_adr + de_base);
+					reg_val = disp_readl(de_clk_tbl[i].ahb_reset_adr + de_base);
 					reg_val = SET_BITS(de_clk_tbl[i].ahb_reset_shift, 1, reg_val, 1);
-					writel(reg_val, de_clk_tbl[i].ahb_reset_adr + de_base);
+					disp_writel(reg_val, de_clk_tbl[i].ahb_reset_adr + de_base);
 					__inf("clk %d reset enable\n", clk_no);
 				}
 
 				if(de_clk_tbl[i].ahb_gate_shift < 32)
 				{
-					reg_val = readl(de_clk_tbl[i].ahb_gate_adr + de_base);
+					reg_val = disp_readl(de_clk_tbl[i].ahb_gate_adr + de_base);
 					reg_val = SET_BITS(de_clk_tbl[i].ahb_gate_shift, 1, reg_val, 1);
-					writel(reg_val, de_clk_tbl[i].ahb_gate_adr + de_base);
+					disp_writel(reg_val, de_clk_tbl[i].ahb_gate_adr + de_base);
 					__inf("clk %d gate enable\n", clk_no);
 				}
 
 				if(de_clk_tbl[i].mod_enable_shift < 32)
 				{
-					reg_val = readl(de_clk_tbl[i].mod_adr + de_base);
+					reg_val = disp_readl(de_clk_tbl[i].mod_adr + de_base);
 					reg_val = SET_BITS(de_clk_tbl[i].mod_enable_shift, 1, reg_val, 1);
-					writel(reg_val, de_clk_tbl[i].mod_adr + de_base);
+					disp_writel(reg_val, de_clk_tbl[i].mod_adr + de_base);
 					__inf("clk %d mod enable\n", clk_no);
 				}
 
 				if(de_clk_tbl[i].dram_gate_shift < 32)
 				{
-					reg_val = readl(de_clk_tbl[i].dram_gate_adr + de_base);
+					reg_val = disp_readl(de_clk_tbl[i].dram_gate_adr + de_base);
 					reg_val = SET_BITS(de_clk_tbl[i].dram_gate_shift, 1, reg_val, 1);
-					writel(reg_val, de_clk_tbl[i].dram_gate_adr + de_base);
+					disp_writel(reg_val, de_clk_tbl[i].dram_gate_adr + de_base);
 					__inf("clk %d dram enable\n", clk_no);
 				}
 			}
@@ -89,33 +89,33 @@ static s32 __de_clk_enable(u32 clk_no, u32 enable)
 			{
 				if(de_clk_tbl[i].dram_gate_shift < 32)
 				{
-					reg_val = readl(de_clk_tbl[i].dram_gate_adr + de_base);
+					reg_val = disp_readl(de_clk_tbl[i].dram_gate_adr + de_base);
 					reg_val = SET_BITS(de_clk_tbl[i].dram_gate_shift, 1, reg_val, 0);
-					writel(reg_val, de_clk_tbl[i].dram_gate_adr + de_base);
+					disp_writel(reg_val, de_clk_tbl[i].dram_gate_adr + de_base);
 					__inf("clk %d dram disable\n", clk_no);
 				}
 
 				if(de_clk_tbl[i].mod_enable_shift < 32)
 				{
-					reg_val = readl(de_clk_tbl[i].mod_adr + de_base);
+					reg_val = disp_readl(de_clk_tbl[i].mod_adr + de_base);
 					reg_val = SET_BITS(de_clk_tbl[i].mod_enable_shift, 1, reg_val, 0);
-					writel(reg_val, de_clk_tbl[i].mod_adr + de_base);
+					disp_writel(reg_val, de_clk_tbl[i].mod_adr + de_base);
 					__inf("clk %d mod disable\n", clk_no);
 				}
 
 				if(de_clk_tbl[i].ahb_gate_shift < 32)
 				{
-					reg_val = readl(de_clk_tbl[i].ahb_gate_adr + de_base);
+					reg_val = disp_readl(de_clk_tbl[i].ahb_gate_adr + de_base);
 					reg_val = SET_BITS(de_clk_tbl[i].ahb_gate_shift, 1, reg_val, 0);
-					writel(reg_val, de_clk_tbl[i].ahb_gate_adr + de_base);
+					disp_writel(reg_val, de_clk_tbl[i].ahb_gate_adr + de_base);
 					__inf("clk %d gate disable\n", clk_no);
 				}
 
 				if(de_clk_tbl[i].ahb_reset_shift < 32)
 				{
-					reg_val = readl(de_clk_tbl[i].ahb_reset_adr + de_base);
+					reg_val = disp_readl(de_clk_tbl[i].ahb_reset_adr + de_base);
 					reg_val = SET_BITS(de_clk_tbl[i].ahb_reset_shift, 1, reg_val, 0);
-					writel(reg_val, de_clk_tbl[i].ahb_reset_adr + de_base);
+					disp_writel(reg_val, de_clk_tbl[i].ahb_reset_adr + de_base);
 					__inf("clk %d reset disable\n", clk_no);
 				}
 			}

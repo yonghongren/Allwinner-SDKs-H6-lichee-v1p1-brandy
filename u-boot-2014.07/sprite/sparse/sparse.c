@@ -269,11 +269,28 @@ int  unsparse_direct_write(void *pbuf, uint length)
 			}
                         case SPARSE_FORMAT_TYPE_CHUNK_FILL_DATA:
                         {
+				u32 fillbuf[1024];
+				u32 file_val = 0;
+				u32 ii = 0;
+
                                 if(this_rest_size >= 4)
                                 {
                                         this_rest_size -= sizeof(u32);
+					file_val = *(int *)tmp_buf;
+					if (chunk_length & 511) {
+						printf("fill data is not sector align 0\n");
+						return -1;
+					}
+					for (ii = 0; ii < sizeof(fillbuf)/sizeof(fillbuf[0]); ii++)
+						fillbuf[ii] = file_val;
+					for (ii = 0; ii < (chunk_length>>12); ii++) {
+						if (!sunxi_sprite_write(flash_start, 8, fillbuf)) {
+							printf("sparse: fill data write failed\n");
+							return -1;
+						}
+						flash_start += 8;
+					}
                                         tmp_buf += sizeof(u32);
-                                        flash_start += (chunk_length>>9);
                                         sparse_format_type = SPARSE_FORMAT_TYPE_CHUNK_HEAD;
                                 }
                                 else

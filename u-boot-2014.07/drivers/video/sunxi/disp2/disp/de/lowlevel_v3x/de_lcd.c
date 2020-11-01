@@ -223,6 +223,26 @@ uintptr_t tcon_top_get_reg_base(u32 sel)
 {
 	return (uintptr_t) lcd_top[sel];
 }
+
+/**
+ * @name       edp_de_attach
+ * @brief      attach tcon and de specified by de_index and tcon_index
+ * @param[IN]  edp_index:index of edp,start from 0
+ * @param[IN]  de_index:index of de,start from 0
+ * @return
+ */
+s32 edp_de_attach(u32 edp_index, u32 de_index)
+{
+	if (de_index >= DE_NUM)
+		return -1;
+
+	if (de_index == 0)
+		lcd_top[0]->tcon_de_perh.bits.de_port0_perh = edp_index + 8;
+	else
+		lcd_top[0]->tcon_de_perh.bits.de_port1_perh = edp_index + 8;
+
+	return 0;
+}
 #else
 s32 tcon0_out_to_gpio(u32 sel)
 {
@@ -744,6 +764,8 @@ s32 tcon0_cfg(u32 sel, disp_panel_para *panel)
 	} else if (panel->lcd_if == LCD_IF_DSI) {
 		lcd_dev[sel]->tcon_sync_ctl.bits.dsi_num =
 		    (panel->lcd_tcon_mode == DISP_TCON_DUAL_DSI) ? 1 : 0;
+		lcd_dev[sel]->tcon0_3d_fifo.bits.fifo_3d_setting =
+		    1; /*normal fifo*/
 
 		/*sync setting between master lcd and slave lcd*/
 		if (panel->lcd_tcon_mode < DISP_TCON_DUAL_DSI) {
@@ -811,13 +833,26 @@ s32 tcon0_cfg(u32 sel, disp_panel_para *panel)
 #endif
 		{
 			lcd_dev[sel]->tcon0_ctl.bits.tcon0_if = 1;
-			lcd_dev[sel]->tcon0_cpu_ctl.bits.cpu_mode = 0x1;
+#if defined(DSI_VERSION_40)
+			lcd_dev[sel]->tcon0_cpu_ctl.bits.cpu_mode = MODE_DSI;
+#else
+			lcd_dev[sel]->tcon0_cpu_ctl.bits.da = 1;
+			lcd_dev[sel]->tcon0_cpu_ctl.bits.flush = 1;
+			lcd_dev[sel]->tcon0_cpu_ctl.bits.cpu_mode = MODE0_16BIT;
+#endif
 			lcd_dev[sel]->tcon_ecfifo_ctl.bits.ecc_fifo_setting =
 			    (1 << 3);
 			panel->lcd_fresh_mode =
 			    (panel->lcd_dsi_if == LCD_DSI_IF_COMMAND_MODE) ? 1
 									   : 0;
 			tcon0_cfg_mode_tri(sel, panel);
+#if defined(DSI_VERSION_28)
+			lcd_dev[sel]->tcon0_cpu_tri4.bits.data = 0x460;
+			lcd_dev[sel]->tcon0_cpu_tri4.bits.a1 = 0;
+			lcd_dev[sel]->tcon0_cpu_tri5.bits.data = 0x4e0;
+			lcd_dev[sel]->tcon0_cpu_tri5.bits.a1 = 0;
+			lcd_dev[sel]->tcon0_cpu_tri4.bits.en = 1;
+#endif
 #if defined(HAVE_DEVICE_COMMON_MODULE) && defined(SUPPORT_DSI)
 			if (panel->lcd_tcon_mode == DISP_TCON_DUAL_DSI) {
 				tcon0_dsi_clk_enable(0, 1);
@@ -1585,46 +1620,3 @@ s32 tcon_cmap(u32 sel, u32 mode, unsigned int lcd_cmap_tbl[2][3][4])
 	}
 	return 0;
 }
-
-s32 tcon1_black_src(u32 sel, u32 on_off, u32 color)
-{
-	lcd_dev[sel]->tcon_ceu_coef_rr.bits.value = 0x100;
-	lcd_dev[sel]->tcon_ceu_coef_rg.bits.value = 0;
-	lcd_dev[sel]->tcon_ceu_coef_rb.bits.value = 0;
-	lcd_dev[sel]->tcon_ceu_coef_rc.bits.value = 0;
-
-	lcd_dev[sel]->tcon_ceu_coef_gr.bits.value = 0;
-	lcd_dev[sel]->tcon_ceu_coef_gg.bits.value = 0x100;
-	lcd_dev[sel]->tcon_ceu_coef_gb.bits.value = 0;
-	lcd_dev[sel]->tcon_ceu_coef_gc.bits.value = 0;
-
-	lcd_dev[sel]->tcon_ceu_coef_br.bits.value = 0;
-	lcd_dev[sel]->tcon_ceu_coef_bg.bits.value = 0;
-	lcd_dev[sel]->tcon_ceu_coef_bb.bits.value = 0x100;
-	lcd_dev[sel]->tcon_ceu_coef_bc.bits.value = 0;
-
-	lcd_dev[sel]->tcon_ceu_coef_rv.bits.max = (color==0) ? 0x000 :
-	                                      (color==1) ? 0x040 : 
-	                                                   0x200 ;
-	lcd_dev[sel]->tcon_ceu_coef_rv.bits.min = (color==0) ? 0x000 :
-	                                      (color==1) ? 0x040 : 
-	                                                   0x200 ;
-	lcd_dev[sel]->tcon_ceu_coef_gv.bits.max = (color==0) ? 0x000 :
-	                                      (color==1) ? 0x200 : 
-	                                                   0x040 ;
-	lcd_dev[sel]->tcon_ceu_coef_gv.bits.min = (color==0) ? 0x000 :
-	                                      (color==1) ? 0x200 : 
-	                                                   0x040 ;
-	lcd_dev[sel]->tcon_ceu_coef_bv.bits.max = (color==0) ? 0x000 :
-	                                      (color==1) ? 0x200 : 
-	                                                   0x040 ;
-	lcd_dev[sel]->tcon_ceu_coef_bv.bits.min = (color==0) ? 0x000 :
-	                                      (color==1) ? 0x200 : 
-	                                                   0x040 ;
-
-	lcd_dev[sel]->tcon_ceu_ctl.bits.ceu_en = on_off ? 1 : 0 ;
-
-	return 0;
-}
-
-

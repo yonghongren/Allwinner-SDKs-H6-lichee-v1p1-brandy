@@ -17,7 +17,7 @@ DECLARE_GLOBAL_DATA_PTR;
 /*
  * Board-specific Platform code can reimplement show_boot_progress () if needed
  */
-void __show_boot_progress (int val) {}
+void inline __show_boot_progress (int val) {}
 void show_boot_progress (int val) __attribute__((weak, alias("__show_boot_progress")));
 
 static void modem_init(void)
@@ -80,7 +80,6 @@ void main_loop(void)
 #endif /* CONFIG_UPDATE_TFTP */
 
 	s = bootdelay_process();
-
 	//if (cli_process_fdt(&s))
 	//	cli_secure_boot_cmd(s);
 

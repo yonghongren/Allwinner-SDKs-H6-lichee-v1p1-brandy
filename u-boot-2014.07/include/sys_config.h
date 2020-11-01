@@ -42,8 +42,6 @@
   */
 #define   FDT_PATH_CARD3_BOOT_PARA           "/soc/card2_boot_para"
 
-#define	  FDT_PATH_SPRITE_RECOVERY_KEY		 "/soc/recovery_para"
-
 //for disp alias
 #define   FDT_DISP_PATH  "disp"
 #define   FDT_HDMI_PATH  "hdmi"
@@ -53,6 +51,8 @@
 #define   FDT_BOOT_DISP_PATH  "boot_disp"
 #define   FDT_TV0_PATH  "tv0"
 #define   FDT_TV1_PATH  "tv1"
+#define   FDT_EDP0_PATH  "edp0"
+#define   FDT_EDP1_PATH  "edp1"
 
 
 

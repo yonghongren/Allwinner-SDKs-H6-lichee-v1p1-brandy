@@ -46,7 +46,10 @@
 #define	CONFIG_SUNXI				/* which is sunxi family */
 
 //#define CONFIG_A67_FPGA
+#define CONFIG_ARCH_SUN8IW5
 #define CONFIG_ARCH_SUN8IW5P1
+#define CONFIG_USE_UBOOT_SERIALNO
+#define SUNXI_SID_VBASE                 (0x01c23800)       
 
 //#define FORCE_BOOT_STANDBY
 #undef FORCE_BOOT_STANDBY
@@ -159,6 +162,7 @@
 *
 ***************************************************************/
 #define CONFIG_SUNXI_RSB
+#define CONFIG_PMU_USE_RSB
 #define CONFIG_USE_IRQ
 #define CONFIG_CMD_IRQ
 #define CONFIG_CMD_ELF
@@ -169,7 +173,6 @@
 #define CONFIG_SUNXI_DISPLAY
 
 #define CONFIG_SUNXI_AXP
-#define POWER_CONFIG_SUNXI_RSB	//axp communication bus
 #define CONFIG_SUNXI_AXP22
 #define CONFIG_SUNXI_AXP_MAIN        PMU_TYPE_22X
 #define PMU_SCRIPT_NAME                 "pmu1_para"
@@ -228,6 +231,24 @@
 //#define USE_EMMC_USER_WHEN_USE_BOOT_PART //use eMMC boot and user part at the same time,if you want to use it,use USE_EMMC_BOOT_PART at the same time
 
 #define CONFIG_DOS_PARTITION
+
+/* net support */
+#define CONFIG_CMD_NET
+#define CONFIG_NET_MULTI
+#define CONFIG_CMD_PING
+#define CONFIG_CMD_NFS
+/*
+ * Reducing the ARP timeout from default 5000UL to 1UL we speed up the
+ * initial TFTP transfer or PING, etc, should the user wish one, significantly.
+ */
+#define CONFIG_ARP_TIMEOUT	1UL
+
+/* USB SUSPORT */
+#define CONFIG_USB_ETHER
+#define CONFIG_USB_ETH_RNDIS
+#define CONFIG_USB_SUNXI_UDC0
+#define CONFIG_USB_GADGET_DUALSPEED
+
 /*
  * Miscellaneous configurable options
  */

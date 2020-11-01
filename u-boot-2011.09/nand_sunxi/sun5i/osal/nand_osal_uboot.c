@@ -48,19 +48,29 @@ unsigned int hDMA;
 
 int malloc_size = 0;
 
+static __u32 boot_mode;
+
+int NAND_set_boot_mode(__u32 boot)
+{
+	boot_mode = boot;
+	return 0;
+}
 int NAND_Print(const char * str, ...)
 {
-#if 0
-    static char _buf[1024];
-    va_list args;
+	if(boot_mode)
+		return 0;
+	else
+	{
+	    static char _buf[1024];
+	    va_list args;
 
-    va_start(args, str);
-    vsprintf(_buf, str, args);
+	    va_start(args, str);
+	    vsprintf(_buf, str, args);
 
-    tick_printf(_buf);
-#endif
+	    tick_printf(_buf);
 
-    return 0;
+	    return 0;
+	}
 }
 
 __s32 NAND_CleanFlushDCacheRegion(__u32 buff_addr, __u32 len)
@@ -148,12 +158,12 @@ __s32 NAND_DMAConfigStart(int rw, unsigned int buff_addr, int len)
 	if(rw) //write
 	{
 	    saddr = buff_addr;
-	    daddr = 0x01c03000;
+	    daddr = 0x01c03030;
 	}
 	else
 	{
 	    daddr = buff_addr;
-	    saddr = 0x01c03000;
+	    saddr = 0x01c03030;
 	}
 
     flush_cache(buff_addr, len);

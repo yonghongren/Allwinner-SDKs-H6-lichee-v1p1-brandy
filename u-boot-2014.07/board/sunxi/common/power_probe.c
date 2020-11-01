@@ -33,7 +33,15 @@ DECLARE_GLOBAL_DATA_PTR;
 void power_limit_init(void)
 {
 	/*we detect vbus type by pmu*/
-	gd->vbus_status = SUNXI_VBUS_PC;
+	int vbus_type = 0;
+	vbus_type = axp_probe_power_source();
+	if (vbus_type == 0) {
+		pr_msg("vbus not exist\n");
+		gd->vbus_status = SUNXI_VBUS_NOT_EXIST;
+	} else {
+		pr_msg("vbus exist\n");
+		gd->vbus_status = SUNXI_VBUS_EXIST;
+	}
 }
 
 void power_limit_for_vbus(int battery_exist,int power_type)

@@ -108,7 +108,7 @@
 /* #define SUPPORT_VGA */
 #define DE_WB_RESET_SHARE
 /* #define LVDS_REVERT */
-#elif defined(CONFIG_ARCH_SUN8IW17)
+#elif defined(CONFIG_ARCH_SUN8IW17P1)
 
 /* features for sun8iw17 */
 
@@ -121,16 +121,16 @@
 #define LAYER_MAX_UI_NUM_PER_CHN 4
 #define LAYER_MAX_NUM_PER_CHN 4
 
-/*#define SUPPORT_DSI*/
-#define SUPPORT_SMBL
+#define SUPPORT_DSI
+/*#define SUPPORT_SMBL*/
 /* #define SUPPORT_HDMI */
-/*#define DSI_VERSION_40*/
+#define DSI_VERSION_40
+#define DEVICE_DSI_NUM 2
 #define HAVE_DEVICE_COMMON_MODULE
 #define SUPPORT_TV
 #define TV_UGLY_CLK_RATE 216000000
 /* #define SUPPORT_VGA */
 #define SUPPORT_LVDS
-#define DE_WB_RESET_SHARE
 /* #define LVDS_REVERT */
 
 #elif defined(CONFIG_ARCH_SUN50IW1P1)
@@ -156,6 +156,69 @@
 #define SUPPORT_TV
 #define SUPPORT_VGA
 #define SUPPORT_LVDS
+/* #define LVDS_REVERT */
+
+#elif defined(CONFIG_ARCH_SUN8IW7P1)
+
+#define DEVICE_NUM	2
+#define DE_NUM	2
+#define CHN_NUM		4
+#define VI_CHN_NUM	1
+#define UI_CHN_NUM	(CHN_NUM - VI_CHN_NUM)
+#define LAYER_NUM_PER_CHN_PER_VI_CHN	4
+#define LAYER_NUM_PER_CHN_PER_UI_CHN	4
+#define LAYER_MAX_NUM_PER_CHN 4
+#define VEP_NUM  1
+
+#define SUPPORT_HDMI
+#define SUPPORT_TV
+#define TV_UGLY_CLK_RATE 216000000
+
+#elif defined(CONFIG_ARCH_SUN8IW6P1)
+
+#define DEVICE_NUM	2
+#define DE_NUM	2
+#define CHN_NUM		4
+#define VI_CHN_NUM	1
+#define UI_CHN_NUM	(CHN_NUM - VI_CHN_NUM)
+#define LAYER_NUM_PER_CHN_PER_VI_CHN	4
+#define LAYER_NUM_PER_CHN_PER_UI_CHN	4
+#define LAYER_MAX_NUM_PER_CHN 4
+#define VEP_NUM  1
+
+#define SUPPORT_DSI
+#define SUPPORT_SMBL
+#define CLK_NUM_PER_DSI 2
+#define SUPPORT_HDMI
+#define SUPPORT_LVDS
+#define LVDS_REVERT
+
+#define DSI_VERSION_28
+
+#elif defined(CONFIG_ARCH_SUN8IW15P1)
+
+#define DEVICE_NUM	1
+#define DE_NUM	1
+#define CHN_NUM		4
+#define VI_CHN_NUM	1
+#define UI_CHN_NUM	(CHN_NUM - VI_CHN_NUM)
+#define LAYER_NUM_PER_CHN_PER_VI_CHN	4
+#define LAYER_NUM_PER_CHN_PER_UI_CHN	4
+#define LAYER_MAX_NUM_PER_CHN 4
+
+#define SUPPORT_DSI
+#define DSI_VERSION_28
+#define CLK_NUM_PER_DSI 2
+#define DEVICE_DSI_NUM 1
+/*#define SUPPORT_SMBL*/
+#define HAVE_DEVICE_COMMON_MODULE
+#define SUPPORT_LVDS
+
+/* #define SUPPORT_EINK */
+/* #define EINK_PANEL_USED */
+/* #define SUPPORT_WB */
+/* #define EINK_DMABUF_USED */
+
 /* #define LVDS_REVERT */
 
 #else

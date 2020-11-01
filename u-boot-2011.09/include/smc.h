@@ -41,7 +41,7 @@ int smc_efuse_readl(void *key_buf, void *read_buf);
 int smc_aes_bssk_encrypt_to_dram(void *keydata, int keylen, void *buffer, int *real_len);
 int smc_aes_bssk_decrypt_to_keysram(void *srcdata, int srclen);
 int smc_create_huk(void *huk_data, int len);
-int smc_load_arisc(uint image_addr, uint image_size, uint para_addr, uint para_size, uint para_offset);
+
 #endif
 
 

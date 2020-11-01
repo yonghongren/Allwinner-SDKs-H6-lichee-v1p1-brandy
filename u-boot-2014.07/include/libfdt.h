@@ -1196,11 +1196,9 @@ static inline int fdt_setprop_u32(void *fdt, int nodeoffset, const char *name,
 
 int sunxi_fdt_getprop_store(void *fdt, const char *path, const char *name,
 				  uint32_t val);
-int sunxi_fdt_getprop_store_string(void *fdt, const char *path, const char *name,
-				  char* str);
 
-int sunxi_fdt_getprop_store_array(void *fdt,
-		const char *path, const char *name, uint32_t *vals, int count);
+int sunxi_fdt_getprop_store_string(void *fdt, const char *path,
+				   const char *name, char *str);
 
 int sunxi_fdt_reflush_all(void);
 /**

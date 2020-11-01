@@ -41,7 +41,6 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define PSCI_CPU_OFF                0x84000002
 #define PSCI_CPU_ON_AARCH32         0x84000003
-#define PSCI_SYSTEM_OFF             0x84000008
 
 #define SUNXI_CPU_ON_AARCH32        0x84000010
 #define SUNXI_CPU_OFF_AARCH32       0x84000011
@@ -107,11 +106,6 @@ int arm_svc_version(u32* major, u32* minor)
 	*major = pResult[0];
 	*minor = pResult[1];
 	return ret;
-}
-
-int arm_svc_poweroff(void)
-{
-	return sunxi_smc_call(PSCI_SYSTEM_OFF, 0, 0, 0, 0);
 }
 
 int arm_svc_call_count(void)
@@ -220,7 +214,7 @@ int smc_efuse_writel(void *key_buf)
 
 int smc_init(void)
 {
-	if(sunxi_probe_secure_monitor())
+	if ((sunxi_get_securemode() == SUNXI_SECURE_MODE_WITH_SECUREOS) || sunxi_probe_secure_monitor())
 	{
 		smc_readl_pt = arm_svc_read_sec_reg;
 		smc_writel_pt = arm_svc_write_sec_reg;
@@ -508,89 +502,6 @@ int smc_tee_probe_drm_configure(ulong *drm_base, ulong *drm_size)
 
 	*drm_base = param.a1;
 	*drm_size = param.a2;
-
-	return 0;
-}
-
-
-/*sym_key_idx set as TEESMC_HUK_ENC*/
-int smc_tee_sym_encrypt(char *out_buf, char *in_buf, int len, int *out_len, int sym_key_idx)
-{
-	struct smc_param param = { 0 };
-	struct smc_tee_ssk_addr_group *tee_addr;
-	int align_len = 0;
-
-	align_len = ALIGN(len,16);
-	param.a0 = TEESMC32_CALL_SSK_CRYP;
-	param.a1 = TEESMC_PROBE_SHM_BASE;
-	tee_smc_call(&param);
-
-	if (param.a0 != 0) {
-		printf("smc tee probe share memory base failed\n ");
-
-		return -1;
-	}
-	tee_addr = (struct smc_tee_ssk_addr_group *)param.a1;
-	tee_addr->in_tee = param.a1 + 0x100;
-	tee_addr->out_tee = tee_addr->in_tee + 4096;
-	memset((void *)tee_addr->in_tee,0x0,align_len);
-	memcpy((void *)tee_addr->in_tee, in_buf, len);
-	flush_cache(tee_addr->in_tee, align_len);
-	flush_cache(tee_addr->out_tee, align_len);
-	flush_cache((uint32_t)tee_addr, sizeof(struct smc_tee_ssk_addr_group));
-	memset(&param, 0, sizeof(param));
-	param.a0 = TEESMC32_CALL_SSK_CRYP;
-	param.a1 = sym_key_idx;
-	param.a2 = (uint32_t)tee_addr;
-	param.a3 = align_len;
-	tee_smc_call(&param);
-
-	if (param.a0 != 0) {
-		printf("smc tee encrypt with ssk failed\n ");
-
-		return -1;
-	}
-	memcpy(out_buf, (void *)tee_addr->out_tee, align_len);
-	*out_len = align_len;
-	return 0;
-}
-
-/*sym_key_idx set as TEESMC_HUK_ENC*/
-int smc_tee_sym_decrypt(char *out_buf, char *in_buf, int len, int sym_key_idx)
-{
-	struct smc_param param = { 0 };
-	struct smc_tee_ssk_addr_group *tee_addr;
-
-	param.a0 = TEESMC32_CALL_SSK_CRYP;
-	param.a1 = TEESMC_PROBE_SHM_BASE;
-	tee_smc_call(&param);
-
-	if (param.a0 != 0) {
-		printf("smc tee probe share memory base failed\n ");
-
-		return -1;
-	}
-
-	tee_addr = (struct smc_tee_ssk_addr_group *)param.a1;
-	tee_addr->in_tee = param.a1 + 0x100;
-	tee_addr->out_tee = tee_addr->in_tee + 4096;
-	memcpy((void *)tee_addr->in_tee, in_buf, len);
-	memset(&param, 0, sizeof(param));
-	flush_cache(tee_addr->in_tee, len);
-	flush_cache(tee_addr->out_tee, len);
-	flush_cache((uint32_t)tee_addr, sizeof(struct smc_tee_ssk_addr_group));
-	param.a0 = TEESMC32_CALL_SSK_CRYP;
-	param.a1 = sym_key_idx;
-	param.a2 = (uint32_t)tee_addr;
-	param.a3 = len;
-	tee_smc_call(&param);
-
-	if (param.a0 != 0) {
-		printf("smc tee decrypt with ssk failed\n ");
-
-		return -1;
-	}
-	memcpy(out_buf, (void *)tee_addr->out_tee, len);
 
 	return 0;
 }

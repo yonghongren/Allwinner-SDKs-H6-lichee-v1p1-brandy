@@ -282,6 +282,6 @@ int sunxi_sprite_erase_private_key(void *buffer)
 		}
 
 	}
-	printf("erase private key successed \n");
+	printf("erase key successed \n");
 	return 0;
 }

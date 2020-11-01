@@ -61,7 +61,7 @@ static inline void draw_char_base_checked(char *addr,
 			}
 		}
 	} else {
-		printf("%s no support bpp%d\n", __func__, bpp);
+		pr_msg("%s no support bpp%d\n", __func__, bpp);
 	}
 }
 
@@ -76,7 +76,7 @@ static int draw_chars(struct canvas *cv, argb_t *color, point_t *coords,
 	if (check_coords(cv, coords)
 		|| (coords->x + VIDEO_FONT_WIDTH > cv->width)
 		|| (coords->y + VIDEO_FONT_HEIGHT > cv->height)) {
-		printf("out of range. x=%d,y=%d, font:w=%d,h=%d, cv:w=%d,h=%d\n",
+		pr_msg("out of range. x=%d,y=%d, font:w=%d,h=%d, cv:w=%d,h=%d\n",
 			coords->x, coords->y, VIDEO_FONT_WIDTH,
 			VIDEO_FONT_HEIGHT, cv->width, cv->height);
 		return -1;
@@ -128,7 +128,7 @@ static void draw_line_base_checked(char *addr,
 			*addr++ = color->red;
 		}
 	} else {
-		printf("%s: no support the bpp[%d]\n", __func__, bpp);
+		pr_msg("%s: no support the bpp[%d]\n", __func__, bpp);
 	}
 }
 
@@ -228,7 +228,7 @@ static void fill_rect_checked(struct canvas *cv, argb_t *color, rect_t *rect)
 			}
 		}
 	} else {
-		printf("%s: no support bpp[%d]\n", __func__, cv->bpp);
+		pr_msg("%s: no support bpp[%d]\n", __func__, cv->bpp);
 	}
 }
 
@@ -237,7 +237,7 @@ static int draw_point(struct canvas *cv, argb_t *color, point_t *coords)
 	char *p = NULL;
 
 	if (check_coords(cv, coords)) {
-		printf("%s input params out of range\n", __func__);
+		pr_msg("%s input params out of range\n", __func__);
 		return -1;
 	}
 
@@ -251,7 +251,7 @@ static int draw_point(struct canvas *cv, argb_t *color, point_t *coords)
 static int draw_line(struct canvas *cv, argb_t *color, point_t *from, point_t *to)
 {
 	if (check_coords(cv, from) || check_coords(cv, to)) {
-		printf("%s input params out of range\n", __func__);
+		pr_msg("%s input params out of range\n", __func__);
 		return -1;
 	}
 	draw_line_checked(cv, color, from, to);
@@ -262,7 +262,7 @@ static int draw_line(struct canvas *cv, argb_t *color, point_t *from, point_t *t
 static int draw_rect(struct canvas *cv, argb_t *color, rect_t *rect)
 {
 	if (check_rect(cv, rect)) {
-		printf("%s input params out of range\n", __func__);
+		pr_msg("%s input params out of range\n", __func__);
 		return -1;
 	}
 	draw_rect_checked(cv, color, rect);
@@ -272,7 +272,7 @@ static int draw_rect(struct canvas *cv, argb_t *color, rect_t *rect)
 static int fill_rect(struct canvas *cv, argb_t *color, rect_t *rect)
 {
 	if (check_rect(cv, rect)) {
-		printf("%s input params out of range\n", __func__);
+		pr_msg("%s input params out of range\n", __func__);
 		return -1;
 	}
 	fill_rect_checked(cv, color, rect);
@@ -293,7 +293,7 @@ static int copy_block(struct canvas *cv, point_t *src, point_t *dst,
 		|| (src->y + height > cv->height)
 		|| (dst->x + width > cv->width)
 		|| (dst->y + height > cv->height)) {
-		printf("%s input params out of range\n", __func__);
+		pr_msg("%s input params out of range\n", __func__);
 		return -1;
 	}
 

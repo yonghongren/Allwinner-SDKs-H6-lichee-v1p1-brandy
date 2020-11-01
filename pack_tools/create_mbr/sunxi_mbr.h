@@ -48,8 +48,7 @@ typedef struct sunxi_partition_t
 	unsigned  int       sig_value[4];
 	unsigned  int       sig_pubkey;
 	unsigned  int       sig_pbumode;
-	unsigned  int       backup_flag;
-        unsigned  char      reserved2[32];		//保留数据，匹配分区信息128字节
+	unsigned  char      reserved2[36];		//保留数据，匹配分区信息128字节
 } //__attribute__ ((packed))sunxi_partition;
 sunxi_partition;
 /* mbr information */

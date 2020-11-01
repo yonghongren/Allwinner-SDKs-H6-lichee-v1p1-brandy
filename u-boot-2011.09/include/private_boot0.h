@@ -29,7 +29,6 @@
 #include "spare_head.h"
 
 #define BOOT0_MAGIC                     "eGON.BT0"
-#define EXTEND_CONFIG_MAGIC				"Extend"
 
 #define SYS_PARA_LOG                    0x4d415244
 /******************************************************************************/
@@ -72,26 +71,6 @@ typedef struct _boot0_file_head_t
 	boot0_private_head_t  prvt_head;
 }boot0_file_head_t;
 
-/******************************************************************************/
-/*                              extend head of Boot0                          */
-/******************************************************************************/
-typedef struct _boot0_extend_config
-{
-	__u8   						magic[MAGIC_SIZE];			//="Extend"
-	__s32						if_reduce_power_waste;		//1: reduce power waste, 0: do nothing
-	char 						reserved[500];
-}boot0_extend_config;
-
-
-/******************************************************************************/
-/*                              extend head of fes 		                      */
-/******************************************************************************/
-typedef struct _fes_extend_config
-{
-	__u8   						magic[MAGIC_SIZE];			//="Extend"
-	__s32						if_reduce_power_waste;		//1: reduce power waste, 0: do nothing
-	char 						reserved[500];
-}fes_extend_config;
 
 #endif     //  ifndef __boot0_h
 

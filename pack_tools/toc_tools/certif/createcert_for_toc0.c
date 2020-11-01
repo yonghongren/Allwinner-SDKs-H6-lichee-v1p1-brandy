@@ -23,6 +23,9 @@
 #include "ctype.h"
 #include "toc0_const_def.h"
 #include "rsa.h"
+
+aw_nvc_ext_t nvc_ext;
+extern int root_rollback_used;
 /*
 ************************************************************************************************************
 *
@@ -89,6 +92,7 @@ int __sunxi_bytes_merge(u8 *dst, u32 dst_len, u8 *src, uint src_len)
 			return -1;
 		}
 		i++;
+
 	}
 
 	for (j = i; i < src_len; i += 2, j++) {
@@ -277,6 +281,40 @@ int u8_to_str(u8 *p_buff_u8, u32 u8_len, u8 *p_str, u32 str_buff_len)
 *
 ************************************************************************************************************
 */
+u32 __new_merge_certif_extension(u8 *p_src, char *hash_data)
+{
+    u8  ext_tocken_tmp[2] = {0xa3, 0x30};
+    u8  ext_seq_tmp[2] = {0x30, 0x2E};
+    u8  sbrom_hash_type[2] = {0x02, 0x20};
+    u8  sbrom_nvc_seq[2] = {0x30, 0xa};
+    u8 *p_start = NULL;
+    u32 tmp_len = 0;
+
+	p_start = p_src;
+	/*创建扩展项tocken*/
+	memcpy(p_src, ext_tocken_tmp, sizeof(ext_tocken_tmp));
+	p_src += sizeof(ext_tocken_tmp);
+	/*创建扩展项sequence*/
+	memcpy(p_src, ext_seq_tmp, sizeof(ext_seq_tmp));
+	p_src += sizeof(ext_seq_tmp);
+	/*创建hash类型*/
+	memcpy(p_src, sbrom_hash_type, sizeof(sbrom_hash_type));
+	p_src += sizeof(sbrom_hash_type);
+	/*填充hash数据*/
+	memcpy(p_src, hash_data, 32);
+	p_src += 32;
+	/*创建NVC sequence类型*/
+	memcpy(p_src, sbrom_nvc_seq, sizeof(sbrom_nvc_seq));
+	p_src += sizeof(sbrom_nvc_seq);
+
+	/*填充NVC数据*/
+	memcpy(p_src, (u8 *)(&nvc_ext), sizeof(aw_nvc_ext_t));
+	p_src += sizeof(aw_nvc_ext_t);
+
+	tmp_len = (p_src - p_start);
+	return tmp_len;
+}
+
 int	__merge_certif_for_toc0(char *hash_value, u8 *key_n, u8 *key_e, u8 *key_d, char *cert_name)
 {
 	u8 *p_toc0_cert, *toc0_cert;
@@ -291,6 +329,7 @@ int	__merge_certif_for_toc0(char *hash_value, u8 *key_n, u8 *key_e, u8 *key_d, c
 
 	uint key_n_len, key_e_len, key_part_len;
 	uint cert_main_part_len, cert_all_part_len;
+	u32 len = 0;
 
 	p_key_n_tmp = key_n;
 	while (*p_key_n_tmp == '0') {
@@ -347,19 +386,24 @@ int	__merge_certif_for_toc0(char *hash_value, u8 *key_n, u8 *key_e, u8 *key_d, c
 	/*创建证书公钥(本质上是填充)*/
 	key_part_len = __create_publickey_asn1_type(p_toc0_cert, key_n_digital, (key_n_len + 1)/2, key_e_digital, (key_e_len + 1)/2);
 	p_toc0_cert += key_part_len;
-	/*创建扩展项tocken*/
-	memcpy(p_toc0_cert, TOC0_CONST_EXTENSION_TOCKEN, sizeof(TOC0_CONST_EXTENSION_TOCKEN));
-	p_toc0_cert += sizeof(TOC0_CONST_EXTENSION_TOCKEN);
-	/*创建扩展项sequence*/
-	memcpy(p_toc0_cert, TOC0_CONST_EXTENSION_SEQUENCE, sizeof(TOC0_CONST_EXTENSION_SEQUENCE));
-	p_toc0_cert += sizeof(TOC0_CONST_EXTENSION_SEQUENCE);
-	/*创建hash类型*/
-	memcpy(p_toc0_cert, TOC0_CONST_SBROMSW_HASH_TYPE, sizeof(TOC0_CONST_SBROMSW_HASH_TYPE));
-	p_toc0_cert += sizeof(TOC0_CONST_SBROMSW_HASH_TYPE);
-	/*填充hash数据*/
 
-	memcpy(p_toc0_cert, hash_value, 32);
-	p_toc0_cert += 32;
+	if (root_rollback_used == 1) {
+		len = __new_merge_certif_extension(p_toc0_cert, hash_value);
+		p_toc0_cert += len;
+	} else {
+		/*创建扩展项tocken*/
+		memcpy(p_toc0_cert, TOC0_CONST_EXTENSION_TOCKEN, sizeof(TOC0_CONST_EXTENSION_TOCKEN));
+		p_toc0_cert += sizeof(TOC0_CONST_EXTENSION_TOCKEN);
+		/*创建扩展项sequence*/
+		memcpy(p_toc0_cert, TOC0_CONST_EXTENSION_SEQUENCE, sizeof(TOC0_CONST_EXTENSION_SEQUENCE));
+		p_toc0_cert += sizeof(TOC0_CONST_EXTENSION_SEQUENCE);
+		/*创建hash类型*/
+		memcpy(p_toc0_cert, TOC0_CONST_SBROMSW_HASH_TYPE, sizeof(TOC0_CONST_SBROMSW_HASH_TYPE));
+		p_toc0_cert += sizeof(TOC0_CONST_SBROMSW_HASH_TYPE);
+		/*填充hash数据*/
+		memcpy(p_toc0_cert, hash_value, 32);
+		p_toc0_cert += 32;
+	}
 	cert_main_part_len = p_toc0_cert - toc0_cert - sizeof(TOC0_CONST_TOTAL_SEQUENCE) - sizeof(TOC0_CONST_MAIN_SEQUENCE);
 	/*创建签名sequence*/
 	memcpy(p_toc0_cert, TOC0_CONST_SIGNATURE_SEQUENCE, sizeof(TOC0_CONST_SIGNATURE_SEQUENCE));

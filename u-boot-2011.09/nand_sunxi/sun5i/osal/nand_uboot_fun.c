@@ -42,6 +42,7 @@ int  mbr_burned_flag;
 PARTITION_MBR nand_mbr = {0};
 
 extern int NAND_Print(const char * str, ...);
+extern int NAND_set_boot_mode(__u32 boot);
 
 
 
@@ -196,11 +197,28 @@ int NAND_LogicInit(int boot_mode)
 		printf("NB1 : nand_info_init fail\n");
 		return -5;
 	}
-
-	if(boot_mode)
+	if(boot_mode == 1)
 	{
 		nftl_num = get_phy_partition_num(nand_info);
 		printf("NB1 : nftl num: %d \n", nftl_num);
+		if((nftl_num<1)||(nftl_num>5))
+		{
+			printf("NB1 : nftl num: %d error \n", nftl_num);
+			return -1;
+		}
+
+        nand_partition_num = 0;
+		for(i=0; i<1; i++)
+		{
+		    nand_partition_num++;
+			printf(" init nftl: %d \n", i);
+			result = nftl_build_one(nand_info, i);
+		}
+	}
+	else if(boot_mode == 2)
+	{
+		nftl_num = get_phy_partition_num(nand_info);
+		printf("boot_mode 2: nftl num: %d \n", nftl_num);
 		if((nftl_num<1)||(nftl_num>5))
 		{
 			printf("NB1 : nftl num: %d error \n", nftl_num);
@@ -686,6 +704,121 @@ int  NAND_EraseChip(void)
 }
 
 
+int  NAND_EraseChip_force(void)
+{
+	struct boot_physical_param  para_read;
+	int  i,j,k;
+	int  ret;
+	int  mark_err_flag;
+	uint  chip_cnt, chip_connect, page_size, page_per_block, blk_cnt_per_chip;
+	uint block_cnt_of_die, die_skip_flag, start_blk;
+	int  page_index[4];
+	uint  chip;
+	unsigned char   oob_buf_read[OOB_BUF_SIZE];
+	unsigned char*  page_buf_read;
+	int  error_flag = 0;
+
+    page_buf_read = (unsigned char*)malloc(64 * 1024);
+    if(!page_buf_read)
+    {
+        printf("malloc memory for page read fail\n");
+        return -1;
+    }
+	printf("Ready to erase chip.\n");
+
+	page_size = NAND_GetPageSize();
+	page_per_block = NAND_GetPageCntPerBlk();
+	blk_cnt_per_chip = NAND_GetBlkCntPerChip();
+	printf("page_size=%d, page_per_block=%d, blk_cnt_per_chip=%d\n", page_size, page_per_block, blk_cnt_per_chip);
+	chip_cnt = NAND_GetChipCnt();
+	chip_connect = NAND_GetChipConnect();
+    printf("chip_cnt = %x, chip_connect = %x\n",chip_cnt,chip_connect);
+    block_cnt_of_die = NAND_GetBlkCntOfDie();
+    die_skip_flag = NAND_GetDieSkipFlag();
+
+    page_index[0] = 0;
+	page_index[1] = page_per_block - 1;;
+	page_index[2] = 0xEE;
+	page_index[3] = 0xEE;
+
+
+	for( i = 0;  i < chip_cnt;  i++ )
+	{
+	    //select chip
+		chip = cal_real_chip( i, chip_connect );
+        printf("erase chip %u \n", chip);
+		if(i==0)
+			start_blk = 7;
+		else
+			start_blk = 0;
+
+        //scan for bad blocks, only erase good block, all 0x00 blocks is defined bad blocks
+		for( j = start_blk;  j < blk_cnt_per_chip;  j++ )
+		{
+
+
+			if(!die_skip_flag)
+			    para_read.block = j;
+			else
+			    para_read.block = j%block_cnt_of_die + 2*block_cnt_of_die*(j/block_cnt_of_die);
+
+			if((j&0xff) == 0)
+				printf("erase chip %u, block %u\n",chip, para_read.block);
+
+			para_read.chip = chip;
+			para_read.mainbuf = page_buf_read;
+			para_read.oobbuf = oob_buf_read;
+
+
+			for(k = 0; k<4; k++)
+			{
+				//cnt_oob =0;
+				//cnt0 =0;
+				//cnt1 =0;
+				para_read.page = page_index[k];
+				if( para_read.page== 0xEE)
+				    break;
+
+				ret = PHY_SimpleRead_2CH(& para_read );
+
+				//check the current block is a all 0x00 block
+				if(oob_buf_read[0] == 0x0)
+				{
+					printf("find a bad block %u\n", para_read.block);
+					break;
+				}
+
+			}
+
+			ret = PHY_SimpleErase_2CH( &para_read );
+			if( ret != 0 )
+	    		{
+	    		    printf("erasing block %u failed.\n", para_read.block );
+			    	#if 1
+			    	mark_err_flag = mark_bad_block( i, para_read.block );
+	    		    if( mark_err_flag!= 0 )
+	    		        {
+        					error_flag++;
+        					printf("error in marking bad block flag in chip %u, block %u, mark error flag %u.\n", i, para_read.block, mark_err_flag);
+        				}
+        			#endif
+	    		}
+
+    		}
+	}
+
+	printf("has cleared the chip.\n");
+	if(error_flag)
+		printf("the nand is Bad.\n");
+	else
+		printf("the nand is OK.\n");
+
+    free(page_buf_read);
+
+	return 0;
+
+}
+
 
 int NAND_BadBlockScan(void)
 {
@@ -704,7 +837,7 @@ int NAND_BadBlockScan(void)
 	for(i=0; i<8; i++)
 	    bad_block_cnt[i] = 0;
 
-	debug("Ready to scan bad blocks.\n");
+	printf("Ready to scan bad blocks.\n");
 
 	//cal nand parameters
 	//page_buf = (unsigned char*)(BAD_BLK_SCAN_BUF_ADR);
@@ -898,8 +1031,10 @@ int NAND_UbootInit(int boot_mode)
 	//int enable_bad_block_scan_flag = 0;
 	//uint good_block_ratio=0;
 
-	debug("NAND_UbootInit start\n");
+	printf("NAND_UbootInit start\n");
+	printf("boot2.0 + nand2.0\n");
 
+	NAND_set_boot_mode(boot_mode);
     /* logic init */
 	ret |= NAND_LogicInit(boot_mode);
 	if(!boot_mode)
@@ -911,7 +1046,7 @@ int NAND_UbootInit(int boot_mode)
 		}
 	}
 
-	debug("NAND_UbootInit end: 0x%x\n", ret);
+	printf("NAND_UbootInit end: 0x%x\n", ret);
 
 	return ret;
 
@@ -991,6 +1126,21 @@ int NAND_Uboot_Erase(int erase_flag)
 	return nand_erased;
 }
 
+int NAND_Uboot_Force_Erase(void)
+{
+	printf("force erase\n");
+	if(NAND_PhyInit())
+	{
+		printf("phy init fail\n");
+		return -1;
+	}
+
+	NAND_EraseChip_force();
+
+	NAND_PhyExit();
+
+	return 0;
+}
 __s32  burn_boot0_1k_mode( __u32 read_retry_type, __u32 Boot0_buf )
 {
     __u32 i, j, k;
@@ -1034,7 +1184,7 @@ __s32  burn_boot0_1k_mode( __u32 read_retry_type, __u32 Boot0_buf )
 		if( PHY_SimpleErase( &para ) <0 )
 		{
 		    debug("Fail in erasing block %d.\n", i );
-    		continue;
+    		//continue;
     	}
 
         /* 在块中烧写boot0备份 */
@@ -1061,12 +1211,83 @@ error:
     return -1;
 }
 
+__s32  burn_boot0_1k_mode_F16( __u32 read_retry_type, __u32 Boot0_buf )
+{
+    __u32 i, j, k;
+//    __u32 length;
+	__u32 pages_per_block;
+	__u32 copies_per_block;
+    __u8  oob_buf[32];
+    struct boot_physical_param  para;
+
+    debug("burn boot0 1k F16 mode!\n");
+
+    for(i=0;i<32;i++)
+        oob_buf[i] = 0xff;
+
+    NAND_GetVersion(oob_buf);
+	if((oob_buf[0]!=0xff)||(oob_buf[1]!= 0x00))
+	{
+		debug("get flash driver version error!");
+		goto error;
+	}
+
+	/* 检查 page count */
+	pages_per_block = NAND_GetPageCntPerBlk();
+	if(pages_per_block%64)
+	{
+		debug("get page cnt per block error %x!", pages_per_block);
+		goto error;
+	}
+
+	/* cal copy cnt per bock */
+	copies_per_block = pages_per_block / NAND_BOOT0_PAGE_CNT_PER_COPY;
+
+	/* burn boot0 copys */
+    for( i = NAND_BOOT0_BLK_START;  i < (NAND_BOOT0_BLK_START + NAND_BOOT0_BLK_CNT);  i++ )
+    {
+        debug("boot0 %x \n", i);
+
+		/* 擦除块 */
+		para.chip  = 0;
+		para.block = i;
+		if( PHY_SimpleErase( &para ) <0 )
+		{
+		    debug("Fail in erasing block %d.\n", i );
+    		//continue;
+    	}
+
+        /* 在块中烧写boot0备份 */
+        for( j = 0;  j < copies_per_block;  j++ )
+       	{
+
+			for( k = 0;  k < NAND_BOOT0_PAGE_CNT_PER_COPY;  k++ )
+			{
+				para.chip  = 0;
+				para.block = i;
+				para.page = j * NAND_BOOT0_PAGE_CNT_PER_COPY + k;
+				para.mainbuf = (void *) (Boot0_buf + k * 1024);
+				para.oobbuf = oob_buf;
+				if( PHY_SimpleWrite_1K_F16( &para ) <0)
+				{
+					debug("Warning. Fail in writing page %d in block %d.\n", j * NAND_BOOT0_PAGE_CNT_PER_COPY + k, i );
+       			}
+       		}
+       	}
+    }
+	return 0;
+
+error:
+    return -1;
+}
+
 __s32  burn_boot0_lsb_mode(__u32 read_retry_type, __u32 Boot0_buf )
 {
     __u32 i,k;
     __u8  oob_buf[32];
     __u32 page_size;
     struct boot_physical_param  para;
+	void * buf;
 
     debug("burn boot0 lsb mode!\n");
 
@@ -1117,7 +1338,7 @@ __s32  burn_boot0_lsb_mode(__u32 read_retry_type, __u32 Boot0_buf )
 		if( PHY_SimpleErase( &para ) <0 )
 		{
 		    debug("Fail in erasing block %d.\n", i );
-    		continue;
+    		//continue;
     	}
 
         /* 在块中烧写boot0备份, lsb mode下，每个块只能写前4个page */
@@ -1136,6 +1357,11 @@ __s32  burn_boot0_lsb_mode(__u32 read_retry_type, __u32 Boot0_buf )
 
     }
 
+	buf = malloc(page_size);
+	if(!buf){
+		debug("malloc fail\n");
+		goto exit;
+	}
     //check boot0
     for( i = NAND_BOOT0_BLK_START;  i < (NAND_BOOT0_BLK_START + NAND_BOOT0_BLK_CNT);  i++ )
     {
@@ -1150,7 +1376,7 @@ __s32  burn_boot0_lsb_mode(__u32 read_retry_type, __u32 Boot0_buf )
 			para.chip  = 0;
 			para.block = i;
 			para.page  = k;
-			para.mainbuf = (void *) (Boot0_buf + k * page_size);
+			para.mainbuf = (void *) (buf);
 			para.oobbuf = oob_buf;
 			if( PHY_SimpleRead_Seq( &para ) <0 )
 			{
@@ -1159,6 +1385,8 @@ __s32  burn_boot0_lsb_mode(__u32 read_retry_type, __u32 Boot0_buf )
    		}
 
     }
+	free(buf);
+exit:
 
     /* lsb disable */
     NFC_LSBDisable(0, read_retry_type);
@@ -1181,12 +1409,20 @@ int NAND_BurnBoot0(uint length, void *buffer)
 	read_retry_mode = (read_retry_type>>16)&0xff;
 	if( (read_retry_type>0)&&(read_retry_mode < 0x10))
 	{
-	    if( burn_boot0_lsb_mode(read_retry_type, (__u32)buffer) )
-	        goto error;
+		if(read_retry_mode==0x4)
+		{
+			if( burn_boot0_1k_mode_F16(read_retry_type, (__u32)buffer ))
+				goto error;
+		}
+	    else
+		{
+			if( burn_boot0_lsb_mode(read_retry_type, (__u32)buffer) )
+	        	goto error;
+		}
 	}
 	else
 	{
-	    if( burn_boot0_1k_mode(read_retry_type, (__u32)buffer) )
+	    if( burn_boot0_1k_mode_F16(read_retry_type, (__u32)buffer) )
 	        goto error;
 	}
 
@@ -1203,6 +1439,7 @@ __s32 burn_uboot_in_one_blk(__u32 UBOOT_buf, __u32 length)
     __u32 i, k;
     __u8  oob_buf[32];
     __u32 page_size, pages_per_block, pages_per_copy;
+	void * buf;
     struct boot_physical_param  para;
 
      debug("burn uboot normal mode!\n");
@@ -1267,7 +1504,7 @@ __s32 burn_uboot_in_one_blk(__u32 UBOOT_buf, __u32 length)
 		if( PHY_SimpleErase( &para ) <0 )
 		{
 		    debug("Fail in erasing block %d.\n", i );
-    		continue;
+    		//continue;
     	}
 
         /* 在块中烧写boot0备份, lsb mode下，每个块只能写前4个page */
@@ -1284,10 +1521,29 @@ __s32 burn_uboot_in_one_blk(__u32 UBOOT_buf, __u32 length)
 				debug("Warning. Fail in writing page %d in block %d.\n", k, i );
    			}
    		}
+		debug("fill uboot(normal mode) block with dummy data\n");
+		for( k = pages_per_copy;  k < pages_per_block;  k++ )
+		{
+			para.chip  = 0;
+			para.block = i;
+			para.page  = k;
+			para.mainbuf = (void *) (UBOOT_buf + k * page_size);
+			para.oobbuf = oob_buf;
+			//nand_debug("burn uboot: block: 0x%x, page: 0x%x, mainbuf: 0x%x, maindata: 0x%x \n", para.block, para.page, (__u32)para.mainbuf, *((__u32 *)para.mainbuf));
+			if( PHY_SimpleWrite( &para ) <0 )
+			{
+				debug("Warning. Fail in writing page %d in block %d.\n", k, i );
+   			}
+   		}	
 
     }
 
 	memset(oob_buf, 0, 32);
+	buf = malloc(page_size);
+	if(!buf){
+		printf("malloc fail\n");
+		goto exit;
+	}
     //check uboot
     for( i = NAND_UBOOT_BLK_START;  i < (NAND_UBOOT_BLK_START + NAND_UBOOT_BLK_CNT);  i++ )
     {
@@ -1300,7 +1556,7 @@ __s32 burn_uboot_in_one_blk(__u32 UBOOT_buf, __u32 length)
 			para.chip  = 0;
 			para.block = i;
 			para.page  = k;
-			para.mainbuf = (void *) (UBOOT_buf + k * page_size);
+			para.mainbuf = (void *) (buf);
 			para.oobbuf = oob_buf;
 			//debug("burn uboot: block: 0x%x, page: 0x%x, mainbuf: 0x%x, maindata: 0x%x \n", para.block, para.page, (__u32)para.mainbuf, *((__u32 *)para.mainbuf));
 
@@ -1310,6 +1566,8 @@ __s32 burn_uboot_in_one_blk(__u32 UBOOT_buf, __u32 length)
    			}
    		}
     }
+	free(buf);
+exit:	
 
 	return 0;
 

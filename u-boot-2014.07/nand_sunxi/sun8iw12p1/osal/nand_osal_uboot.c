@@ -36,8 +36,8 @@ DECLARE_GLOBAL_DATA_PTR;
 #define SPI_RX_IO_DATA                  (SPIC0_BASE + 0x300)
 
 #define  NAND_DRV_VERSION_0             0x03
-#define  NAND_DRV_VERSION_1             0x6011
-#define  NAND_DRV_DATE                  0x20171103
+#define  NAND_DRV_VERSION_1             0x6010
+#define  NAND_DRV_DATE                  0x20170605
 #define  NAND_DRV_TIME                  0x1026
 
 #define NAND_CLK_BASE_ADDR              (0x03001000)
@@ -52,7 +52,7 @@ __u32 get_wvalue(__u32 addr)
 	return readl(addr);
 }
 
-void put_wvalue(__u32 addr,__u32 v)
+void put_wvalue(__u32 addr, __u32 v)
 {
 	writel(v, addr);
 }
@@ -69,9 +69,9 @@ __u32 get_storage_type(void)
 {
 	__u32 ret = 0;
 
-	if(get_storage_type_from_init() == 1)
+	if (get_storage_type_from_init() == 1)
 		ret = 1;
-	else if(get_storage_type_from_init() == 2)
+	else if (get_storage_type_from_init() == 2)
 		ret = 2;
 
 	return ret;
@@ -84,25 +84,21 @@ int NAND_set_boot_mode(__u32 boot)
 }
 
 
-int NAND_Print(const char * str, ...)
+int NAND_Print(const char *str, ...)
 {
-//	if(boot_mode)
-//		return 0;
-//	else
-	{
-		static char _buf[1024];
-		va_list args;
 
-		va_start(args, str);
-		vsprintf(_buf, str, args);
+	static char _buf[1024];
+	va_list args;
 
-		tick_printf(_buf);
-		return 0;
-	}
+	va_start(args, str);
+	vsprintf(_buf, str, args);
 
+	tick_printf(_buf);
+
+	return 0;
 }
 
-int NAND_Print_DBG(const char * str, ...)
+int NAND_Print_DBG(const char *str, ...)
 {
 	if(boot_mode)
 		return 0;
@@ -488,13 +484,14 @@ __s32 _get_spic_clk_v1(__u32 spinand_index, __u32 *pdclk)
 	__u32 reg_val, sclk0;
 
 	if (spinand_index == 0) {
-		sclk0_reg_adr = (NAND_CLK_BASE_ADDR + 0x0940); //CCM_SPI0_CLK_REG;
+		/* CCM_SPI0_CLK_REG */
+		sclk0_reg_adr = (NAND_CLK_BASE_ADDR + 0x0940);
 	} else {
 		printf("_get_spic_clk_v1 error, wrong spinand index: %d\n", spinand_index);
 		return -1;
 	}
 
-	// sclk0
+	/* sclk0 */
 	reg_val = get_wvalue(sclk0_reg_adr);
 	sclk_src_sel     = (reg_val>>24) & 0x7;
 	sclk_pre_ratio_n = (reg_val>>8) & 0x3;
@@ -502,16 +499,12 @@ __s32 _get_spic_clk_v1(__u32 spinand_index, __u32 *pdclk)
 
 	if (sclk_src_sel == 0)
 		sclk_src = 24;
-	else if(sclk_src_sel < 0x3)
+	else if (sclk_src_sel < 0x3)
 		sclk_src = _Getpll6Clk()/1000000;
 	else
 		sclk_src = 2*_Getpll6Clk()/1000000;
 
 	sclk0 = (sclk_src >> sclk_pre_ratio_n) / (sclk_ratio_m+1);
-
-	if (spinand_index == 0) {
-		//printf("sclk0_reg_adr: 0x%x\n", *(volatile __u32 *)(sclk0_reg_adr));
-	} 
 
 	*pdclk = sclk0/2;
 
@@ -525,15 +518,15 @@ __s32 _change_spic_clk_v1(__u32 spinand_index, __u32 dclk_src_sel, __u32 dclk)
 	u32 sclk0_reg_adr;
 
 	if (spinand_index == 0) {
-		sclk0_reg_adr = (NAND_CLK_BASE_ADDR + 0x0940); //CCM_SPI0_CLK_REG;
-	}  else {
+		/* CCM_SPI0_CLK_REG */
+		sclk0_reg_adr = (NAND_CLK_BASE_ADDR + 0x0940);
+	} else {
 		printf("_change_spic_clk_v1 error, wrong spinand index: %d\n", spinand_index);
 		return -1;
 	}
 
-	/*close dclk */
-	if (dclk == 0)
-	{
+	/* close dclk */
+	if (dclk == 0) {
 		reg_val = get_wvalue(sclk0_reg_adr);
 		reg_val &= (~(0x1U<<31));
 		put_wvalue(sclk0_reg_adr, reg_val);
@@ -543,20 +536,20 @@ __s32 _change_spic_clk_v1(__u32 spinand_index, __u32 dclk_src_sel, __u32 dclk)
 	}
 
 	sclk0_src_sel = dclk_src_sel;
-	sclk0 = dclk*2; //set sclk0 to 2*dclk.
+	sclk0 = dclk*2;
 
-	if(sclk0_src_sel == 0x0) {
-		//osc pll
-        sclk0_src = 24;
-	} else if(sclk0_src_sel < 0x3)
+	if (sclk0_src_sel == 0x0) {
+		/* osc pll */
+		sclk0_src = 24;
+	} else if (sclk0_src_sel < 0x3)
 		sclk0_src = _Getpll6Clk()/1000000;
 	else
 		sclk0_src = 2*_Getpll6Clk()/1000000;
 
-	//////////////////// sclk0: 2*dclk
-	//sclk0_pre_ratio_n
+	/* sclk0: 2*dclk */
+	/* sclk0_pre_ratio_n */
 	sclk0_pre_ratio_n = 3;
-	if(sclk0_src > 4*16*sclk0)
+	if (sclk0_src > 4*16*sclk0)
 		sclk0_pre_ratio_n = 3;
 	else if (sclk0_src > 2*16*sclk0)
 		sclk0_pre_ratio_n = 2;
@@ -569,8 +562,8 @@ __s32 _change_spic_clk_v1(__u32 spinand_index, __u32 dclk_src_sel, __u32 dclk)
 
 	/* sclk0_ratio_m */
 	sclk0_ratio_m = (sclk0_src_t/(sclk0)) - 1;
-	if( sclk0_src_t%(sclk0) )
-	sclk0_ratio_m +=1;
+	if (sclk0_src_t%(sclk0))
+		sclk0_ratio_m += 1;
 
 	/* close clock */
 	reg_val = get_wvalue(sclk0_reg_adr);
@@ -596,10 +589,8 @@ __s32 _change_spic_clk_v1(__u32 spinand_index, __u32 dclk_src_sel, __u32 dclk)
 	reg_val |= 0x1U<<31;
 	put_wvalue(sclk0_reg_adr, reg_val);
 
-	//printf("NAND_SetClk for nand index %d \n", nand_index);
-	if (spinand_index == 0) {
+	if (spinand_index == 0)
 		printf("sclk0_reg_adr: 0x%x\n", *(volatile __u32 *)(sclk0_reg_adr));
-	} 
 
 	return 0;
 }
@@ -611,7 +602,7 @@ __s32 _close_spic_clk_v1(__u32 spinand_index)
 
 	if (spinand_index == 0) {
 		/*disable nand sclock gating*/
-		sclk0_reg_adr = (NAND_CLK_BASE_ADDR + 0x0940); //CCM_SPI0_CLK_REG;
+		sclk0_reg_adr = (NAND_CLK_BASE_ADDR + 0x0940);
 
 		reg_val = get_wvalue(sclk0_reg_adr);
 		reg_val &= (~(0x1U<<31));
@@ -628,7 +619,7 @@ __s32 _close_spic_clk_v1(__u32 spinand_index)
 
 __s32 _open_spic_ahb_gate_and_reset_v1(__u32 spinand_index)
 {
-	__u32 reg_val=0;
+	__u32 reg_val = 0;
 
 	/*
 	1. release ahb reset and open ahb clock gate for ndfc version 1.
@@ -638,12 +629,12 @@ __s32 _open_spic_ahb_gate_and_reset_v1(__u32 spinand_index)
 		reg_val = get_wvalue(NAND_CLK_BASE_ADDR + 0x096c);
 		reg_val &= (~(0x1U<<16));
 		reg_val |= (0x1U<<16);
-		put_wvalue((NAND_CLK_BASE_ADDR + 0x096c),reg_val);
+		put_wvalue((NAND_CLK_BASE_ADDR + 0x096c), reg_val);
 		/* ahb clock gate */
 		reg_val = get_wvalue(NAND_CLK_BASE_ADDR + 0x096c);
 		reg_val &= (~(0x1U<<0));
 		reg_val |= (0x1U<<0);
-		put_wvalue((NAND_CLK_BASE_ADDR + 0x096c),reg_val);
+		put_wvalue((NAND_CLK_BASE_ADDR + 0x096c), reg_val);
 
 	} else {
 		printf("open ahb gate and reset, wrong spinand index: %d\n", spinand_index);
@@ -655,7 +646,7 @@ __s32 _open_spic_ahb_gate_and_reset_v1(__u32 spinand_index)
 
 __s32 _close_spic_ahb_gate_and_reset_v1(__u32 spinand_index)
 {
-	__u32 reg_val=0;
+	__u32 reg_val = 0;
 
 	/*
 	1. release ahb reset and open ahb clock gate for ndfc version 1.
@@ -664,11 +655,11 @@ __s32 _close_spic_ahb_gate_and_reset_v1(__u32 spinand_index)
 		/* reset */
 		reg_val = get_wvalue(NAND_CLK_BASE_ADDR + 0x096c);
 		reg_val &= (~(0x1U<<16));
-		put_wvalue((NAND_CLK_BASE_ADDR + 0x096c),reg_val);
+		put_wvalue((NAND_CLK_BASE_ADDR + 0x096c), reg_val);
 		/* ahb clock gate */
 		reg_val = get_wvalue(NAND_CLK_BASE_ADDR + 0x096c);
 		reg_val &= (~(0x1U<<0));
-		put_wvalue((NAND_CLK_BASE_ADDR + 0x096c),reg_val);
+		put_wvalue((NAND_CLK_BASE_ADDR + 0x096c), reg_val);
 
 	} else {
 		printf("close ahb gate and reset, wrong spinand index: %d\n", spinand_index);
@@ -720,26 +711,23 @@ int NAND_ClkRequest(__u32 nand_index)
 			return -1;
 		}
 
-		if(get_storage_type() == 1)
-		{
-			// 1. release ahb reset and open ahb clock gate
+		if (get_storage_type() == 1) {
+			/* 1. release ahb reset and open ahb clock gate */
 			_open_ndfc_ahb_gate_and_reset_v1(nand_index);
 
-		// 2. configure ndfc's sclk0
-		ret = _change_ndfc_clk_v1(nand_index, 3, 10, 3, 10*2);
-		if (ret<0) {
-			NAND_Print("NAND_ClkRequest, set dclk failed!\n");
-			return -1;
+			/* 2. configure ndfc's sclk0 */
+			ret = _change_ndfc_clk_v1(nand_index, 3, 10, 3, 10*2);
+			if (ret < 0) {
+				NAND_Print("NAND_ClkRequest, set dclk failed!\n");
+				return -1;
 			}
-		}
-		else if(get_storage_type() == 2)
-		{
-			// 1. release ahb reset and open ahb clock gate
+		} else if (get_storage_type() == 2) {
+			/* 1. release ahb reset and open ahb clock gate */
 			_open_spic_ahb_gate_and_reset_v1(nand_index);
 
-			// 2. configure ndfc's sclk0
+			/* 2. configure ndfc's sclk0 */
 			ret = _change_spic_clk_v1(nand_index, 3, 10);
-			if (ret<0) {
+			if (ret < 0) {
 				printf("NAND_ClkRequest, set spi0 dclk failed!\n");
 				return -1;
 			}
@@ -755,7 +743,6 @@ int NAND_ClkRequest(__u32 nand_index)
 
 void NAND_ClkRelease(__u32 nand_index)
 {
-
 	__u32 ndfc_version = NAND_GetNdfcVersion();
 
 	if (ndfc_version == 1) {
@@ -765,23 +752,20 @@ void NAND_ClkRelease(__u32 nand_index)
 					nand_index, ndfc_version);
 			return;
 		}
-	
-		if(get_storage_type() == 1)
-		{
+
+		if (get_storage_type() == 1) {
 			_close_ndfc_clk_v1(nand_index);
 
 			_close_ndfc_ahb_gate_and_reset_v1(nand_index);
-		}
-		else if(get_storage_type() == 2)
-		{
+		} else if (get_storage_type() == 2) {
 			_close_spic_clk_v1(nand_index);
 
 			_close_spic_ahb_gate_and_reset_v1(nand_index);
 		}
 
 	}
-	return;
 
+	return;
 }
 
 /*
@@ -813,30 +797,24 @@ int NAND_SetClk(__u32 nand_index, __u32 nand_clk0, __u32 nand_clk1)
 			return -1;
 		}
 
-		////////////////////////////////////////////////
 		dclk_src_sel = 3;
 		dclk = nand_clk0;
 		cclk_src_sel = 3;
 		cclk = nand_clk1;
-		////////////////////////////////////////////////
-		
-		if(get_storage_type() == 1)
-		{
+
+		if (get_storage_type() == 1) {
 			ret = _change_ndfc_clk_v1(nand_index, dclk_src_sel, dclk, cclk_src_sel, cclk);
 			if (ret < 0) {
-			NAND_Print("NAND_SetClk, change ndfc clock failed\n");
+				NAND_Print("NAND_SetClk, change ndfc clock failed\n");
 				return -1;
-			}			
-		}
-		else if(get_storage_type() == 2)
-		{
+			}
+		} else if (get_storage_type() == 2) {
 			ret = _change_spic_clk_v1(nand_index, dclk_src_sel, dclk);
 			if (ret < 0) {
 				printf("NAND_SetClk, change spic clock failed\n");
 				return -1;
 			}
 		}
-
 	} else {
 		NAND_Print("NAND_SetClk, wrong ndfc version, %d\n", ndfc_version);
 		return -1;
@@ -851,17 +829,13 @@ int NAND_GetClk(__u32 nand_index, __u32 *pnand_clk0, __u32 *pnand_clk1)
 	__u32 ndfc_version = NAND_GetNdfcVersion();
 
 	if (ndfc_version == 1) {
-
-		if(get_storage_type() == 1)
-		{
+		if (get_storage_type() == 1) {
 			ret = _get_ndfc_clk_v1(nand_index, pnand_clk0, pnand_clk1);
 			if (ret < 0) {
-			NAND_Print("NAND_GetClk, failed!\n");
+				NAND_Print("NAND_GetClk, failed!\n");
 				return -1;
-			}			
-		}
-		else if(get_storage_type() == 2)
-		{
+			}
+		} else if (get_storage_type() == 2) {
 			ret = _get_spic_clk_v1(nand_index, pnand_clk0);
 			if (ret < 0) {
 				printf("NAND_GetClk(spi), failed!\n");
@@ -889,11 +863,10 @@ __s32 NAND_PIORequest(__u32 nand_index)
 		if (ret < 0) {
 			printf("NAND_PIORequest, failed!\n");
 			return -1;
-	}
-
+		}
 	} else {
-	printf("NAND_PIORequest, wrong ndfc version, %d\n", ndfc_version);
-	return -1;
+		printf("NAND_PIORequest, wrong ndfc version, %d\n", ndfc_version);
+		return -1;
 	}
 #else
 	 /*gpio_hdl = gpio_request_ex("nand0_para", NULL);
@@ -902,31 +875,24 @@ __s32 NAND_PIORequest(__u32 nand_index)
 			printf("NAND_PIORequest, failed!\n");
 			return -1;
 	 }*/
-	
-	if(get_storage_type() == 1)
-	{
-		nand_nodeoffset =  fdt_path_offset(working_fdt,"nand0");
-		if(nand_nodeoffset < 0 )
-		{
-		NAND_Print("nand0: get node offset error\n");
+
+	if (get_storage_type() == 1) {
+		nand_nodeoffset =  fdt_path_offset(working_fdt, "nand0");
+		if (nand_nodeoffset < 0) {
+			NAND_Print("nand0: get node offset error\n");
 			return -1;
 		}
-		if(fdt_set_all_pin("nand0","pinctrl-0"))
-		{
-		NAND_Print("NAND_PIORequest, failed!\n");
+		if (fdt_set_all_pin("nand0", "pinctrl-0")) {
+			NAND_Print("NAND_PIORequest, failed!\n");
 			return -1;
-		}		
-	}
-	else if(get_storage_type() == 2)
-	{
-		nand_nodeoffset =  fdt_path_offset(working_fdt,"spi0");
-		if(nand_nodeoffset < 0 )
-		{
+		}
+	} else if (get_storage_type() == 2) {
+		nand_nodeoffset =  fdt_path_offset(working_fdt, "spi0");
+		if (nand_nodeoffset < 0) {
 			printf("spi0: get node offset error\n");
 			return -1;
 		}
-		if(fdt_set_all_pin("spi0","pinctrl-0"))
-		{
+		if (fdt_set_all_pin("spi0", "pinctrl-0")) {
 			printf("NAND_PIORequest(spi0), failed!\n");
 			return -1;
 		}
@@ -1011,17 +977,16 @@ void NAND_Memcpy(void* pAddr_dst, void* pAddr_src, unsigned int len)
 void * NAND_Malloc(unsigned int Size)
 {
 	void * buf;
-	if(Size == 0)
-	{
-        NAND_Print("NAND_Malloc size=0!\n");
+
+	if (Size == 0) {
+		NAND_Print("NAND_Malloc size=0!\n");
 		return NULL;
 	}
 
 	buf = malloc(Size);
-	if(buf == NULL)
-	{
-        NAND_Print("NAND_Malloc fail!\n");
-	}
+	if (buf == NULL)
+		NAND_Print("NAND_Malloc fail!\n");
+
 	return buf;
 }
 
@@ -1137,7 +1102,7 @@ int nand_request_dma(void)
 }
 int NAND_ReleaseDMA(__u32 nand_index)
 {
-	NAND_Print_DBG("nand release dma:%x\n",dma_chan);
+	NAND_Print_DBG("nand release dma:%x\n", dma_chan);
 	if(dma_chan)
 	{
 		sunxi_dma_release(dma_chan);
@@ -1147,7 +1112,7 @@ int NAND_ReleaseDMA(__u32 nand_index)
 }
 
 
-int rawnand_dma_config_start(__u32 write, dma_addr_t addr,__u32 length)
+int rawnand_dma_config_start(__u32 write, dma_addr_t addr, __u32 length)
 {
 	int ret = 0;
 	sunxi_dma_setting_t dma_set;
@@ -1199,8 +1164,8 @@ int rawnand_dma_config_start(__u32 write, dma_addr_t addr,__u32 length)
 	return 0;
 }
 
-unsigned int tx_dma_chan = 0;
-unsigned int rx_dma_chan = 0;
+unsigned int tx_dma_chan;
+unsigned int rx_dma_chan;
 
 /* request dma channel and set callback function */
 int spinand_request_tx_dma(void)
@@ -1229,32 +1194,32 @@ int spinand_request_rx_dma(void)
 
 int spinand_releasetxdma(void)
 {
-	printf("nand release dma:%x\n",tx_dma_chan);
-	if(tx_dma_chan)
-	{
+	printf("nand release dma:%x\n", tx_dma_chan);
+	if (tx_dma_chan) {
 		sunxi_dma_release(tx_dma_chan);
 		tx_dma_chan = 0;
 	}
-	return 0;	
+
+	return 0;
 }
 
 int spinand_releaserxdma(void)
 {
-	printf("nand release dma:%x\n",tx_dma_chan);
-	if(rx_dma_chan)
-	{
+	printf("nand release dma:%x\n", tx_dma_chan);
+	if (rx_dma_chan) {
 		sunxi_dma_release(rx_dma_chan);
 		rx_dma_chan = 0;
 	}
+
 	return 0;
 }
 
 void spinand_dma_callback(void *arg)
-{	
+{
 
 }
 
-int spinand_dma_config_start(__u32 tx_mode, __u32 addr,__u32 length)
+int spinand_dma_config_start(__u32 tx_mode, __u32 addr, __u32 length)
 {
 	int ret = 0;
 	sunxi_dma_setting_t dma_set;
@@ -1266,49 +1231,45 @@ int spinand_dma_config_start(__u32 tx_mode, __u32 addr,__u32 length)
 	if (tx_mode) {
 		dma_set.cfg.src_drq_type = DMAC_CFG_SRC_TYPE_DRAM;
 		dma_set.cfg.src_addr_mode = DMAC_CFG_SRC_ADDR_TYPE_LINEAR_MODE;
-		dma_set.cfg.src_burst_length = DMAC_CFG_SRC_8_BURST; //8
+		dma_set.cfg.src_burst_length = DMAC_CFG_SRC_8_BURST;
 		dma_set.cfg.src_data_width = DMAC_CFG_SRC_DATA_WIDTH_32BIT;
 		dma_set.cfg.reserved0 = 0;
 
 		dma_set.cfg.dst_drq_type = DMAC_CFG_TYPE_SPI0;
 		dma_set.cfg.dst_addr_mode = DMAC_CFG_DEST_ADDR_TYPE_IO_MODE;
-		dma_set.cfg.dst_burst_length = DMAC_CFG_DEST_8_BURST; //8
+		dma_set.cfg.dst_burst_length = DMAC_CFG_DEST_8_BURST;
 		dma_set.cfg.dst_data_width = DMAC_CFG_DEST_DATA_WIDTH_32BIT;
 		dma_set.cfg.reserved1 = 0;
 	} else {
 		dma_set.cfg.src_drq_type = DMAC_CFG_TYPE_SPI0;
 		dma_set.cfg.src_addr_mode = DMAC_CFG_SRC_ADDR_TYPE_IO_MODE;
-		dma_set.cfg.src_burst_length = DMAC_CFG_SRC_8_BURST; //8
+		dma_set.cfg.src_burst_length = DMAC_CFG_SRC_8_BURST;
 		dma_set.cfg.src_data_width = DMAC_CFG_SRC_DATA_WIDTH_32BIT;
 		dma_set.cfg.reserved0 = 0;
 
 		dma_set.cfg.dst_drq_type = DMAC_CFG_DEST_TYPE_DRAM;
 		dma_set.cfg.dst_addr_mode = DMAC_CFG_DEST_ADDR_TYPE_LINEAR_MODE;
-		dma_set.cfg.dst_burst_length = DMAC_CFG_DEST_8_BURST; //8
+		dma_set.cfg.dst_burst_length = DMAC_CFG_DEST_8_BURST;
 		dma_set.cfg.dst_data_width = DMAC_CFG_DEST_DATA_WIDTH_32BIT;
 		dma_set.cfg.reserved1 = 0;
 	}
 
-	if (tx_mode){
-		if ( sunxi_dma_setting(tx_dma_chan, &dma_set) < 0) {
+	if (tx_mode) {
+		if (sunxi_dma_setting(tx_dma_chan, &dma_set) < 0) {
 			printf("uboot: sunxi_dma_setting for tx faild!\n");
 			return -1;
 		}
-	}
-	else{
-		if ( sunxi_dma_setting(rx_dma_chan, &dma_set) < 0) {
+	} else {
+		if (sunxi_dma_setting(rx_dma_chan, &dma_set) < 0) {
 			printf("uboot: sunxi_dma_setting for rx faild!\n");
 			return -1;
 		}
 	}
 
-	if (tx_mode)
-	{
+	if (tx_mode) {
 		flush_cache((uint)addr, length);
-		ret = sunxi_dma_start(tx_dma_chan, addr, (__u32)SPI_TX_IO_DATA, length);	
-	}
-	else
-	{
+		ret = sunxi_dma_start(tx_dma_chan, addr, (__u32)SPI_TX_IO_DATA, length);
+	} else {
 		flush_cache((uint)addr, length);
 		ret = sunxi_dma_start(rx_dma_chan, (__u32)SPI_RX_IO_DATA, addr, length);
 	}
@@ -1325,44 +1286,38 @@ int NAND_WaitDmaFinish(__u32 tx_flag, __u32 rx_flag)
 {
 	__u32 timeout = 0xffffff;
 
-	if(tx_flag)
-	{
+	if (tx_flag) {
 		timeout = 0xffffff;
-		while(sunxi_dma_querystatus(tx_dma_chan))
-		{
+		while (sunxi_dma_querystatus(tx_dma_chan)) {
 			timeout--;
 			if (!timeout)
 				break;
 		}
 
-		if(timeout <= 0)
-		 {
+		if (timeout <= 0) {
 			NAND_Print("TX DMA wait status timeout!\n");
-			 return -1;
-		 }
+			return -1;
+		}
 	}
 
-	if(rx_flag)
-	{
+	if (rx_flag) {
 		timeout = 0xffffff;
-		while(sunxi_dma_querystatus(rx_dma_chan))
-		{
+		while (sunxi_dma_querystatus(rx_dma_chan)) {
 			timeout--;
 			if (!timeout)
 				break;
 		}
 
-		if(timeout <= 0)
-		 {
+		if (timeout <= 0) {
 			NAND_Print("RX DMA wait status timeout!\n");
-			 return -1;
-		 }
+			return -1;
+		}
 	}
-	return 0;
 
+	return 0;
 }
 
-int Nand_Dma_End(__u32 rw, __u32 addr,__u32 length)
+int Nand_Dma_End(__u32 rw, __u32 addr, __u32 length)
 {
 	return 0;
 }
@@ -1370,10 +1325,10 @@ int Nand_Dma_End(__u32 rw, __u32 addr,__u32 length)
 int nand_dma_config_start(__u32 rw, __u32 addr, __u32 length)
 {
 	int ret = 0;
-	
-	if(get_storage_type() == 1)
+
+	if (get_storage_type() == 1)
 		ret = rawnand_dma_config_start(rw, addr, length);
-	else if(get_storage_type() == 2)
+	else if (get_storage_type() == 2)
 		ret = spinand_dma_config_start(rw, addr, length);
 
 	return ret;
@@ -1432,7 +1387,7 @@ __u32 NAND_GetNandExtPara(__u32 para_num)
 	ret = script_parser_fetch("nand0_para", str, &nand_para, 1);
 	if(ret < 0)
 	{
-		NAND_Print("nand0_para, %d, nand type err! %d\n", para_num,ret);
+		NAND_Print("nand0_para, %d, nand type err! %d\n", para_num, ret);
 		return 0xffffffff;
 	}
 	else
@@ -1452,10 +1407,10 @@ __u32 NAND_GetNandIDNumCtrl(void)
 
 	ret = script_parser_fetch("nand0_para", "nand0_id_number_ctl", &id_number_ctl, 1);
 	if(ret<0) {
-		NAND_Print("nand : get id number_ctl fail, %x\n",id_number_ctl);
+		NAND_Print("nand : get id number_ctl fail, %x\n", id_number_ctl);
 		return 0x0;
 	} else {
-		NAND_Print_DBG("nand : get id number_ctl from script:0x%x\n",id_number_ctl);
+		NAND_Print_DBG("nand : get id number_ctl from script:0x%x\n", id_number_ctl);
 		if(id_number_ctl == 0x55aaaa55)
 			return 0x0;
 		else
@@ -1475,10 +1430,10 @@ __u32 NAND_GetNandCapacityLevel(void)
 
 	ret = script_parser_fetch("nand0_para", "nand0_capacity_level", &CapacityLevel, 1);
 	if(ret < 0) {
-		NAND_Print("nand: get CapacityLevel fail, %x\n",CapacityLevel);
+		NAND_Print("nand: get CapacityLevel fail, %x\n", CapacityLevel);
 		return 0x0;
 	} else {
-		NAND_Print_DBG("nand: get CapacityLevel from script, %x\n",CapacityLevel);
+		NAND_Print_DBG("nand: get CapacityLevel from script, %x\n", CapacityLevel);
 		if(CapacityLevel == 0x55aaaa55)
 			return 0x0;
 		else
@@ -1559,7 +1514,7 @@ void NAND_Print_Version(void)
 	val[1] = NAND_DRV_VERSION_1;
 	val[2] = NAND_DRV_DATE;
 	val[3] = NAND_DRV_TIME;
-	NAND_Print("uboot: nand version: %x %x %x %x \n",val[0],val[1],val[2],val[3]);
+	NAND_Print("uboot: nand version: %x %x %x %x\n", val[0], val[1], val[2], val[3]);
 }
 
 int NAND_Get_Version(void)

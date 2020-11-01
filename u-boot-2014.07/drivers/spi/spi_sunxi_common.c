@@ -488,3 +488,4 @@ void spic_config_dual_mode(u32 spi_no, u32 rxdual, u32 dbc, u32 stc)
 {
 	writel((rxdual << 28) | (dbc << 24) | (stc), SPI_BCC);
 }
+

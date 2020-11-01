@@ -7,7 +7,7 @@
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
- #include "config.h"
+#include "config.h"
 #if defined(__LINUX_PLAT__)
 #include <linux/fs.h>
 #include <linux/cdev.h>
@@ -87,14 +87,16 @@ int hdmi_power_enable(char *name)
 
 	regu = regulator_get(NULL, name);
 	if (IS_ERR(regu)) {
-		pr_err("%s: some error happen, fail to get regulator %s\n", __func__, name);
+		pr_err("%s: some error happen, fail to get regulator %s\n",
+								__func__, name);
 		goto exit;
 	}
 
 	/* enalbe regulator */
 	ret = regulator_enable(regu);
-	if (0 != ret) {
-		pr_err("%s: some error happen, fail to enable regulator %s!\n", __func__, name);
+	if (ret != 0) {
+		pr_err("%s: some error happen, fail to enable regulator %s!\n",
+								__func__, name);
 		goto exit1;
 	} else {
 		HDMI_INFO_MSG("suceess to enable regulator %s!\n", name);
@@ -111,16 +113,19 @@ int hdmi_power_disable(char *name)
 {
 	struct regulator *regu = NULL;
 	int ret = 0;
+
 	regu = regulator_get(NULL, name);
 	if (IS_ERR(regu)) {
-		pr_err("%s: some error happen, fail to get regulator %s\n", __func__, name);
+		pr_err("%s: some error happen, fail to get regulator %s\n",
+								__func__, name);
 		goto exit;
 	}
 
 	/*disalbe regulator*/
 	ret = regulator_disable(regu);
-	if (0 != ret) {
-		pr_err("%s: some error happen, fail to disable regulator %s!\n", __func__, name);
+	if (ret != 0) {
+		pr_err("%s: some error happen, fail to disable regulator %s!\n",
+								__func__, name);
 		goto exit1;
 	} else {
 		HDMI_INFO_MSG("suceess to disable regulator %s!\n", name);
@@ -161,6 +166,7 @@ static void hdmi_clk_enable(void)
 
 	if (hdmi_drv->hdmi_cec_clk != NULL) {
 		struct clk *cec_clk_parent = NULL;
+
 		cec_clk_parent = clk_get(NULL, "periph32k");
 		if (cec_clk_parent == NULL || IS_ERR(cec_clk_parent)) {
 			pr_err("periph32k clk get failed\n");
@@ -169,7 +175,7 @@ static void hdmi_clk_enable(void)
 				pr_err("hdmi ddc clk set parent clk 'periph32k' failed\n");
 		}
 		if (clk_prepare_enable(hdmi_drv->hdmi_cec_clk) != 0)
-			pr_info("hdmi cec clk enable failed!\n");
+			pr_err("hdmi cec clk enable failed!\n");
 	}
 
 
@@ -212,7 +218,8 @@ static void hdmi_pin_configure(void)
 		if (ret < 0)
 			pr_info("pinctrl_select_state for HDMI2.0 DDC fail\n");
 
-		cec_state = pinctrl_lookup_state(hdmi_drv->pctl, CEC_PIN_ACTIVE);
+		cec_state = pinctrl_lookup_state(hdmi_drv->pctl,
+								CEC_PIN_ACTIVE);
 		if (IS_ERR(state))
 			pr_info("pinctrl_lookup_state for HDMI2.0 CEC active fail\n");
 		ret = pinctrl_select_state(hdmi_drv->pctl, cec_state);
@@ -291,7 +298,7 @@ static s32 hdmi_enable(void)
 
 static s32 hdmi_disable(void)
 {
-	s32 ret;
+	s32 ret = 0;
 
 	LOG_TRACE();
 
@@ -362,7 +369,8 @@ static s32 hdmi_resume(void)
 	switch_set_state(&hdmi_switch_dev, hpd_state);
 #endif
 */
-	hdmi_drv->hdmi_task = kthread_create(hdmi_run_thread, (void *)0, "hdmi proc");
+	hdmi_drv->hdmi_task = kthread_create(hdmi_run_thread,
+							(void *)0, "hdmi proc");
 	if (IS_ERR(hdmi_drv->hdmi_task)) {
 		pr_info("Unable to start kernel thread %s.\n\n", "hdmi proc");
 		hdmi_drv->hdmi_task = NULL;
@@ -484,9 +492,11 @@ static int hdmi_run_thread(void *parg)
 						break;
 				} else {
 					msleep(200);
-					hpd_state_now = hdmi_core_get_hpd_state();
+					hpd_state_now =
+						hdmi_core_get_hpd_state();
 					if (hpd_state_now == hpd_state)
-						break;	/*it's not a real hpd event*/
+						break;
+					/*it's not a real hpd event*/
 				}
 			}
 			if (i >= 3) {
@@ -510,9 +520,11 @@ static int hdmi_run_thread(void *parg)
 			if (hpd_state && get_hdcp_encrypt_on_core(hdmi_drv->hdmi_core)) {
 				for (j = 0; j < 10; j++) {
 					hdcp_status = get_hdcp_status_core();
-					if (hdcp_status == 0) {/*hdcp is runing normally*/
+					if (hdcp_status == 0) {
+						/*hdcp is runing normally*/
 						break;
-					} else {/*hdcp is failed, lost or put an exception*/
+					} else {
+				/*hdcp is failed, lost or put an exception*/
 						hdcp_handler_core();
 						msleep(200);
 					}
@@ -550,6 +562,7 @@ static int hdmi_tx_init(struct platform_device *pdev)
 s32 hdmi_deinit(void)
 {
 	int ret = 0;
+
 	ret = hdmi_disable_core();
 	return ret;
 }
@@ -623,7 +636,7 @@ s32 hdmi_init(void)
 
 	/* iomap */
 	reg_base = (uintptr_t __force)of_iomap(pdev->dev.of_node, 0);
-	if (0 == reg_base) {
+	if (reg_base == 0) {
 
 		pr_err("unable to map hdmi registers\n");
 		ret = -EINVAL;
@@ -632,7 +645,7 @@ s32 hdmi_init(void)
 #else
 	/* iomap */
 	reg_base = disp_getprop_regbase("hdmi", "reg", 0);
-	if (0 == reg_base) {
+	if (reg_base == 0) {
 		pr_err("unable to map hdmi registers\n");
 		ret = -1;
 		kfree(hdmi_drv);
@@ -729,16 +742,16 @@ s32 hdmi_init(void)
 
 	ret = clk_prepare_enable(hdmi_drv->hdmi_clk);
 	if (ret != 0)
-		pr_info("hdmi clk enable failed!\n");
+		pr_err("hdmi clk enable failed!\n");
 	ret = clk_prepare_enable(hdmi_drv->hdmi_ddc_clk);
 	if (ret != 0)
-		pr_info("hdmi ddc clk enable failed!\n");
+		pr_err("hdmi ddc clk enable failed!\n");
 	ret = clk_prepare_enable(hdmi_drv->hdmi_cec_clk);
 	if (ret != 0)
-		pr_info("hdmi cec clk enable failed!\n");
+		pr_err("hdmi cec clk enable failed!\n");
 	ret = clk_prepare_enable(hdmi_drv->hdmi_hdcp_clk);
 	if (ret != 0)
-		pr_info("hdmi hdcp clk enable failed!\n");
+		pr_err("hdmi hdcp clk enable failed!\n");
 
 	sprintf(io_name, "ddc_scl");
 	ret = disp_sys_script_get_item("hdmi",
@@ -1521,6 +1534,7 @@ static char *hdmi_audio_code_name[] = {
 static char *debug_get_video_name(int hdmi_mode)
 {
 	int i = 0;
+
 	for (i = 0;
 	i < sizeof(debug_video_mode)/sizeof(struct hdmi_debug_video_mode);
 	 i++) {

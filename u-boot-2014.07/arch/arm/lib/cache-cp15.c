@@ -98,8 +98,11 @@ static inline void mmu_setup(void)
 	int i;
 	u32 reg;
 
-	arm_init_before_mmu();
-	if(get_core_pos()== 0 ) {
+#ifdef CONFIG_ARM_A7
+	if (get_core_pos() == 0)
+#endif
+		arm_init_before_mmu();
+	if (get_core_pos() == 0) {
 		/* Set up an identity-mapping for all 4GB, rw for everyone */
 		for (i = 0; i < 4096; i++)
 			set_section_dcache(i, DCACHE_OFF);

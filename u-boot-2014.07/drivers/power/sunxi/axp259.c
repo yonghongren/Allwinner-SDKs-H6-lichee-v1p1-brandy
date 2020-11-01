@@ -40,15 +40,15 @@ int axp259_probe(void)
 
 	if(axp_i2c_write(AXP259_ADDR,BOOT_POWER259_ADDR_EXTENSION, 0x40))
 	{
-		printf("axp259 write 0xff error\n");
+		pr_msg("axp259 write 0xff error\n");
 		return -1;
 	}
 	if(axp_i2c_read(AXP259_ADDR,BOOT_POWER259_IC_TYPE_NUM, &pmu_type))
 	{
-		printf("axp259 read error\n");
+		pr_msg("axp259 read error\n");
 		return -1;
 	}
-	printf("pmu_type = %x\n",pmu_type);
+	pr_msg("pmu_type = %x\n",pmu_type);
 	pmu_type &= 0xCF;
 	if(pmu_type == 0x04)
 	{
@@ -190,11 +190,11 @@ int axp259_set_power_off(void)
 {
 	u8 reg_addr;
 	u8  reg_value;
-	printf("axp259_set_power_off\n");
+	pr_msg("axp259_set_power_off\n");
 	reg_addr = BOOT_POWER259_RESTART_POWOFF;
 	if(axp_i2c_read(AXP259_ADDR, reg_addr, &reg_value))
 	{
-		printf("axp259_set_power_off read error\n");
+		pr_msg("axp259_set_power_off read error\n");
 		return -1;
 	}
 	reg_value |= 1 << 6;
@@ -202,7 +202,7 @@ int axp259_set_power_off(void)
 	{
 		return -1;
 	}
-	printf("axp259_set_power_off failed\n");
+	pr_msg("axp259_set_power_off failed\n");
 	return 0;
 }
 

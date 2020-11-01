@@ -70,7 +70,7 @@ int USER_DATA_NUM;									//用户的环境变量个擿
 char USER_DATA_NAME[10][NAME_SIZE] = {{'\0'}};		//用户的环境变量（从env.fex获取ﺿ
 
 void check_user_data(void);
-
+#ifdef CONFIG_SUNXI_PRIVATE_KEY
 /*
 ************************************************************************************************************
 *
@@ -278,105 +278,27 @@ int read_private_key_by_name(const char * name, char *buffer, int buffer_len, in
 }
 
 
-#ifdef CONFIG_SUNXI_SECURE_STORAGE
-static int save_user_data_to_secure_storage(const char * name, char *data)
-{
-	char buffer[512];
-	int  data_len;
-	int  ret;
-    memset(buffer,0x00,sizeof(buffer));
-	printf("Also save user data %s to secure storage\n", (char*)name);
-	if(sunxi_secure_storage_init()){
-		printf("secure storage init fail\n");
-	}else{
-		ret = sunxi_secure_object_read("key_burned_flag", buffer, 512, &data_len);
-		if(ret)
-		{
-			printf("sunxi secure storage has no flag\n");
-		}
-		else
-		{
-			if(!strcmp(buffer, "key_burned"))
-			{
-				printf("find key burned flag\n");
-				return 0;
-			}
-			printf("do not find key burned flag\n");
-		}
-		sunxi_secure_object_write(name, data, strnlen(data, 512));
-		sunxi_secure_storage_exit();
-	}
-	return 0 ;
-}
-#endif
-
 int do_save_user_data (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	int old_way = 1;//default old version
-	if (argc == 5) {//support livecom 2.1
-		int value_length = strlen(argv[2]);
-		int value_crc32 = simple_strtol(argv[4],NULL,16);
-		int real_crc32 = crc32(0,(unsigned char *)argv[2],value_length);
-		printf("real_crc32 = %08x\n",real_crc32);
-		printf("orignal crc32 = %08x\n",value_crc32);
-		if(value_crc32 != real_crc32)
-		{
-			printf("save_userdata:crc32 failed\n");
-			return -1;
-		}
-		old_way = 0;//livecom 2.1
-	}
-	else if(argc ==3)
-	{
-	   //do nothing
-	}
-	else
-	{
-	    printf("wrong usage format\n");
-	    printf("old_way: save_userdata key_name key_value\n");
-	    printf("new_way: save_userdata key_name key_value flash/efuse crc32\n");
-		return -1;
-	}
-	//livecom 2.1 and old version burn key to flash
-	if(old_way == 1 || ((old_way == 0) && strncmp(argv[3],"flash",5)==0))
-	{
-		#ifdef CONFIG_SUNXI_PRIVATE_KEY
-			save_user_private_data(argv[1], argv[2], strnlen(argv[2], VALUE_SIZE));
-		#endif
 
-		#ifdef CONFIG_SUNXI_SECURE_STORAGE
-			save_user_data_to_secure_storage( argv[1], argv[2]);
-		#endif
-	}//livecom 2.1 support burn key to efuse
-    else if(old_way == 0 && strncmp(argv[3],"efuse",5)==0)
-	{
-		printf("no item need to burn efuse,this is for future\n");
+	if (argc < 3) {
+		printf("usage: saveud <name> <data>\n");
+		return 0;
 	}
+	if (argc == 3) {
+		save_user_private_data(argv[1], argv[2], strnlen(argv[2], VALUE_SIZE));
+	}
+
 	return 0;
 }
 
 U_BOOT_CMD(
-	save_userdata,	5,	1,	do_save_user_data,
+	save_userdata,	3,	1,	do_save_user_data,
 	"save user data",
 	"<name> <data>\n"
 );
 
-/*
-************************************************************************************************************
-*
-*                                             function
-*
-*    name          :
-*
-*    parmeters     :
-*
-*    return        :
-*
-*    note          :
-*
-*
-************************************************************************************************************
-*/
+
 static int user_data_list(void)
 {
 	int j;
@@ -469,39 +391,155 @@ int erase_private_data(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 
 U_BOOT_CMD(
 	erase_userdata,	1,	1,	erase_private_data,
-	"check user data",
+	"erase user data",
 	"<command>\n"
 );
-/*
-************************************************************************************************************
-*
-*                                             function
-*
-*    name          :
-*
-*    parmeters     :
-*
-*    return        :
-*
-*    note          :
-*
-*
-************************************************************************************************************
-*/
-int mac_updated = -1;//indicate read wifi_mac from efuse successfully
-extern int update_mac_from_efuse(void);
+#endif
+
+#ifdef CONFIG_SUNXI_SECURE_STORAGE
+static int save_user_data_to_secure_storage(const char * name, char *data)
+{
+	char buffer[512];
+	int  data_len;
+	int  ret;
+    memset(buffer,0x00,sizeof(buffer));
+	printf("Also save user data %s to secure storage\n", (char*)name);
+	if(sunxi_secure_storage_init()){
+		printf("secure storage init fail\n");
+	}else{
+		ret = sunxi_secure_object_read("key_burned_flag", buffer, 512, &data_len);
+		if(ret)
+		{
+			printf("sunxi secure storage has no flag\n");
+		}
+		else
+		{
+			if(!strcmp(buffer, "key_burned"))
+			{
+				printf("find key burned flag\n");
+				return 0;
+			}
+			printf("do not find key burned flag\n");
+		}
+		sunxi_secure_object_write(name, data, strnlen(data, 512));
+		sunxi_secure_storage_exit();
+	}
+	return 0 ;
+}
+
+int do_probe_secure_storage(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	char *cmd, *name;
+
+	cmd = argv[1];
+	name = argv[2];
+
+	if(!strcmp(cmd, "read"))
+	{
+		if(argc == 2)
+		{
+			return sunxi_secure_storage_list();
+		}
+		if(argc == 3)
+		{
+			char buffer[4096];
+			int ret, data_len;
+
+			memset(buffer, 0, 4096);
+			ret = sunxi_secure_storage_init();
+			if(ret < 0)
+			{
+				printf("%s secure storage init err\n", __func__);
+
+				return -1;
+			}
+			ret = sunxi_secure_object_read(name, buffer, 4096, &data_len);
+			if(ret < 0)
+			{
+				printf("private data %s is not exist\n", name);
+
+				return -1;
+			}
+			printf("private data:\n");
+			sunxi_dump(buffer, strlen((const char *)buffer));
+
+			return 0;
+		}
+	}
+	else if(!strcmp(cmd, "erase"))
+	{
+		int ret;
+
+		ret = sunxi_secure_storage_init();
+		if(ret < 0)
+		{
+			printf("%s secure storage init err\n", __func__);
+
+			return -1;
+		}
+
+		if(argc == 2)
+		{
+			ret = sunxi_secure_storage_erase_all();
+			if(ret < 0)
+			{
+				printf("erase secure storage failed\n");
+				return -1;
+			}
+		}
+		else if(argc == 3)
+		{
+			if(!strcmp(name, "key_burned_flag"))
+			{
+				if(sunxi_secure_storage_erase_data_only("key_burned_flag"))
+				{
+					printf("erase key_burned_flag failed\n");
+				}
+			}
+		}
+		sunxi_secure_storage_exit();
+
+		return 0;
+	}
+	else if(!strcmp(cmd, "write"))
+	{
+		if(argc == 4)
+			save_user_data_to_secure_storage( argv[2], argv[3]);
+		else
+			printf("para error!\n");
+
+		return 0;
+	}
+	return -1;
+}
+
+U_BOOT_CMD(
+	pst, CONFIG_SYS_MAXARGS, 1, do_probe_secure_storage,
+	"read data from secure storage"
+	"erase flag in secure storage",
+	"pst read|erase [name]\n"
+	"pst read,  then dump all data\n"
+	"pst read name,  then dump the dedicate data\n"
+	"pst write name, string, write the name = string\n"
+	"pst erase,  then erase all secure storage data\n"
+	"pst erase key_burned_flag,  then erase the dedicate data\n"
+	"NULL"
+);
+#endif
+
+
+#ifdef CONFIG_SUNXI_USER_KEY
+
 int update_user_data(void)
 {
 	if(uboot_spare_head.boot_data.work_mode != WORK_MODE_BOOT)
 	{
 		return 0;
 	}
-       //if exist wifi_mac in efuse,will overwrite wifi_mac in secure storage and private
-	mac_updated = update_mac_from_efuse();
 
 	check_user_data();											//从env中检测用户的环境变量
 
-#ifdef CONFIG_SUNXI_SECURE_STORAGE
+#if defined(CONFIG_SUNXI_SECURE_STORAGE)
 	int data_len;
 	int ret, k;
 	char buffer[512];
@@ -512,8 +550,6 @@ int update_user_data(void)
 		memset(buffer, 0, 512);
 		for (k = 0; k < USER_DATA_NUM; k++)
 		{
-                        if(!strncmp(USER_DATA_NAME[k],"mac",3) && !mac_updated)
-                            continue;
 			ret = sunxi_secure_object_read(USER_DATA_NAME[k], buffer, 512, &data_len);
 			if(!ret && data_len < 512)
 			{
@@ -526,7 +562,7 @@ int update_user_data(void)
 			}
 		}
 	}
-#endif
+#elif defined(CONFIG_SUNXI_PRIVATE_KEY)
 
 	int i, j;
 	unsigned int part_offset;					//分区的地址偏移酿
@@ -572,6 +608,7 @@ int update_user_data(void)
 		return 0;
 	}
 	printf("the %s part isn't exist\n", PART_NAME);
+#endif
 	return 0;
 }
 
@@ -636,12 +673,12 @@ void check_user_data(void)
 		}
 		temp_name[i] = '\0';
 		if (i != 0) {
-			for (j = 0; j < ARRAY_SIZE(IGNORE_ENV_VARIABLE); j++) {
+			for (j = 0; j < sizeof(IGNORE_ENV_VARIABLE) / sizeof(IGNORE_ENV_VARIABLE[0]); j++) {
 				if (!strcmp(IGNORE_ENV_VARIABLE[j], temp_name)) {			//查词典库，排除系统的环境变量，得到用户的数据
 					break;
 				}
 			}
-			if (j >= ARRAY_SIZE(IGNORE_ENV_VARIABLE)) {
+			if (j >= sizeof(IGNORE_ENV_VARIABLE) / sizeof(IGNORE_ENV_VARIABLE[0])) {
 				if (!strcmp(temp_name, "mac_addr")) {						//处理mac_addr和mac不相等的情况（特殊情况）
 					strcpy(USER_DATA_NAME[USER_DATA_NUM], "mac");
 				}
@@ -665,4 +702,6 @@ void check_user_data(void)
 	}
 */
 }
+
+#endif
 

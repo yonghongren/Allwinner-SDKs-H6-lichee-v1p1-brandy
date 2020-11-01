@@ -12,6 +12,8 @@
 #define _DISP_SYS_INTF_
 
 #include <common.h>
+#include <linux/err.h>
+#include <clk/clk.h>
 
 /* cache flush flags */
 #define  CACHE_FLUSH_I_CACHE_REGION       0
@@ -21,8 +23,7 @@
 #define  CACHE_CLEAN_FLUSH_D_CACHE_REGION 4
 #define  CACHE_CLEAN_FLUSH_CACHE_REGION   5
 
-typedef struct
-{
+typedef struct {
 	char  gpio_name[32];
 	int port;
 	int port_num;
@@ -33,20 +34,21 @@ typedef struct
 	int gpio;
 } disp_gpio_set_t;
 
-void disp_sys_cache_flush(void*address, u32 length, u32 flags);
+void disp_sys_cache_flush(void *address, u32 length, u32 flags);
 
-int disp_sys_register_irq(u32 IrqNo, u32 Flags,void* Handler,void *pArg,u32 DataSize,u32 Prio);
-void disp_sys_unregister_irq(u32 IrqNo, void * Handler, void *pArg);
+int disp_sys_register_irq(u32 IrqNo, u32 Flags, void *Handler,
+			void *pArg, u32 DataSize, u32 Prio);
+void disp_sys_unregister_irq(u32 IrqNo, void *Handler, void *pArg);
 void disp_sys_disable_irq(u32 IrqNo);
 void disp_sys_enable_irq(u32 IrqNo);
 
-void disp_sys_irqlock(void* lock, unsigned long *cpu_sr);
-void disp_sys_irqunlock(void* lock, unsigned long *cpu_sr);
+void disp_sys_irqlock(void *lock, unsigned long *cpu_sr);
+void disp_sys_irqunlock(void *lock, unsigned long *cpu_sr);
 
-void disp_sys_lock(void* lock);
-void disp_sys_unlock(void* lock);
+void disp_sys_lock(void *lock);
+void disp_sys_unlock(void *lock);
 
-void * disp_sys_malloc(u32 Size);
+void *disp_sys_malloc(u32 Size);
 void disp_sys_free(void *Addr);
 
 /* returns: 0:invalid, 1: int; 2:str, 3: gpio */
@@ -77,6 +79,7 @@ unsigned long disp_sys_clk_get_rate(const char *id);
 int disp_sys_clk_set_parent(const char *id, const char *parent);
 int disp_sys_clk_enable(const char *id);
 int disp_sys_clk_disable(const char *id);
+unsigned long disp_sys_clk_round_rate(const char *id, unsigned long rate);
 int disp_sys_clk_init(void);
 
 #endif

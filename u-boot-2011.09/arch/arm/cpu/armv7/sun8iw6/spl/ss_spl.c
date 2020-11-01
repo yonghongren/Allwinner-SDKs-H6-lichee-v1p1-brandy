@@ -186,26 +186,26 @@ static void __rsa_padding(u8 *dst_buf, u8 *src_buf, u32 data_len, u32 group_len)
 */
 void sunxi_ss_open(void)
 {
-//	u32  reg_val;
-//
-//	//enable SS working clock
-//	reg_val = readl(CCM_SS_SCLK_CTRL); //SS CLOCK
-//	reg_val &= ~(0xf<<24);
-//	reg_val |= 0x1<<24;
-//	reg_val &= ~(0x3<<16);
-//	reg_val |= 0x0<<16;			// /1
-//	reg_val &= ~(0xf);
-//	reg_val |= (4 -1);			// /4
-//	reg_val |= 0x1U<<31;
-//	writel(reg_val,CCM_SS_SCLK_CTRL);
-//	//enable SS AHB clock
-//	reg_val = readl(CCM_AHB0_GATE0_CTRL);
-//	reg_val |= 0x1<<5;		//SS AHB clock on
-//	writel(reg_val,CCM_AHB0_GATE0_CTRL);
-//	//del-assert SS reset
-//	reg_val = readl(CCM_AHB0_RST_REG0);
-//	reg_val |= 0x1<<5;		//SS AHB clock reset
-//	writel(reg_val,CCM_AHB0_RST_REG0);
+	u32  reg_val;
+
+	//enable SS working clock
+	reg_val = readl(CCM_SS_SCLK_CTRL); //SS CLOCK
+	reg_val &= ~(0xf<<24);
+	reg_val |= 0x1<<24;
+	reg_val &= ~(0x3<<16);
+	reg_val |= 0x0<<16;			// /1
+	reg_val &= ~(0xf);
+	reg_val |= (4 -1);			// /4
+	reg_val |= 0x1U<<31;
+	writel(reg_val,CCM_SS_SCLK_CTRL);
+	//enable SS AHB clock
+	reg_val = readl(CCMU_BUS_CLK_GATING_REG0);
+	reg_val |= 0x1<<5;		//SS AHB clock on
+	writel(reg_val,CCMU_BUS_CLK_GATING_REG0);
+	//del-assert SS reset
+	reg_val = readl(CCMU_BUS_SOFT_RST_REG0);
+	reg_val |= 0x1<<5;		//SS AHB clock reset
+	writel(reg_val,CCMU_BUS_SOFT_RST_REG0);
 }
 /*
 ************************************************************************************************************

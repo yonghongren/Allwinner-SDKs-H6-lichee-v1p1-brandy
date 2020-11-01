@@ -31,14 +31,14 @@ s32 aw1683_wr_reg(__u16 sub_addr, __u16 data)
 
 	ret = i2c_write((uchar)ac200_twi_addr, (__u32)0xfe ,1 , (__u8*)&tmpData,2);
 #if DEBUG
-	printf("------write------tmpdata = 0x%x, ret1 = 0x%x\n", tmpData, ret);
+	pr_msg("------write------tmpdata = 0x%x, ret1 = 0x%x\n", tmpData, ret);
 #endif
 	tmpData = sub_addr & 0xff;
 
 
 	ret = i2c_write((uchar)ac200_twi_addr, tmpData ,1 , (__u8*)&data,2);
 #if DEBUG
-	printf("-------write-----tmpdata = 0x%x, ret2 = 0x%x\n", tmpData, ret);
+	pr_msg("-------write-----tmpdata = 0x%x, ret2 = 0x%x\n", tmpData, ret);
 #endif
 	return ret;
 }
@@ -62,13 +62,13 @@ s32 aw1683_rd_reg(__u16 sub_addr, __u16 *data)
 
 	ret = i2c_write((uchar)ac200_twi_addr, i2cFixAddr ,1 , (__u8*)&tmpData,2);
 #if DEBUG
-	printf("-------read-----tmpdata1 = 0x%x, ret1 = 0x%x\n", tmpData, ret);
+	pr_msg("-------read-----tmpdata1 = 0x%x, ret1 = 0x%x\n", tmpData, ret);
 #endif
 
 	tmpData = (u32)(sub_addr & 0xff);
 	ret = i2c_read((uchar)ac200_twi_addr, tmpData,1,(__u8*)data, 2);
 #if DEBUG
-	printf("------read-----tmpdata2 = 0x%x, ret2 = 0x%x\n", tmpData, ret);
+	pr_msg("------read-----tmpdata2 = 0x%x, ret2 = 0x%x\n", tmpData, ret);
 #endif
 	pexcTmp = (__u8*)data;
 	excTmp = pexcTmp[0];
@@ -93,12 +93,13 @@ s32 aw1683_tve_init(const u16 *p_dac_cali, const u16 *p_bandgap)
 		aw1683_rd_reg(0x0002, &data);
 	}
 	if (data != 0x0001) {
-		printf("close chip reset failed after %d times\n", try_count);
+		pr_msg("close chip reset failed after %d times\n", try_count);
 		return -1;
 	}
 
 	if (*p_bandgap != 0)
 		aw1683_wr_reg(0x0050, *p_bandgap | 0x8000 | (0xa << 6));
+
 
 	//clk for tve
 	aw1683_wr_reg(0x001a, 0x0003);
@@ -126,7 +127,7 @@ s32 aw1683_tve_init(const u16 *p_dac_cali, const u16 *p_bandgap)
 	aw1683_wr_reg(0x40f4,0x0230);	//dac level
 	aw1683_wr_reg(0x40f8,0x0064);	//detect start
 	aw1683_wr_reg(0x40fa,0x0c80);	//detect periods 100ms
-	aw1683_wr_reg(0x4040,0x0002);	//debounce 3
+	aw1683_wr_reg(0x4040, 0x000f);  /*debounce 3 */
 	aw1683_wr_reg(0x4030,0x0001);	//dac enable
 
 	return 0;

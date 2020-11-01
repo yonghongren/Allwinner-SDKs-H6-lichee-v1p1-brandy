@@ -43,344 +43,6 @@ extern int axp15_probe(void);
 extern int axp809_probe(void);
 extern int axp806_probe(void);
 extern int axp81_probe(void);
-extern int axp808_probe(void);
-extern int power_rich_probe(void);
-extern int power_oz_probe(void);
-
-int __plat_get_chip_id(void)
-{
-       return -1;
-}
-
-int plat_get_chip_id(void)
-       __attribute__((weak, alias("__plat_get_chip_id")));
-
-int axp_probe_power_id(char *name)
-{
-	if(!strcmp("axp22x", name))
-	{
-		return PMU_TYPE_22X;
-	}
-	else if(!strcmp("axp15x", name))
-	{
-		return PMU_TYPE_15X;
-	}
-	else if(!strcmp("axp20x", name))
-	{
-		return PMU_TYPE_22X;
-	}
-	else if(!strcmp("axp809", name))
-	{
-		return PMU_TYPE_20X;
-	}
-	else if(!strcmp("axp806", name))
-	{
-		return PMU_TYPE_806;
-	}
-	else if(!strcmp("axp81x", name))
-	{
-		return PMU_TYPE_81X;
-	}
-	else if(!strcmp("axp808", name))
-	{
-		return PMU_TYPE_808;
-	}
-	else if(!strcmp("poweroz", name))
-	{
-		return POWER_TYPE_OZ;
-	}
-	else if(!strcmp("powerrich", name))
-	{
-		return POWER_TYPE_RICH;
-	}
-
-	printf("no power %s\n", name);
-	return -1;
-}
-
-
-static int axp_fetch_pmu_id(int *main_pmu_id, int *slave_pmu_id)
-{
-	int ret = 0;
-	ret = script_parser_fetch("power_sply", "pmu_id", main_pmu_id, 1);
-	if(ret)
-	{
-		printf("not set main pmu id\n");
-		return -1;
-	}
-
-	ret = script_parser_fetch("slave_power_sply", "pmu_id", slave_pmu_id, 1);
-	if(ret)
-	{
-		printf("not set slave pmu id\n");
-		return -2;
-	}
-	return 0;
-}
-
-static int axp_probe_type(int main_pmu_id, int slave_pmu_id)
-{
-		int ret = 0;
-		printf("use pmu by pmu_id from sys_config.fex\n");
-		switch(main_pmu_id)
-		{
-			case PMU_TYPE_22X:
-#if defined(CONFIG_SUNXI_AXP22)
-				if(axp22_probe())
-				{
-					printf("probe axp22x failed\n");
-				}
-				else
-				{
-					/* pmu type AXP22X */
-					tick_printf("PMU: AXP22x found\n");
-					ret ++;
-				}
-				sunxi_axp_dev[0] = &sunxi_axp_22;
-				sunxi_axp_dev[PMU_TYPE_22X] = &sunxi_axp_22;
-#endif
-				break;
-			case PMU_TYPE_20X:
-#if defined(CONFIG_SUNXI_AXP20)
-				if(axp20_probe())
-				{
-					printf("probe axp20x failed\n");
-				}
-				else
-				{
-					/* pmu type AXP22X */
-					tick_printf("PMU: AXP20x found\n");
-					ret ++;
-				}
-				sunxi_axp_dev[0] = &sunxi_axp_20;
-				sunxi_axp_dev[PMU_TYPE_20X] = &sunxi_axp_20;
-#endif
-				break;
-			case PMU_TYPE_15X:
-#if defined(CONFIG_SUNXI_AXP15)
-				if(axp15_probe())
-				{
-					printf("probe axp15 failed\n");
-				}
-				else
-				{
-					/* pmu type AXP15X */
-					tick_printf("PMU: AXP15x found\n");
-					ret ++;
-				}
-				sunxi_axp_dev[0] = &sunxi_axp_15;
-				sunxi_axp_dev[PMU_TYPE_15X] = &sunxi_axp_15;
-#endif
-				break;
-			case PMU_TYPE_809:
-#if defined(CONFIG_SUNXI_AXP809)
-				if(axp809_probe())
-				{
-					printf("probe axp809 failed\n");
-				}
-				else
-				{
-					/* pmu type AXP809 */
-					tick_printf("PMU: AXP809 found\n");
-					ret ++;
-				}
-				sunxi_axp_dev[0] = &sunxi_axp_809;
-				sunxi_axp_dev[PMU_TYPE_809] = &sunxi_axp_809;
-#endif
-				break;
-			case PMU_TYPE_806:
-#if defined(CONFIG_SUNXI_AXP806)
-				if(axp806_probe())
-				{
-					printf("probe axp806 failed\n");
-				}
-				else
-				{
-					/* pmu type AXP806 */
-					tick_printf("PMU: AXP806 found\n");
-					ret ++;
-				}
-				sunxi_axp_dev[0] = &sunxi_axp_806;
-				sunxi_axp_dev[PMU_TYPE_806] = &sunxi_axp_806;
-#endif
-				break;
-			 case PMU_TYPE_808:
-#if defined(CONFIG_SUNXI_AXP808)
-				if(axp808_probe())
-				{
-					printf("probe axp808 failed\n");
-				}
-				else
-				{
-					/* pmu type AXP808 */
-					tick_printf("PMU: AXP808 found\n");
-					ret ++;
-				}
-				sunxi_axp_dev[0] = &sunxi_axp_808;
-				sunxi_axp_dev[PMU_TYPE_808] = &sunxi_axp_808;
-#endif
-				break;
-			case PMU_TYPE_81X:
-#if defined(CONFIG_SUNXI_AXP81X)
-				if(axp81_probe())
-				{
-					printf("probe axp81x failed\n");
-				}
-				else
-				{
-					/* pmu type AXP81x */
-					tick_printf("PMU: AXP81x found\n");
-					ret ++;
-				}
-				sunxi_axp_dev[0] = &sunxi_axp_81;
-				sunxi_axp_dev[PMU_TYPE_81X] = &sunxi_axp_81;
-#endif
-				break;
-			default:
-				tick_printf("main pmu id is valid\n");
-				break;
-		}
-		switch(slave_pmu_id)
-		{
-			case PMU_TYPE_22X:
-#if defined(CONFIG_SUNXI_AXP22)
-				if(axp22_probe())
-				{
-					printf("probe axp22x failed\n");
-				}
-				else
-				{
-					/* pmu type AXP22X */
-					tick_printf("PMU: AXP22x found\n");
-					ret ++;
-				}
-				sunxi_axp_dev[PMU_TYPE_22X] = &sunxi_axp_22;
-#endif
-				break;
-			case PMU_TYPE_20X:
-#if defined(CONFIG_SUNXI_AXP20)
-				if(axp20_probe())
-				{
-					printf("probe axp20x failed\n");
-				}
-				else
-				{
-					/* pmu type AXP22X */
-					tick_printf("PMU: AXP20x found\n");
-					ret ++;
-				}
-				sunxi_axp_dev[PMU_TYPE_20X] = &sunxi_axp_20;
-#endif
-				break;
-			case PMU_TYPE_15X:
-#if defined(CONFIG_SUNXI_AXP15)
-				if(axp15_probe())
-				{
-					printf("probe axp15 failed\n");
-				}
-				else
-				{
-					/* pmu type AXP15X */
-					tick_printf("PMU: AXP15x found\n");
-					ret ++;
-				}
-				sunxi_axp_dev[PMU_TYPE_15X] = &sunxi_axp_15;
-#endif
-				break;
-			case PMU_TYPE_809:
-#if defined(CONFIG_SUNXI_AXP809)
-				if(axp809_probe())
-				{
-					printf("probe axp809 failed\n");
-				}
-				else
-				{
-					/* pmu type AXP809 */
-					tick_printf("PMU: AXP809 found\n");
-					ret ++;
-				}
-				sunxi_axp_dev[PMU_TYPE_809] = &sunxi_axp_809;
-#endif
-				break;
-			case PMU_TYPE_806:
-#if defined(CONFIG_SUNXI_AXP806)
-				if(axp806_probe())
-				{
-					printf("probe axp806 failed\n");
-				}
-				else
-				{
-					/* pmu type AXP806 */
-					tick_printf("PMU: AXP806 found\n");
-					ret ++;
-				}
-				sunxi_axp_dev[PMU_TYPE_806] = &sunxi_axp_806;
-#endif
-				break;
-			 case PMU_TYPE_808:
-#if defined(CONFIG_SUNXI_AXP808)
-				if(axp808_probe())
-				{
-					printf("probe axp808 failed\n");
-				}
-				else
-				{
-					/* pmu type AXP808 */
-					tick_printf("PMU: AXP808 found\n");
-					ret ++;
-				}
-				sunxi_axp_dev[PMU_TYPE_808] = &sunxi_axp_808;
-#endif
-				break;
-			case PMU_TYPE_81X:
-#if defined(CONFIG_SUNXI_AXP81X)
-				if(axp81_probe())
-				{
-					printf("probe axp81x failed\n");
-				}
-				else
-				{
-					/* pmu type AXP81x */
-					tick_printf("PMU: AXP81x found\n");
-					ret ++;
-				}
-				sunxi_axp_dev[PMU_TYPE_81X] = &sunxi_axp_81;
-#endif
-				break;
-			case POWER_TYPE_OZ:
-#if defined(CONFIG_SUNXI_POWEROZ)
-				if(power_oz_probe())
-				{
-					printf("probe oz failed\n");
-				}
-				else
-				{
-					/* pmu type poewr oz */
-					tick_printf("power: oz found\n");
-					ret ++;
-				}
-#endif
-				break;
-			case POWER_TYPE_RICH:
-#if defined(CONFIG_SUNXI_POWEROZ)
-				if(power_rich_probe())
-				{
-					printf("probe rich failed\n");
-				}
-				else
-				{
-					/* pmu type poewr oz */
-					tick_printf("power: rich found\n");
-					ret ++;
-				}
-#endif
-				break;
-			default:
-				tick_printf("slave pmu id is valid\n");
-				break;
-		}
-		return ret;
-}
 
 /*
 ************************************************************************************************************
@@ -401,20 +63,8 @@ static int axp_probe_type(int main_pmu_id, int slave_pmu_id)
 int axp_probe(void)
 {
 	int ret = 0;
-	int pmu_main_id = (int)-1;
-	int pmu_slave_id = (int)-1;
+
 	memset(sunxi_axp_dev, 0, SUNXI_AXP_DEV_MAX * 4);
-	if(axp_fetch_pmu_id(&pmu_main_id, &pmu_slave_id) != (-1)) //must has one pmu
-	{
-		gd->power_main_id = pmu_main_id;
-		gd->power_slave_id = pmu_slave_id;
-		if(axp_probe_type(pmu_main_id, pmu_slave_id) > 0)
-		{
-			ret++;
-		}
-	}
-	else
-	{
 #if defined(CONFIG_SUNXI_AXP22)
 	if(axp22_probe())
 	{
@@ -425,7 +75,6 @@ int axp_probe(void)
 		/* pmu type AXP22X */
 		tick_printf("PMU: AXP22x found\n");
 		ret ++;
-		gd->power_main_id = PMU_TYPE_22X;
 	}
 	sunxi_axp_dev[PMU_TYPE_22X] = &sunxi_axp_22;
 #if (CONFIG_SUNXI_AXP_MAIN == PMU_TYPE_22X)
@@ -443,7 +92,6 @@ int axp_probe(void)
 		/* pmu type AXP22X */
 		tick_printf("PMU: AXP20x found\n");
 		ret ++;
-		gd->power_main_id = PMU_TYPE_20X;
 	}
 	sunxi_axp_dev[PMU_TYPE_20X] = &sunxi_axp_20;
 #if (CONFIG_SUNXI_AXP_MAIN == PMU_TYPE_20X)
@@ -461,7 +109,6 @@ int axp_probe(void)
 		/* pmu type AXP15X */
 		tick_printf("PMU: AXP15x found\n");
 		ret ++;
-		gd->power_main_id = PMU_TYPE_15X;
 	}
 	sunxi_axp_dev[PMU_TYPE_15X] = &sunxi_axp_15;
 #if (CONFIG_SUNXI_AXP_MAIN == PMU_TYPE_15X)
@@ -479,7 +126,6 @@ int axp_probe(void)
 		/* pmu type AXP809 */
 		tick_printf("PMU: AXP809 found\n");
 		ret ++;
-		gd->power_main_id = PMU_TYPE_809;
 	}
 	sunxi_axp_dev[PMU_TYPE_809] = &sunxi_axp_809;
 #if (CONFIG_SUNXI_AXP_MAIN == PMU_TYPE_809)
@@ -497,7 +143,6 @@ int axp_probe(void)
 		/* pmu type AXP806 */
 		tick_printf("PMU: AXP806 found\n");
 		ret ++;
-		gd->power_main_id = PMU_TYPE_806;
 	}
 	sunxi_axp_dev[PMU_TYPE_806] = &sunxi_axp_806;
 #if (CONFIG_SUNXI_AXP_MAIN == PMU_TYPE_806)
@@ -515,14 +160,12 @@ int axp_probe(void)
         /* pmu type AXP81X */
         tick_printf("PMU: AXP81X found\n");
         ret ++;
-		gd->power_main_id = PMU_TYPE_81X;
     }
     sunxi_axp_dev[PMU_TYPE_81X] = &sunxi_axp_81;
 #if (CONFIG_SUNXI_AXP_MAIN == PMU_TYPE_81X)
         sunxi_axp_dev[0] = &sunxi_axp_81;
 #endif
 #endif
-	}
 	if(!ret)
 	{
 		sunxi_axp_dev[0] = &sunxi_axp_null;
@@ -728,7 +371,7 @@ int axp_set_hardware_poweron_vol(void) //设置开机之后，PMU硬件关机电压为2.9V
 {
 	int vol_value = 0;
 
-	if(script_parser_fetch("pmu_para", "pmu_pwron_vol", &vol_value, 1))
+	if(script_parser_fetch(PMU_SCRIPT_NAME, "pmu_pwron_vol", &vol_value, 1))
 	{
 		puts("set power on vol to default\n");
 	}
@@ -755,7 +398,7 @@ int axp_set_hardware_poweroff_vol(void) //设置关机之后，PMU硬件下次开机电压为3.3
 {
 	int vol_value = 0;
 
-	if(script_parser_fetch("pmu_para", "pmu_pwroff_vol", &vol_value, 1))
+	if(script_parser_fetch(PMU_SCRIPT_NAME, "pmu_pwroff_vol", &vol_value, 1))
 	{
 		puts("set power off vol to default\n");
 	}
@@ -1187,39 +830,17 @@ int axp_set_power_supply_output(void)
 	int  power_vol, power_index = 0;
 	int  power_vol_d;
 
-if (gd->power_main_id == PMU_TYPE_20X)
-{
+#if defined(CONFIG_SUNXI_AXP20)
 #if defined(CONFIG_SUNXI_SUN7I)
     power_supply_hd = script_parser_fetch_subkey_start("target");
 #else
     power_supply_hd = script_parser_fetch_subkey_start("power_sply");
 #endif
-}
-else if (gd->power_main_id == PMU_TYPE_15X)
-{
+#elif defined(CONFIG_SUNXI_AXP15)
     power_supply_hd = script_parser_fetch_subkey_start("axp15_para");
-}
-else if (gd->power_main_id == PMU_TYPE_81X)
-{
-#if (defined(CONFIG_ARCH_SUN8IW6) && defined(CONFIG_ARCH_HOMELET))
-	int  chipid;
-	//0x18:axp_818, 0x13:axp_813 0x03:axp_803 0x0: key not burn
-	chipid = plat_get_chip_id();
-	if(chipid == 0x03)
-	{
-		power_supply_hd = script_parser_fetch_subkey_start("power_sply_ext");
-	}
-	else
-	{
-		power_supply_hd = script_parser_fetch_subkey_start("power_sply");
-	
-	}
+#else
+    power_supply_hd = script_parser_fetch_subkey_start("power_sply");
 #endif
-}
-else
-{
-	power_supply_hd = script_parser_fetch_subkey_start("power_sply");
-}
     if(!power_supply_hd)
     {
         printf("unable to set power supply\n");
@@ -1450,7 +1071,7 @@ int axp_probe_power_supply_condition(void)
 *
 *    返回值  ：
 *
-*    说??    ：
+*    说明    ：
 *
 *
 ************************************************************************************************************
@@ -1667,38 +1288,9 @@ int axp_set_supply_status_byregulator(const char* id, int onoff)
     int find_flag = 0;
     int ret = 0;
 
-#if (defined(CONFIG_ARCH_SUN8IW6) && defined(CONFIG_ARCH_HOMELET))
-    static int chipid = -2; //use static variable for read once
 
-    if(chipid == -2)
+    for(i = 1; i <= 2; i++)
     {
-        //just read once
-    	chipid = plat_get_chip_id();
-    }
-
-    //0x18:axp_818, 0x13:axp_813 0x03:axp_803 0x0: key not burn
-    if(chipid == -1)  //default, platform not implement function plat_get_chip_id
-    {
-    	printf("axp chipid not care,use default regulator tree\n");
-    	i = 1;
-    }
-    else if(chipid == 0x03)
-    {
-    	printf("use extend  regulator tree\n");
-    	i = 2;
-    }
-    else
-    {
-    	printf("use default regulator tree\n");
-    	i = 1;
-    }
-
-   for(i = 1; i <= 1; i++)
-   {
-#else
-   for(i = 1; i <= 2; i++)
-   {
-#endif
         sprintf(main_key,"pmu%d_regu", i);
 
         main_hd = script_parser_fetch(main_key,"regulator_count",&ldo_count, 1);

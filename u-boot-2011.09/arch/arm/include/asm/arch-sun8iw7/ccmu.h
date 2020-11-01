@@ -259,8 +259,6 @@
 #define MBUSCLK_SRC_PLL6	(1)
 #define MBUSCLK_SRC_PLL5	(2)
 
-#define CPUS_TWI_HOST_ID	0x80000000
-
 void ccm_clock_enable(u32 clk_id);
 void ccm_clock_disable(u32 clk_id);
 void ccm_module_enable(u32 clk_id);

@@ -35,27 +35,19 @@ DECLARE_GLOBAL_DATA_PTR;
 
 int enable_smp(void)
 {
-   //SMP status is controlled by bit 6 of the CP15 Aux Ctrl Reg
+   /*SMP status is controlled by bit 6 of the CP15 Aux Ctrl Reg  */
    asm volatile("MRC     p15, 0, r0, c1, c0, 1");  // Read ACTLR
    asm volatile("ORR     r0, r0, #0x040");         // Set bit 6
    asm volatile("MCR     p15, 0, r0, c1, c0, 1");  // Write ACTLR
+
     return 0;
 }
 
 int board_init(void)
 {
-	//asm volatile("b .");
     u32 reg_val;
-    int cpu_status = 0;
-    cpu_status = readl(SUNXI_CPUX_CFG_BASE+0x80);
-    cpu_status &= (0xf<<24);
 
-    //note:
-    //sbrom will enable smp bit when jmp to non-secure fel on AW1718.
-    //but normal brom not do this operation.
-    //so should enable smp when run uboot by normal fel mode.
-    if(!cpu_status)
-        enable_smp();
+    enable_smp();
 
     if (uboot_spare_head.boot_data.work_mode != WORK_MODE_USB_PRODUCT)
     {
@@ -167,13 +159,13 @@ int platform_axp_probe(sunxi_axp_dev_t  *sunxi_axp_dev_pt[], int max_dev)
 #ifdef CONFIG_SUNXI_MODULE_AXP
     if(axp809_probe())
     {
-        printf("probe axp233 failed\n");
+        printf("probe axp809 failed\n");
         sunxi_axp_dev_pt[0] = &sunxi_axp_null;
         return 0;
     }
 
     /* pmu type AXP80X */
-    tick_printf("PMU: AXP233 found\n");
+    tick_printf("PMU: AXP809 found\n");
     sunxi_axp_dev_pt[0] = &sunxi_axp_809;
 #else
     sunxi_axp_dev_pt[0] = &sunxi_axp_null;

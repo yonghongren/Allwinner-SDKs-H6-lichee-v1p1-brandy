@@ -20,6 +20,9 @@
 */
 #include "common.h"
 #include "include.h"
+
+extern int root_rollback_used;
+extern struct aw_nvc_extension_t nvc_ext;
 /*
 ************************************************************************************************************
 *
@@ -616,7 +619,7 @@ int sboot_get_version(int *main_version, int *sub_version, char *version_file)
 	char line_buff[256], *p_line_buff;
 	char item[128],  item_buff[128];
 	char value[128], value_buff[128];
-	int  main_flag, sub_flag;
+	int  main_flag = 0, sub_flag = 0, rollback_en_flag = 0;
 	int  i, j;
 
 	GetFullPath(lpcfg_full_name, version_file);
@@ -701,10 +704,14 @@ int sboot_get_version(int *main_version, int *sub_version, char *version_file)
 		if (!strcmp(item, "MAIN_VERSION")) {
 			main_flag = 1;
 			*main_version = atoi(value);
+			nvc_ext.nvc = *main_version;
 		}
 		else if (!strcmp(item, "SUB_VERSION")) {
 			sub_flag = 1;
 			*sub_version = atoi(value);
+		} else if (!strcmp(item, ROOT_ROLLBACK_USED_CONST)) {
+			rollback_en_flag = 1;
+			root_rollback_used = atoi(value);
 		}
 
 	}
@@ -712,25 +719,10 @@ int sboot_get_version(int *main_version, int *sub_version, char *version_file)
 
 	fclose(p_file);
 
-	if (*main_version > 31) {
-		printf("MAIN VERSION is TOO BIG\n");
-		printf("it must larger or equal to 0, and less than 32\n");
-
-		return -1;
-	}
-
-	if (*sub_version > 63) {
-		printf("SUB VERSION is TOO BIG\n");
-
-		printf("it must larger or equal to 0, and less than 64\n");
-
-		return -1;
-	}
-
 	printf("main_version=%d\n", *main_version);
 	printf("sub_version =%d\n", *sub_version);
-
-	if (main_flag && sub_flag)
+    printf("root_rollback_used =%d\n", root_rollback_used);
+	if (main_flag || sub_flag || rollback_en_flag)
 		return 0;
 
 	return -1;

@@ -15,11 +15,7 @@
 #define SECURE_BIT_OFFSET 11
 #endif
 
-/*Globel config area begin*/
 #define EFUSE_DBG_E 0
-#define NORMAL_IC_FOLLOW_SEC_RULE 0
-/*Globel config area end*/
-
 #if EFUSE_DBG_E
 static  void efuse_dump(char *str,unsigned char *data,\
 	int len,int align)
@@ -40,7 +36,6 @@ static  void efuse_dump(char *str,unsigned char *data,\
 #define EFUSE_DBG printf
 #define EFUSE_DBG_DUMP efuse_dump
 #define EFUSE_DUMP_LEN 16
-static unsigned int g_err_flg = 0;
 #else
 #define EFUSE_DBG_DUMP(...) do{} while(0);
 #define EFUSE_DBG(...) do{} while(0);
@@ -55,17 +50,16 @@ typedef struct efuse_key_map_new{
 	char name[SUNXI_KEY_NAME_LEN];
 	int offset;
 	int size;	 /* unit: bit */
-	int rd_fbd_offset;
-	int burned_flg_offset;
+	int rd_fbd_offset; /*read protect*/
+	int burned_flg_offset; /*write protect*/
 	int sw_rule;
 }efuse_key_map_new_t;
 /*It can not be seen.*/
 #define EFUSE_PRIVATE (0)
 /*After burned ,cpu can not access.*/
-#define EFUSE_NACCESS (1)
-#define EFUSE_RO (2)
-#define EFUSE_RW (3)
-
+#define EFUSE_NACCESS (1<<1)
+#define EFUSE_RW (2<<1)
+#define EFUSE_RO (3<<1)
 #define EFUSE_ACL_SET_BRUN_BIT      (1<<29)
 #define EFUSE_ACL_SET_RD_FORBID_BIT (1<<30)
 #define EFUSE_BRUN_RD_OFFSET_MASK    (0xFFFFFF)
@@ -81,7 +75,6 @@ EFUSE_DEF_ITEM(EFUSE_NV2_NAME,0x18,64,-1,-1,EFUSE_RW),
 EFUSE_DEF_ITEM(EFUSE_RSAKEY_HASH_NAME,0x20,160,-1,8,EFUSE_RO),
 EFUSE_DEF_ITEM(EFUSE_THM_SENSOR_NAME,0x34,64,-1,-1,EFUSE_RO),
 EFUSE_DEF_ITEM(EFUSE_RENEW_NAME,0x3C,64,-1,-1,EFUSE_RW),
-EFUSE_DEF_ITEM(EFUSE_IPTV_MAC,0x3C,64,-1,-1,EFUSE_RW),/*share with EFUSE_RENEW_NAME*/
 EFUSE_DEF_ITEM(EFUSE_HUK_NAME,0x44,192,17,9,EFUSE_NACCESS),
 EFUSE_DEF_ITEM(EFUSE_OPT_ID_NAME,0x5C,32,18,10,EFUSE_RO),
 EFUSE_DEF_ITEM(EFUSE_ID_NAME,0x60,32,19,11,EFUSE_RO),
@@ -117,7 +110,6 @@ EFUSE_DEF_ITEM(EFUSE_EK_HASH_NAME,EFUSE_EK_HASH,128,16,16,EFUSE_RO),
 EFUSE_DEF_ITEM(EFUSE_SN_NAME,EFUSE_SN,192,17,17,EFUSE_RO),
 EFUSE_DEF_ITEM(EFUSE_NV1_NAME,EFUSE_NV1,32,18,18,EFUSE_RW),
 EFUSE_DEF_ITEM(EFUSE_NV2_NAME,EFUSE_NV2,224,19,19,EFUSE_RW),
-EFUSE_DEF_ITEM(EFUSE_IPTV_MAC,EFUSE_MAC,64,-1,-1,EFUSE_RW),
 #if defined(CONFIG_ARCH_SUN50IW6P1)
 EFUSE_DEF_ITEM(EFUSE_HDCP_PKF_NAME,0x118,128,20,20,EFUSE_RO),
 EFUSE_DEF_ITEM(EFUSE_HDCP_DUK_NAME,0x128,128,21,21,EFUSE_RO),
@@ -128,6 +120,14 @@ EFUSE_DEF_ITEM(EFUSE_KL_SCK1_NAME,EFUSE_SCK1,512,24,24,EFUSE_NACCESS),
 EFUSE_DEF_ITEM(EFUSE_BACKUP_KEY_NAME,0x118,320,20,20,EFUSE_RW),
 #endif
 EFUSE_DEF_ITEM("",0,0,0,0,EFUSE_PRIVATE),
+};
+#elif defined(CONFIG_ARCH_SUN8IW7P1)
+static efuse_key_map_new_t g_key_info[] = {
+EFUSE_DEF_ITEM(EFUSE_RSSK_NAME, EFUSE_RSSK, SID_RSSK_SIZE, SCC_RSSK_DONTSHOW_FLAG, SCC_RSSK_BURNED_FLAG, EFUSE_NACCESS),
+EFUSE_DEF_ITEM(EFUSE_SSK_NAME, EFUSE_SSK, SID_SSK_SIZE, SCC_SSK_DONTSHOW_FLAG, SCC_SSK_BURNED_FLAG, EFUSE_NACCESS),
+EFUSE_DEF_ITEM(EFUSE_ROTPK_NAME, EFUSE_ROTPK, SID_ROTPK_SIZE, -1, SCC_ROTPK_BURNED_FLAG, EFUSE_RO),
+EFUSE_DEF_ITEM(EFUSE_HDCP_HASH_NAME, EFUSE_HDCP_HASH, SID_HDCP_HASH_SIZE, -1, SCC_HDCP_HASH_BURNED_FLAG, EFUSE_RO),
+EFUSE_DEF_ITEM("", 0, 0, 0, 0, EFUSE_PRIVATE),
 };
 #elif defined(CONFIG_ARCH_SUN8IW11P1)
 static efuse_key_map_new_t g_key_info[] = {
@@ -152,80 +152,105 @@ EFUSE_DEF_ITEM("",0,0,0,0,EFUSE_PRIVATE),
 };
 #elif defined(CONFIG_ARCH_SUN8IW12P1)
 static efuse_key_map_new_t g_key_info[] = {
-EFUSE_DEF_ITEM(EFUSE_CHIPID_NAME,0,128,-1,-1,EFUSE_RO),
-EFUSE_DEF_ITEM(EFUSE_BROM_CONF_NAME,0x10,32,17,1,EFUSE_PRIVATE),
-EFUSE_DEF_ITEM(EFUSE_THM_SENSOR_NAME,0x14,96,18,2,EFUSE_RO),
-EFUSE_DEF_ITEM(EFUSE_FT_ZONE_NAME,0x20,128,19,3,EFUSE_RW),
-EFUSE_DEF_ITEM(EFUSE_ROTPK_NAME,0x30,256,20,4,EFUSE_RO),
-EFUSE_DEF_ITEM(EFUSE_NV1_NAME,0x50,32,21,5,EFUSE_RW),
-EFUSE_DEF_ITEM(EFUSE_TVE_NAME,0x54,32,22,6,EFUSE_RO),
-EFUSE_DEF_ITEM(EFUSE_ANTI_BLUSH_NAME,0x58,32,23,7,EFUSE_RO),
-EFUSE_DEF_ITEM(EFUSE_RESERVED_NAME,0x5C,32,24,8,EFUSE_RW),
-EFUSE_DEF_ITEM("",0,0,0,0,EFUSE_PRIVATE),
+EFUSE_DEF_ITEM(EFUSE_CHIPID_NAME, 0x0, 128, 16, 0, EFUSE_RO),
+EFUSE_DEF_ITEM(EFUSE_BROM_CONF_NAME, 0X10, 16, 17, 1, EFUSE_PRIVATE),
+EFUSE_DEF_ITEM(EFUSE_THM_SENSOR_NAME, 0x14, 96, 18, 2, EFUSE_RO),
+EFUSE_DEF_ITEM("sensor", 0x14, 96, 18, 2, EFUSE_RO),
+EFUSE_DEF_ITEM(EFUSE_FT_ZONE_NAME, 0x20, 128, 19, 3, EFUSE_RW),
+EFUSE_DEF_ITEM(EFUSE_ROTPK_NAME, 0x30, 256, 20, 4, EFUSE_RO),
+EFUSE_DEF_ITEM(EFUSE_NV1_NAME, 0x50, 32, 21, 5, EFUSE_RW),
+EFUSE_DEF_ITEM(EFUSE_TV_OUT_NAME, 0x54, 32, 22, 6, EFUSE_RO),
+EFUSE_DEF_ITEM(EFUSE_RESERVED_NAME, 0x5c, 768, 24, 8, EFUSE_RW),
+EFUSE_DEF_ITEM("", 0, 0, 0, 0, EFUSE_PRIVATE),
+};
+#elif defined(CONFIG_ARCH_SUN8IW17P1)
+static efuse_key_map_new_t g_key_info[] = {
+	EFUSE_DEF_ITEM(EFUSE_CHIPID_NAME, 0x0, 128, 0, 0, EFUSE_RO),
+	EFUSE_DEF_ITEM(EFUSE_BROM_CONF_NAME, 0X10, 32, 1, 1, EFUSE_PRIVATE),
+	EFUSE_DEF_ITEM(EFUSE_THM_SENSOR_NAME, 0x14, 96, 2, 2, EFUSE_RO),
+	EFUSE_DEF_ITEM("sensor", 0x14, 96, 2, 2, EFUSE_RO),
+	EFUSE_DEF_ITEM(EFUSE_FT_ZONE_NAME, 0x20, 128, 3, 3, EFUSE_RW),
+	EFUSE_DEF_ITEM(EFUSE_TV_OUT_NAME, 0x30, 32, 4, 4, EFUSE_RO),
+	EFUSE_DEF_ITEM(EFUSE_OEM_NAME, 0x34, 96, 4, 4, EFUSE_RO),
+	EFUSE_DEF_ITEM(EFUSE_RSSK_NAME, 0xa0, 256, 14, 14, EFUSE_NACCESS),
+	EFUSE_DEF_ITEM(EFUSE_RESERVED_NAME, 0x118, 320, 20, 20, EFUSE_RW),
+	EFUSE_DEF_ITEM("", 0, 0, 0, 0, EFUSE_PRIVATE),
+};
+#elif defined(CONFIG_ARCH_SUN8IW15P1)
+static efuse_key_map_new_t g_key_info[] = {
+EFUSE_DEF_ITEM(EFUSE_CHIPID_NAME, 0x0, 128, -1, 0, EFUSE_RO),
+EFUSE_DEF_ITEM(EFUSE_ROTPK_NAME, EFUSE_ROTPK, 256, -1, 12, EFUSE_RO),
+EFUSE_DEF_ITEM(EFUSE_HDCP_HASH_NAME, EFUSE_HDCP_HASH, 128, -1, 15, EFUSE_RO),
+EFUSE_DEF_ITEM("", 0, 0, 0, 0, EFUSE_PRIVATE),
 };
 #else
 /*Please extend key_maps for new arch here*/
 static efuse_key_map_new_t g_key_info[] = {
-EFUSE_DEF_ITEM(EFUSE_CHIPID_NAME,0,128,-1,-1,EFUSE_RO),
+EFUSE_DEF_ITEM(EFUSE_CHIPID_NAME, EFUSE_CHIPD, 128, -1, -1, EFUSE_RO),
 EFUSE_DEF_ITEM("",0,0,0,0,EFUSE_PRIVATE),
 };
 #endif
 
-extern u32 smc_readl(ulong addr);
-extern void smc_writel(u32 val,ulong addr);
+__weak int set_efuse_voltage(int vol)
+{
+	return 0;
+}
 
+/*Please reference 1728 spec page11 to know why to add this function
+*burn efuse :efuse sram can not get the latest value
+*unless via sid read or reboot.
+*/
 static uint __sid_reg_read_key(uint key_index)
 {
 	uint reg_val;
-	reg_val = smc_readl(SID_PRCTL);
+	reg_val = readl(SID_PRCTL);
 	reg_val &= ~((0x1ff<<16)|0x3);
 	reg_val |= key_index<<16;
-	smc_writel(reg_val, SID_PRCTL);
+	writel(reg_val, SID_PRCTL);
 	reg_val &= ~((0xff<<8)|0x3);
 	reg_val |= (SID_OP_LOCK<<8) | 0x2;
-	smc_writel(reg_val, SID_PRCTL);
-	while(smc_readl(SID_PRCTL)&0x2){};
+	writel(reg_val, SID_PRCTL);
+	while (readl(SID_PRCTL) & 0x2) {
+		;
+	}
 	reg_val &= ~((0x1ff<<16)|(0xff<<8)|0x3);
-	smc_writel(reg_val, SID_PRCTL);
-	reg_val = smc_readl(SID_RDKEY);
+	writel(reg_val, SID_PRCTL);
+	reg_val = readl(SID_RDKEY);
 	return reg_val;
 }
 
-#ifdef SID_EFUSE
-uint sid_read_key(uint key_index)
-{
-	return smc_readl(SID_EFUSE + key_index);
-}
-#else
 uint sid_read_key(uint key_index)
 {
 	return __sid_reg_read_key(key_index);
 }
-#endif
+
 
 void sid_program_key(uint key_index, uint key_value)
 {
 	uint reg_val;
-	smc_writel(key_value, SID_PRKEY);
-	reg_val = smc_readl(SID_PRCTL);
+
+	set_efuse_voltage(1900);
+
+	writel(key_value, SID_PRKEY);
+	reg_val = readl(SID_PRCTL);
 	reg_val &= ~((0x1ff<<16)|0x3);
 	reg_val |= key_index<<16;
-	smc_writel(reg_val, SID_PRCTL);
+	writel(reg_val, SID_PRCTL);
 	reg_val &= ~((0xff<<8)|0x3);
 	reg_val |= (SID_OP_LOCK<<8) | 0x1;
-	smc_writel(reg_val, SID_PRCTL);
-	while(smc_readl(SID_PRCTL)&0x1){};
+	writel(reg_val, SID_PRCTL);
+	while (readl(SID_PRCTL) & 0x1) {
+		;
+	}
 	reg_val &= ~((0x1ff<<16)|(0xff<<8)|0x3);
-	smc_writel(reg_val, SID_PRCTL);
+	writel(reg_val, SID_PRCTL);
+
+	set_efuse_voltage(1800);
+
 	return ;
 }
 
 #define EFUSE_BURN_MAX_TRY_CNT 3
-/*Please reference 1728 spec page11 to know why to call __sid_reg_read_key
-* but sid_read_key
-*burn efuse :efuse sram can not get the latest value
-*unless via sid read or reboot.
-*/
 static int uni_burn_key(uint key_index, uint key_value)
 {
 	uint key_burn_bitmask = ~(sid_read_key(key_index)) & key_value;
@@ -237,11 +262,7 @@ static int uni_burn_key(uint key_index, uint key_value)
 
 		if(fail > EFUSE_BURN_MAX_TRY_CNT)
 		{
-			EFUSE_DBG("[efuse] %s %d fatal err: **uni_burn_key failed **",
-			__FILE__,__LINE__);
-			#if EFUSE_DBG_E
-			g_err_flg++;
-			#endif
+			EFUSE_DBG("[efuse] warn: **uni_burn_key failed **");
 			return -1;
 		}
 		key_burn_bitmask &= (~(__sid_reg_read_key(key_index)));
@@ -253,19 +274,15 @@ static int uni_burn_key(uint key_index, uint key_value)
 void sid_set_security_mode(void)
 {
 	#ifdef EFUSE_LCJS
-    if(uni_burn_key(EFUSE_LCJS, (0x1 << SECURE_BIT_OFFSET)))
-    {
-		EFUSE_DBG("[efuse] %s %d fatal err: **sid_set_security_mode failed **",
-		__FILE__,__LINE__);
-    }
+    uni_burn_key(EFUSE_LCJS, (0x1<<SECURE_BIT_OFFSET));
 	#endif
 	return;
 }
-/*This is an obseleted api*/
+
 int sid_probe_security_mode(void)
 {
 	#ifdef EFUSE_LCJS
-	return (sid_read_key(EFUSE_LCJS) >> SECURE_BIT_OFFSET) & 1;
+	return (sid_read_key(EFUSE_LCJS)>>SECURE_BIT_OFFSET) & 1;
 	#else
 	return 0;
 	#endif
@@ -282,13 +299,10 @@ int sid_get_security_status(void)
 	return sid_probe_security_mode();
 }
 #endif
+
 static void _set_cfg_flg(int efuse_cfg_base,int bit_offset)
 {
-    if(uni_burn_key(efuse_cfg_base,(1<<bit_offset)))
-    {
-		EFUSE_DBG("[efuse] %s %d fatal err: **_set_cfg_flg [base:%d][offset:%d] **",
-		__FILE__,__LINE__,efuse_cfg_base,bit_offset);
-    }
+    uni_burn_key(efuse_cfg_base,(1<<bit_offset));
     return;
 }
 
@@ -325,21 +339,16 @@ static int __sw_acl_ck(efuse_key_map_new_t *key_map,int burn)
 		/*If already burned:*/
 		if(_get_burned_flag(key_map))
 		{
-			EFUSE_DBG("\n[efuse]%s: already burned\n",key_map->name);
-			EFUSE_DBG("config reg:0x%x\n",sid_read_key(EFUSE_WRITE_PROTECT));
-			if(key_map->sw_rule == EFUSE_NACCESS)
-				return EFUSE_ERR_NO_ACCESS;
-			return EFUSE_ERR_ALREADY_BURNED;
+			if((key_map->sw_rule == EFUSE_NACCESS)\
+				||(key_map->sw_rule == EFUSE_RO))
+			{
+				EFUSE_DBG("\n[efuse]%s: already burned\n",key_map->name);
+				return EFUSE_ERR_ALREADY_BURNED;
+			}
 		}
 		if(key_map->sw_rule == EFUSE_RW)
 		{
-			/*modify burned_flg_offset&&rd_fbd_offset in case of the config bits been burned*/
 			key_map->burned_flg_offset |= EFUSE_ACL_SET_BRUN_BIT;
-			key_map->rd_fbd_offset |= EFUSE_ACL_SET_RD_FORBID_BIT;
-		}
-		else if(key_map->sw_rule == EFUSE_RO)
-		{
-			/*modify rd_fbd_offset in case of the config bit been burned*/
 			key_map->rd_fbd_offset |= EFUSE_ACL_SET_RD_FORBID_BIT;
 		}
 	}
@@ -350,8 +359,6 @@ static int __sw_acl_ck(efuse_key_map_new_t *key_map,int burn)
 static int __efuse_acl_ck(efuse_key_map_new_t *key_map,int burn)
 {
 	/*For normal solution only check EFUSE_PRIVATE,other will be seemed as EFUSE_RW */
-	#ifdef NORMAL_IC_FOLLOW_SEC_RULE
-	#else
 	if(sid_get_security_status() == 0)
 	{
 		if(key_map->sw_rule == EFUSE_PRIVATE)
@@ -360,7 +367,6 @@ static int __efuse_acl_ck(efuse_key_map_new_t *key_map,int burn)
 		}
 		return 0;
 	}
-	#endif
 	int ret = __sw_acl_ck(key_map,burn);
 	if(ret)
 	{
@@ -424,9 +430,9 @@ int sunxi_efuse_write(void *key_inf)
 	unsigned int niddle = 0,tmp_data = 0,k_d_lft = 0 ;
 	efuse_key_map_new_t *key_map = g_key_info;
 
-	if ((list == NULL)||(list->len == 0))
+	if (list == NULL)
 	{
-		EFUSE_DBG("[efuse] error: key_inf is null or len is 0\n");
+		EFUSE_DBG("[efuse] error: key_inf is null\n");
 		return EFUSE_ERR_ARG;
 	}
 	/* search key via name*/
@@ -434,6 +440,8 @@ int sunxi_efuse_write(void *key_inf)
 	{
 		if (!memcmp(list->name,key_map->name,strlen(key_map->name)))
 		{
+			EFUSE_DBG("key name = %s\n", key_map->name);
+			EFUSE_DBG("key offset = 0x%x\n", key_map->offset);
 			/* check if there is enough space to store the key*/
 			if ((key_map->size >> 3) < list->len)
 			{
@@ -456,7 +464,7 @@ int sunxi_efuse_write(void *key_inf)
 	int ret = __efuse_acl_ck(key_map,1);
 	if(ret)
 	{
-		EFUSE_DBG("[sunxi_efuse_write] __efuse_acl_ck check failed\n");
+		EFUSE_DBG("[sunxi_efuse_write] error: NO ACCESS\n");
 		return ret;
 	}
 
@@ -498,21 +506,15 @@ int sunxi_efuse_write(void *key_inf)
 	}
 	/*Already burned bit: Set this bit to indicate it is already burned.*/
 	if((key_map->burned_flg_offset >= 0) &&
-	   (key_map->burned_flg_offset <= EFUSE_BRUN_RD_OFFSET_MASK)
-	   #ifndef NORMAL_IC_FOLLOW_SEC_RULE
-	   &&sid_get_security_status()
-	   #endif
-	   )
+	   (key_map->burned_flg_offset <= EFUSE_BRUN_RD_OFFSET_MASK) &&
+	   sid_get_security_status())
 	{
 		_set_cfg_flg(EFUSE_WRITE_PROTECT,key_map->burned_flg_offset);
 	}
 	/*Read forbidden bit: Set to indicate cpu can not access this key again.*/
 	if((key_map->rd_fbd_offset >= 0) &&
-	   (key_map->rd_fbd_offset <= EFUSE_BRUN_RD_OFFSET_MASK)
-	   #ifndef NORMAL_IC_FOLLOW_SEC_RULE
-	   &&sid_get_security_status()
-	   #endif
-	   )
+	   (key_map->rd_fbd_offset <= EFUSE_BRUN_RD_OFFSET_MASK) &&
+	   sid_get_security_status())
 	{
 		_set_cfg_flg(EFUSE_READ_PROTECT,key_map->rd_fbd_offset);
 	}
@@ -523,14 +525,16 @@ int sunxi_efuse_write(void *key_inf)
 *prepared enough buffer to receive data.
 *Because the lenth of key is exported as MACRO*/
 #define EFUSE_ROUND_UP(x,y)  ((((x) + ((y) - 1)) / (y)) * (y))
-int sunxi_efuse_read(void *key_name, void *rd_buf)
+int sunxi_efuse_read(void *key_name, void *rd_buf, int *len)
 {
 	efuse_key_map_new_t *key_map = g_key_info;
 	uint tmp=0,i=0,k_u32_l=0,bit_lft = 0;
 	int offset =0,tmp_sz = 0;
-	/*if rd_buf not aligned ,u32_p will not be accessed*/
+	int show_status = 0;
 	unsigned int *u32_p = (unsigned int *)rd_buf;
 	unsigned char *u8_p = (unsigned char *)rd_buf;
+
+	*len = 0;
 	if(!(key_name && rd_buf))
 	{
 		EFUSE_DBG("[efuse] error arg check fail\n");
@@ -541,6 +545,13 @@ int sunxi_efuse_read(void *key_name, void *rd_buf)
 	{
 		if (!memcmp(key_name, key_map->name, strlen(key_map->name)))
 		{
+			if (key_map->burned_flg_offset > 0) {
+				show_status = (sid_read_key(EFUSE_WRITE_PROTECT) >> key_map->burned_flg_offset) & 1;
+				if (!show_status) {
+					pr_error("key %s have not been burned yet\n", key_map->name);
+					return -1;
+				}
+			}
 			break;
 		}
 	}
@@ -551,14 +562,14 @@ int sunxi_efuse_read(void *key_name, void *rd_buf)
 		return EFUSE_ERR_KEY_NAME_WRONG;
 	}
 
-	int ret = __efuse_acl_ck(key_map,0);
+	int ret = __efuse_acl_ck(key_map, 0);
 	if(ret)
 	{
 		EFUSE_DBG("[sunxi_efuse_write] error: acl check fail\n");
 		return ret;
 	}
 
-	EFUSE_DBG("key name:%s key size:%d key offset:%d\n",\
+	EFUSE_DBG("key name:%s key size:%d key offset:0x%X\n",\
 		key_map->name,key_map->size,key_map->offset);
 	k_u32_l = key_map->size / 32;
 	bit_lft = key_map->size % 32;
@@ -586,20 +597,7 @@ int sunxi_efuse_read(void *key_name, void *rd_buf)
 			   EFUSE_ROUND_UP(bit_lft,8));
 		tmp_sz +=EFUSE_ROUND_UP(bit_lft,8);
 	}
+	*len = tmp_sz;
 
-	flush_dcache_range((unsigned long)rd_buf,tmp_sz);
-	return tmp_sz;
-}
-
-/*dbg only*/
-void sunxi_efuse_dump(void)
-{
-	efuse_key_map_new_t *key_map = g_key_info;
-	printf("\nsunxi_efuse_dump::\n");
-	/* search key via name*/
-	for(; key_map->size != 0; key_map++)
-	{
-		printf("%s : [size:%d Byte][sw_rule:%d]\n",
-		key_map->name,key_map->size/8,key_map->sw_rule);
-	}
+	return 0;
 }

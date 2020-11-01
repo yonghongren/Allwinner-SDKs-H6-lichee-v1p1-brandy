@@ -62,10 +62,10 @@ struct spare_boot_head_t  uboot_spare_head =
         0,                          //monitor
         {0},                        //reserved data
         UBOOT_START_SECTOR_IN_SDMMC, //OTA flag
-		0,							//multi_config_exist
         0,                           //dtb offset
         0,                           //boot_package_size
 		0,							//dram_scan_size
+        { 0 }			//reserved data
     }
 };
 

@@ -37,6 +37,8 @@ struct _irq_handler
 };
 
 struct _irq_handler sunxi_int_handlers[GIC_IRQ_NUM];
+
+int uboot_non_secure_flag = 0;
 /*
 ************************************************************************************************************
 *
@@ -210,8 +212,7 @@ static void gic_clear_pending(uint irq_no)
 	uint offset;
 
 	offset = irq_no >> 5; // ³ý32
-	reg_val = readl(GIC_PEND_CLR(offset));
-	reg_val |= (1 << (irq_no & 0x1f));
+	reg_val = (1 << (irq_no & 0x1f));
 	writel(reg_val, GIC_PEND_CLR(offset));
 
 	return ;
@@ -234,17 +235,17 @@ static void gic_clear_pending(uint irq_no)
 */
 void irq_install_handler (int irq, interrupt_handler_t handle_irq, void *data)
 {
-	disable_interrupts();
+	//disable_interrupts();
 	if (irq >= GIC_IRQ_NUM || !handle_irq)
 	{
-		enable_interrupts();
+		//enable_interrupts();
 		return;
 	}
 
 	sunxi_int_handlers[irq].m_data = data;
 	sunxi_int_handlers[irq].m_func = handle_irq;
 
-	enable_interrupts();
+	//enable_interrupts();
 }
 /*
 ************************************************************************************************************
@@ -264,17 +265,17 @@ void irq_install_handler (int irq, interrupt_handler_t handle_irq, void *data)
 */
 void irq_free_handler(int irq)
 {
-	disable_interrupts();
+	//disable_interrupts();
 	if (irq >= GIC_IRQ_NUM)
 	{
-		enable_interrupts();
+		//enable_interrupts();
 		return;
 	}
 
 	sunxi_int_handlers[irq].m_data = NULL;
 	sunxi_int_handlers[irq].m_func = default_isr;
 
-	enable_interrupts();
+	//enable_interrupts();
 }
 /*
 ************************************************************************************************************
@@ -296,10 +297,8 @@ void irq_free_handler(int irq)
 void do_irq (struct pt_regs *pt_regs)
 {
 	u32 idnum;
-	volatile u32 secmode;
 
-	secmode = gd->securemode;
-	if(secmode)
+	if(uboot_non_secure_flag)
 		idnum = readl(GIC_AIAR_REG);
 	else
 		idnum = readl(GIC_INT_ACK_REG);
@@ -320,8 +319,10 @@ void do_irq (struct pt_regs *pt_regs)
 	else
 		gic_spi_handler(idnum);
 
-	if(secmode)
+	if(uboot_non_secure_flag)
+	{
 		writel(idnum, GIC_AEOI_REG);
+	}
 	else
 	{
 		writel(idnum, GIC_END_INT_REG);
@@ -481,10 +482,20 @@ int arch_interrupt_init (void)
 	{
 		sunxi_int_handlers[i].m_data = default_isr;
 	}
-	if((gd->securemode == SUNXI_SECURE_MODE_NO_SECUREOS) ||
-		(gd->securemode == SUNXI_NORMAL_MODE) || (gd->securemode == SUNXI_SECURE_MODE))
+printf("%s %d\n", __FILE__, __LINE__);
+	if(gd->securemode == SUNXI_SECURE_MODE_NO_SECUREOS ||
+		gd->securemode == SUNXI_SECURE_MODE_WITH_SECUREOS)
 	{
-		printf("gic: normal or no secure os mode\n");
+		uboot_non_secure_flag = 1;
+	}
+
+	if(gd->securemode == SUNXI_SECURE_MODE_WITH_SECUREOS)
+	{
+		printf("gic: secure os exist\n");
+	}
+	else
+	{
+		printf("gic: secure os not exist\n");
 		gic_distributor_init();
 		gic_cpuif_init();
 	}

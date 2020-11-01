@@ -30,11 +30,6 @@
 
 #define  RTC_DATA_HOLD_REG_BASE        (SUNXI_RTC_BASE + 0x100)
 #define  RTC_DATA_HOLD_REG_FEL         (RTC_DATA_HOLD_REG_BASE + 0x8)
-#define  RTC_CRY_CFG  				   (SUNXI_RTC_BASE + 0x210)
-#define  RTC_CRY_REG  				   (SUNXI_RTC_BASE + 0x214)
-#define  RTC_CRY_EN  				   (SUNXI_RTC_BASE + 0x218)
-
-
 /*
 ************************************************************************************************************
 *
@@ -53,17 +48,13 @@
 */
 uint rtc_region_probe_fel_flag(void)
 {
-	uint fel_flag, reg_value;
-	int  i;
+	uint fel_flag, reg_value, i;
 
 	fel_flag = readl(RTC_DATA_HOLD_REG_FEL);
-
-	for(i=0;i<=5;i++)
-	{
-		reg_value = readl(RTC_DATA_HOLD_REG_BASE + i*4);
+	for (i = 0; i <= 5; i++) {
+		reg_value = readl(RTC_DATA_HOLD_REG_BASE + (i * 4));
 		printf("rtc[%d] value = 0x%x\n", i, reg_value);
 	}
-
 	return fel_flag;
 }
 /*
@@ -95,22 +86,17 @@ void rtc_region_clear_fel_flag(void)
 	while(flag != 0);
 }
 
-#define RTC_BARRIER() do{asm volatile("DSB"); asm volatile("ISB");} while(0);
-void rtc_region_ddr_scramble_en(int en, unsigned int key)
+void rtc_region_set_fel_flag(int flag)
 {
-	if (en) {
-		writel(0x1689UL, RTC_CRY_CFG);
-		RTC_BARRIER();
-		writel(key, RTC_CRY_REG);
-		RTC_BARRIER();
-		writel(0x1689UL, RTC_CRY_CFG);
-		RTC_BARRIER();
-		writel(1, RTC_CRY_EN);
-	} else {
-		writel(0x1689UL, RTC_CRY_CFG);
-		RTC_BARRIER();
-		writel(0, RTC_CRY_EN);
-	}
+	volatile int val;
+	do {
+		writel(flag, RTC_DATA_HOLD_REG_FEL);
+		__usdelay(10);
+		asm volatile("ISB SY");
+		asm volatile("DMB SY");
+		val  = readl(RTC_DATA_HOLD_REG_FEL);
+	} while (val != flag);
 }
+
 
 

@@ -25,8 +25,7 @@
 struct disp_al_private_data {
 	u32 output_type[DEVICE_NUM];
 	u32 output_mode[DEVICE_NUM];
-	u32 output_format[DEVICE_NUM];	
-	/*u32 output_cs[DEVICE_NUM];*/
+	u32 output_cs[DEVICE_NUM];
 	u32 output_color_space[DEVICE_NUM];
 	u32 output_color_range[DEVICE_NUM];
 	u32 output_eotf[DEVICE_NUM];
@@ -46,8 +45,7 @@ int disp_al_layer_apply(unsigned int disp, struct disp_layer_config_data *data,
 	struct disp_csc_config csc_cfg;
 	int tcon_id = al_priv.tcon_id[disp];
 
-	/*csc_cfg.out_fmt = al_priv.output_cs[tcon_id];*/
-	csc_cfg.out_fmt = al_priv.output_format[tcon_id];
+	csc_cfg.out_fmt = al_priv.output_cs[tcon_id];
 
 	csc_cfg.out_color_range =
 	    al_priv.output_color_range[tcon_id];
@@ -79,8 +77,7 @@ int disp_al_manager_apply(unsigned int disp, struct disp_manager_data *data)
 		al_priv.disp_size[disp].height = data->config.size.height;
 		al_priv.tcon_id[disp] = data->config.hwdev_index;
 		al_priv.de_id[al_priv.tcon_id[disp]] = disp;
-		/*al_priv.output_cs[al_priv.tcon_id[disp]] = data->config.cs;*/
-		al_priv.output_format[al_priv.tcon_id[disp]] = data->config.cs;
+		al_priv.output_cs[al_priv.tcon_id[disp]] = data->config.cs;
 		al_priv.output_color_range[al_priv.tcon_id[disp]] =
 		    data->config.color_range;
 		al_priv.output_color_space[al_priv.tcon_id[disp]] =
@@ -93,8 +90,7 @@ int disp_al_manager_apply(unsigned int disp, struct disp_manager_data *data)
 	}
 
 	if (data->flag & MANAGER_COLOR_SPACE_DIRTY) {
-		/*al_priv.output_cs[al_priv.tcon_id[disp]] = data->config.cs;*/
-		al_priv.output_format[al_priv.tcon_id[disp]] = data->config.cs;
+		al_priv.output_cs[al_priv.tcon_id[disp]] = data->config.cs;
 		al_priv.output_color_range[al_priv.tcon_id[disp]] =
 		    data->config.color_range;
 	}
@@ -272,6 +268,9 @@ int disp_al_lcd_get_clk_info(u32 screen_id, struct lcd_clk_info *info,
 		}
 
 		dsi_div = bitwidth / lane;
+		if (panel->lcd_dsi_if == LCD_DSI_IF_COMMAND_MODE) {
+			tcon_div = dsi_div;
+		}
 	}
 #endif /*endif DSI_VERSION_40 */
 	if (find == 0)
@@ -280,14 +279,22 @@ int disp_al_lcd_get_clk_info(u32 screen_id, struct lcd_clk_info *info,
 	if (panel->lcd_if == LCD_IF_HV &&
 	    panel->lcd_hv_if == LCD_HV_IF_CCIR656_2CYC &&
 	    panel->ccir_clk_div > 0)
-		info->tcon_div = panel->ccir_clk_div;
+		tcon_div = panel->ccir_clk_div;
 	else if (panel->lcd_tcon_mode == DISP_TCON_DUAL_DSI &&
 		 panel->lcd_if == LCD_IF_DSI) {
-		info->tcon_div = tcon_div / 2;
+		tcon_div = tcon_div / 2;
 		dsi_div /= 2;
-	} else
-		info->tcon_div = tcon_div;
+	}
 
+#if defined(DSI_VERSION_28)
+	if (panel->lcd_if == LCD_IF_DSI &&
+	    panel->lcd_dsi_if == LCD_DSI_IF_COMMAND_MODE) {
+		tcon_div = 6;
+		dsi_div = 6;
+	}
+#endif
+
+	info->tcon_div = tcon_div;
 	info->lcd_div = lcd_div;
 	info->dsi_div = dsi_div;
 	info->dsi_rate = dsi_rate;
@@ -494,7 +501,7 @@ int disp_al_lcd_tri_busy(u32 screen_id, disp_panel_para *panel)
 /* take dsi irq s32o account, todo? */
 int disp_al_lcd_tri_start(u32 screen_id, disp_panel_para *panel)
 {
-#if defined(SUPPORT_DSI)
+#if defined(SUPPORT_DSI) && defined(DSI_VERSION_40)
 	if (panel->lcd_if == LCD_IF_DSI)
 		dsi_tri_start(screen_id);
 #endif
@@ -553,10 +560,8 @@ int disp_al_lcd_get_start_delay(u32 screen_id, disp_panel_para *panel)
 /* hdmi */
 int disp_al_hdmi_enable(u32 screen_id)
 {
-#ifndef CONFIG_SUNXI_HDMI_IN_BOOT0
-
 	tcon1_hdmi_clk_enable(screen_id, 1);
-#endif
+
 	tcon1_open(screen_id);
 	return 0;
 }
@@ -574,36 +579,42 @@ int disp_al_hdmi_disable(u32 screen_id)
 
 int disp_al_hdmi_cfg(u32 screen_id, struct disp_video_timings *video_info)
 {
-#ifndef CONFIG_SUNXI_HDMI_IN_BOOT0
+	struct disp_video_timings *timings = NULL;
+
 	al_priv.output_type[screen_id] = (u32) DISP_OUTPUT_TYPE_HDMI;
 	al_priv.output_mode[screen_id] = (u32) video_info->vic;
 	al_priv.output_fps[screen_id] =
-                video_info->pixel_clk / video_info->hor_total_time /
-                video_info->ver_total_time * (video_info->b_interlace +
-                                        1) / (video_info->trd_mode + 1);
-#endif
+	    video_info->pixel_clk / video_info->hor_total_time /
+	    video_info->ver_total_time * (video_info->b_interlace +
+					  1) / (video_info->trd_mode + 1);
 	al_priv.tcon_type[screen_id] = 1;
-#ifndef CONFIG_SUNXI_HDMI_IN_BOOT0
+
 	de_update_device_fps(al_priv.de_id[screen_id],
 			     al_priv.output_fps[screen_id]);
-
-	if (al_priv.output_format[screen_id] == DISP_CSC_TYPE_YUV420) {
-		video_info->x_res /= 2;
-		video_info->hor_total_time /= 2;
-		video_info->hor_back_porch /= 2;
-		video_info->hor_front_porch /= 2;
-		video_info->hor_sync_time /= 2;
+	timings = kmalloc(sizeof(struct disp_video_timings),
+			  GFP_KERNEL | __GFP_ZERO);
+	if (timings) {
+		memcpy(timings, video_info, sizeof(struct disp_video_timings));
+		if (al_priv.output_cs[screen_id] == DISP_CSC_TYPE_YUV420) {
+			timings->x_res /= 2;
+			timings->hor_total_time /= 2;
+			timings->hor_back_porch /= 2;
+			timings->hor_front_porch /= 2;
+			timings->hor_sync_time /= 2;
+		}
+	} else {
+		__wrn("malloc memory for timings fail! size=0x%x\n",
+		      (unsigned int)sizeof(struct disp_video_timings));
 	}
-
-
 	tcon_init(screen_id);
-	tcon1_set_timming(screen_id, video_info);
 
+	if (timings)
+		tcon1_set_timming(screen_id, timings);
+	else
+		tcon1_set_timming(screen_id, video_info);
 	tcon1_src_select(screen_id, LCD_SRC_DE, al_priv.de_id[screen_id]);
-#else
-	tcon1_black_src(screen_id, 0, al_priv.output_format[screen_id]);
-#endif
 
+	kfree(timings);
 
 	return 0;
 }
@@ -929,3 +940,22 @@ int disp_al_get_display_size(unsigned int screen_id, unsigned int *width,
 
 	return 0;
 }
+
+#if defined(SUPPORT_EDP)
+int disp_al_edp_cfg(u32 screen_id, u32 fps, u32 edp_index)
+{
+	al_priv.output_type[screen_id] = (u32) DISP_OUTPUT_TYPE_EDP;
+	al_priv.output_mode[screen_id] = 6;
+	al_priv.output_fps[screen_id] = fps;
+	de_update_device_fps(al_priv.de_id[screen_id], fps);
+	al_priv.tcon_type[screen_id] = 0;
+	edp_de_attach(edp_index, al_priv.de_id[screen_id]);
+	return 0;
+}
+
+int disp_al_edp_disable(u32 screen_id)
+{
+	al_priv.output_type[screen_id] = (u32)DISP_OUTPUT_TYPE_NONE;
+	return 0;
+}
+#endif

@@ -163,6 +163,7 @@ int pmu_init(u8 power_mode)
 	else
 	{
 		i2c_init_cpus(CONFIG_SYS_I2C_SPEED, CONFIG_SYS_I2C_SLAVE);
+
 		pmu_type = axp_probe();
 	}
 	return pmu_type;

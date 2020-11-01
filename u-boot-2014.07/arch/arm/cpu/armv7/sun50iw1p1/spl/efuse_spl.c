@@ -20,7 +20,7 @@
 */
 #include "common.h"
 #include "asm/io.h"
-#include "asm/arch/sid.h"
+#include "asm/arch/efuse.h"
 
 #define SID_OP_LOCK  (0xAC)
 

@@ -1,5 +1,7 @@
 #ifndef __VIDEO_HAL_H__
 #define __VIDEO_HAL_H__
+#include <compiler.h>
+#include <linux/types.h>
 #include <sunxi_display2.h>
 
 /*

@@ -44,8 +44,6 @@
 #define SPI_NOR_SIZE_FOR_BOOT0          SZ_64K    // add for spi nor. by Gary,2009-12-8 11:47:17
 
 #define BOOT0_MAGIC                     "eGON.BT0"
-#define EXTEND_CONFIG_MAGIC				"Extend"
-#define MAGIC_SIZE						8
 
 #define BOOT0_START_PAGE_NUM            0         // add for 1618
 #define BOOT0_PAGE_ADVANCE              64        // add for 1618
@@ -87,8 +85,8 @@ typedef struct _boot_sdcard_info_t
 typedef struct _boot0_private_head_t
 {
 	__u32                       prvt_head_size;
-	__u8                        debug_mode;             // turn off print if realease
-	__u8                        power_mode;      	    //0: axp , 1: dummy pmu
+	__u8                       debug_mode;       // turn off print if realease
+	__u8                        power_mode;      	 /*0:axp , 1: dummy pmu  */
 	__u8                        reserve[2];
 	unsigned int                dram_para[32];          // DRAM patameters for initialising dram. Original values is arbitrary,
 	__s32						uart_port;              // UART¿ØÖÆÆ÷±àºÅ
@@ -107,26 +105,8 @@ typedef struct _boot0_file_head_t
 	boot0_private_head_t  prvt_head;
 }boot0_file_head_t;
 
-/******************************************************************************/
-/*                              extend head of Boot0                          */
-/******************************************************************************/
-typedef struct _boot0_extend_config
-{
-	__u8   						magic[MAGIC_SIZE];			//="Extend"
-	__s32						if_reduce_power_waste;		//1: reduce power waste, 0: do nothing
-	char 						reserved[500];
-}boot0_extend_config;
 
 
-/******************************************************************************/
-/*                              extend head of fes 		                      */
-/******************************************************************************/
-typedef struct _fes_extend_config
-{
-	__u8   						magic[MAGIC_SIZE];			//="Extend"
-	__s32						if_reduce_power_waste;		//1: reduce power waste, 0: do nothing
-	char 						reserved[500];
-}fes_extend_config;
 
 
 

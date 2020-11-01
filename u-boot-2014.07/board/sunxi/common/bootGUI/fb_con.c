@@ -20,7 +20,7 @@ static int set_interest_region(struct canvas *cv,
 	framebuffer_t *fb;
 
 	if ((NULL == cv) || (NULL == rects)) {
-		printf("%s: cv=%p, rects=%p\n", __func__, cv, rects);
+		pr_msg("%s: cv=%p, rects=%p\n", __func__, cv, rects);
 		return -1;
 	}
 
@@ -45,7 +45,7 @@ static int set_interest_region(struct canvas *cv,
 		return -1;
 #endif
 	}
-	printf("%s: fb=%p, locked=%d\n", __func__,
+	pr_msg("%s: fb=%p, locked=%d\n", __func__,
 		fb, (NULL != fb) ? fb->locked : 0xFF);
 	return -1;
 }
@@ -62,7 +62,7 @@ static void *malloc_buf(unsigned int fb_id, const unsigned int size)
 {
 #if !defined(FB_NOT_USE_TOP_MEM)
 	DECLARE_GLOBAL_DATA_PTR;
-	printf("fb_id=%d, size=0x%x, ram_size=0x%lx, FRAME_BUFFER_SIZE=0x%x\n",
+	pr_msg("fb_id=%d, size=0x%x, ram_size=0x%lx, FRAME_BUFFER_SIZE=0x%x\n",
 		fb_id, size, gd->ram_size, SUNXI_DISPLAY_FRAME_BUFFER_SIZE);
 	if ((FB_ID_0 == fb_id)
 		&& (size < gd->ram_size)
@@ -73,7 +73,7 @@ static void *malloc_buf(unsigned int fb_id, const unsigned int size)
 
 #if defined(SUNXI_DISPLAY_FRAME_BUFFER_ADDR)
 	if (FB_ID_0 == fb_id) {
-		printf("SUNXI_DISPLAY_FRAME_BUFFER_ADDR=0x%x\n",
+		pr_msg("SUNXI_DISPLAY_FRAME_BUFFER_ADDR=0x%x\n",
 			SUNXI_DISPLAY_FRAME_BUFFER_ADDR);
 		return (void *)SUNXI_DISPLAY_FRAME_BUFFER_ADDR;
 	}
@@ -104,7 +104,7 @@ static void wait_for_sync_buf(int *release_fence)
 	while ((0 != *release_fence) && (wait_time--))
 		__usdelay(1);
 	if (0 >= wait_time)
-		printf("%s: timeout\n", __func__);
+		pr_msg("%s: timeout\n", __func__);
 #endif
 }
 
@@ -189,7 +189,7 @@ static int creat_framebuffer(framebuffer_t *fb, const fb_config_t *const fb_cfg)
 
 	fb->cv = (struct canvas *)calloc(sizeof(*(fb->cv)), 1);
 	if (!fb->cv) {
-		printf("calloc for canvas failed !\n");
+		pr_msg("calloc for canvas failed !\n");
 		return -1;
 	}
 
@@ -200,7 +200,7 @@ static int creat_framebuffer(framebuffer_t *fb, const fb_config_t *const fb_cfg)
 #endif
 	fb->buf_list = (struct buf_node *)calloc(sizeof(*(fb->buf_list)), buf_num);
 	if (!fb->buf_list) {
-		printf("calloc for buf_list failed !\n");
+		pr_msg("calloc for buf_list failed !\n");
 		goto free_cv;
 	}
 
@@ -215,14 +215,14 @@ static int creat_framebuffer(framebuffer_t *fb, const fb_config_t *const fb_cfg)
 	} else {
 		fb->cv->bpp = 32;
 		fb->cv->pixel_format_name = "ARGB8888";
-		printf("no support this bpp=%d\n", fb_cfg->bpp);
+		pr_msg("no support this bpp=%d\n", fb_cfg->bpp);
 	}
 #if 0
 	fb->cv->stride = MY_ALIGN(fb->cv->width * fb->cv->bpp, BUF_WIDTH_ALIGN_BIT) >> 3;
 	buf_size = fb->cv->stride * fb->cv->height;
 	buf_addr = malloc_buf(fb->fb_id, buf_size * buf_num);
 	if (!buf_addr) {
-		printf("malloc buf_addr failed ! alloc size %d\n", buf_size * buf_num);
+		pr_msg("malloc buf_addr failed ! alloc size %d\n", buf_size * buf_num);
 		goto free_buf_list;
 	}
 #endif
@@ -330,7 +330,7 @@ int fb_init(void)
 				continue;
 			setup_framebuffer(&s_fb_list[id]);
 		} else {
-			printf("bad fb%d_cfg[w=%d,h=%d,bpp=%d,format=%d]\n", id,
+			pr_msg("bad fb%d_cfg[w=%d,h=%d,bpp=%d,format=%d]\n", id,
 				fb_cfg.width, fb_cfg.height, fb_cfg.bpp, fb_cfg.format_cfg);
 		}
 	}
@@ -346,7 +346,7 @@ int fb_quit(void)
 			hal_release_layer(s_fb_list[i].fb_id, s_fb_list[i].handle);
 			destroy_framebuffer(&s_fb_list[i]);
 		} else {
-			printf("err lock state(%d) for fb(%d) quit.",
+			pr_msg("err lock state(%d) for fb(%d) quit.",
 				s_fb_list[i].locked, i);
 		}
 	}
@@ -363,7 +363,7 @@ struct canvas *fb_lock(const unsigned int fb_id)
 		update_dirty_rect(fb);
 		fb->cv->base = (unsigned char *)fb->buf_list->addr;
 	} else {
-		printf("fb_unlock: fb_id(%d), lock=%d\n", fb_id,
+		pr_msg("fb_unlock: fb_id(%d), lock=%d\n", fb_id,
 			(fb_id < FRAMEBUFFER_NUM) ? fb->locked : 0xFF);
 		return NULL;
 	}
@@ -382,7 +382,7 @@ int fb_unlock(unsigned int fb_id, rect_t *dirty_rects, int count)
 		}
 		fb->locked = FB_UNLOCKED;
 	} else {
-		printf("fb_unlock: fb_id(%d), lock=%d\n", fb_id,
+		pr_msg("fb_unlock: fb_id(%d), lock=%d\n", fb_id,
 			(fb_id < FRAMEBUFFER_NUM) ? fb->locked : 0xFF);
 		return -1;
 	}
@@ -398,7 +398,7 @@ int fb_set_alpha_mode(unsigned int fb_id,
 		return hal_set_layer_alpha_mode((void *)fb->handle,
 			alpha_mode, alpha_value);
 	} else {
-		printf("fb_set_alpha_mode: fb_id(%d), lock=%d\n", fb_id,
+		pr_msg("fb_set_alpha_mode: fb_id(%d), lock=%d\n", fb_id,
 			(fb_id < FRAMEBUFFER_NUM) ? fb->locked : 0xFF);
 		return -1;
 	}
@@ -416,7 +416,7 @@ int fb_save_para(unsigned int fb_id)
 
 	if ((FRAMEBUFFER_NUM <= fb_id)
 		|| (FB_UNLOCKED != fb->locked)) {
-		printf("fb_save_para: fb_id(%d), lock=%d\n", fb_id,
+		pr_msg("fb_save_para: fb_id(%d), lock=%d\n", fb_id,
 			(fb_id < FRAMEBUFFER_NUM) ? fb->locked : 0xFF);
 		return -1;
 	}

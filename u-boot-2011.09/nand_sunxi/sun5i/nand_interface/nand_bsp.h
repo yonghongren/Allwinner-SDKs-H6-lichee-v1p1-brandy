@@ -150,6 +150,7 @@ extern __s32 PHY_SimpleRead_1KCurCH(struct boot_physical_param * readop);
 extern __s32 PHY_SimpleWrite_Seq_16K(struct boot_physical_param *writeop);
 extern __s32 PHY_SimpleWrite_0xFF(struct boot_physical_param *writeop);
 extern __s32 PHY_SimpleRead_Seq_16K (struct boot_physical_param *readop);
+extern __s32 PHY_SimpleWrite_1K_F16(struct boot_physical_param *writeop);
 
 extern __s32 NFC_LSBEnable(__u32 chip, __u32 read_retry_type);
 extern __s32 NFC_LSBDisable(__u32 chip, __u32 read_retry_type);

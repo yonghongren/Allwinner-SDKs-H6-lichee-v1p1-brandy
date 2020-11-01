@@ -66,10 +66,9 @@ struct spare_boot_data_head
     char             			sdcard_spare_data[256];	// sdcard 额外信息
 	int                         secureos_exist;
     int                         uboot_start_sector_in_mmc;     //use in OTA update
-    int							multi_config_exist;		//多份配置开关
     int                         dtb_offset;
     int                         boot_package_size;
-    int							reserved[1];			// 保留数据位, 256bytes align
+    int                         reserved[2];			// 保留数据位,256bytes align
 
 };
 

@@ -132,13 +132,8 @@ static int read_system_map(FILE *fin)
 
 		if (func_count == alloced) {
 			alloced += 256;
-                        struct func_info *func_list_new = realloc(func_list,
+			func_list = realloc(func_list,
 					sizeof(struct func_info) * alloced);
-                        if(func_list_new == NULL)
-                        {
-                                return -1;
-                        }
-                        func_list = func_list_new;
 			assert(func_list);
 		}
 		if (!func_count)
@@ -413,7 +408,6 @@ static int read_trace_config(FILE *fin)
 
 		tok = strtok_r(s, " \t", &saveptr);
 		if (!tok) {
-                        free(line);
 			error("Invalid trace config data on line %d\n",
 			      linenum);
 			return -1;
@@ -423,7 +417,6 @@ static int read_trace_config(FILE *fin)
 		} else if (0 == strcmp(tok, "exclude-func")) {
 			line->type = TRACE_LINE_EXCLUDE;
 		} else {
-                        free(line);
 			error("Unknown command in trace config data line %d\n",
 			      linenum);
 			return -1;
@@ -431,7 +424,6 @@ static int read_trace_config(FILE *fin)
 
 		tok = strtok_r(NULL, " \t", &saveptr);
 		if (!tok) {
-                        free(line);
 			error("Missing pattern in trace config data line %d\n",
 			      linenum);
 			return -1;

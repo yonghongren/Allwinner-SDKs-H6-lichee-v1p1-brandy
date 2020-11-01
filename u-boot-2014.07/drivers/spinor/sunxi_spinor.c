@@ -31,11 +31,7 @@
 #include <sunxi_board.h>
 #include <fdt_support.h>
 #include <sys_config_old.h>
-#include <private_uboot.h>
-#include <private_boot0.h>
 #include <private_toc.h>
-
-DECLARE_GLOBAL_DATA_PTR;
 
 
 static int   spinor_flash_inited = 0;
@@ -67,6 +63,7 @@ static void spinor_enter_4bytes_addr(int);
 static void spinor_config_addr_mode(u8 *sdata, uint page_addr, uint *num, u8 cmd);
 static int set_quad_mode(u8 cmd1, u8 cmd2);
 static int spi_nor_fast_read_quad_output(uint start, uint sector_cnt, void *buf);
+extern int spinor_get_boot0_size(uint *length, void *addr);
 
 struct spinor_info {
 	uint		id;
@@ -131,88 +128,7 @@ struct spinor_info spi_nor_ids[] = {
 	{0x209d7f, 0x40, 0x00},
 };
 
-#if 0
-static uint sunxi_spinor_generate_checksum(void *buffer, uint length, uint src_sum)
-{
-#ifndef CONFIG_USE_NEON_SIMD
-	uint *buf;
-	uint count;
-	uint sum;
 
-	/* 生成校验和 */
-	count = length >> 2;                       // 以 字（4bytes）为单位计数
-	sum = 0;
-	buf = (__u32 *)buffer;
-	do
-	{
-		sum += *buf++;                         // 依次累加，求得校验和
-		sum += *buf++;                         // 依次累加，求得校验和
-		sum += *buf++;                         // 依次累加，求得校验和
-		sum += *buf++;                         // 依次累加，求得校验和
-	}while( ( count -= 4 ) > (4-1) );
-
-	while( count-- > 0 )
-		sum += *buf++;
-#else
-	uint sum;
-
-	sum = add_sum_neon(buffer, length);
-#endif
-	sum = sum - src_sum + STAMP_VALUE;
-
-    return sum;
-}
-/*
-************************************************************************************************************
-*
-*                                             function
-*
-*    name          :
-*
-*    parmeters     :
-*
-*    return        :
-*
-*    note          :
-*
-*
-************************************************************************************************************
-*/
-static int sunxi_spinor_verify_checksum(void *buffer, uint length, uint src_sum)
-{
-#ifndef CONFIG_USE_NEON_SIMD
-	uint *buf;
-	uint count;
-	uint sum;
-
-	/* 生成校验和 */
-	count = length >> 2;                       // 以 字（4bytes）为单位计数
-	sum = 0;
-	buf = (__u32 *)buffer;
-	do
-	{
-		sum += *buf++;                         // 依次累加，求得校验和
-		sum += *buf++;                         // 依次累加，求得校验和
-		sum += *buf++;                         // 依次累加，求得校验和
-		sum += *buf++;                         // 依次累加，求得校验和
-	}while( ( count -= 4 ) > (4-1) );
-
-	while( count-- > 0 )
-		sum += *buf++;
-#else
-	uint sum;
-
-	sum = add_sum_neon(buffer, length);
-#endif
-	sum = sum - src_sum + STAMP_VALUE;
-
-	debug("src sum=%x, check sum=%x\n", src_sum, sum);
-	if( sum == src_sum )
-		return 0;               // 校验成功
-	else
-		return -1;              // 校验失败
-}
-#endif
 /*
 ************************************************************************************************************
 *
@@ -611,13 +527,10 @@ static int __spinor_sector_read(uint start, uint sector_cnt, void *buf)
 
 	if (quad_flag == 1) {
 		ret = spi_nor_fast_read_quad_output(start, sector_cnt, buf);
-
 		if (ret == -1)
 			ret = spi_nor_fast_read_dual_output(start, sector_cnt, buf);
-
 		if (ret == -1)
 			ret = __spinor_sector_normal_read(start, sector_cnt, buf);
-
 	} else if (spi_freq >= SPI_NORMAL_FRQ)
 		ret = spi_nor_fast_read_dual_output(start, sector_cnt, buf);
 	else
@@ -997,7 +910,7 @@ int spinor_flush_cache(void)
 */
 int spinor_erase_all_blocks(int erase)
 {
-	if(erase)		//µ±²ÎÊýÎª0£¬±íÊ¾¸ù¾ÝÇé¿ö£¬×Ô¶¯ÅÐ¶ÏÊÇ·ñÐèÒª½øÈë²Á³ý
+	if(erase)		//������Ϊ0����ʾ����������Զ��ж��Ƿ���Ҫ�������
 	{
 		__spinor_erase_all();
 	}
@@ -1205,7 +1118,7 @@ int update_boot0_dram_para(char *buffer)
 	int i;
 	uint *addr = (uint *)DRAM_PARA_STORE_ADDR;
 
-	//Ð£ÑéÌØÕ÷×Ö·ûÊÇ·ñÕýÈ·
+	//У�������ַ��Ƿ���ȷ
 	printf("%s\n", boot0->boot_head.magic);
 	if(strncmp((const char *)boot0->boot_head.magic, BOOT0_MAGIC, MAGIC_SIZE))
 	{
@@ -1227,7 +1140,7 @@ int update_boot0_dram_para(char *buffer)
 	set_boot_dram_update_flag(boot0->prvt_head.dram_para);
 	/* regenerate check sum */
 	boot0->boot_head.check_sum = sunxi_generate_checksum(buffer, boot0->boot_head.length, boot0->boot_head.check_sum);
-	//Ð£ÑéÊý¾ÝÊÇ·ñÕýÈ·
+	//У�������Ƿ���ȷ
 	if(sunxi_verify_checksum((void *)buffer, boot0->boot_head.length, boot0->boot_head.check_sum))
 	{
 		printf("sunxi sprite: boot0 checksum is error\n");
@@ -1238,68 +1151,86 @@ int update_boot0_dram_para(char *buffer)
 
 }
 
-int spinor_fetch_uboot_length(void *buffer)
+static int __spinor_boot_sector_write(uint start, uint nsector, void *buffer)
 {
-    int length = 0;
-	if(gd->bootfile_mode  == SUNXI_BOOT_FILE_NORMAL)
-	{
-		struct spare_boot_head_t    *uboot  = (struct spare_boot_head_t *)buffer;
-		printf("uboot magic %s\n", uboot->boot_head.magic);
-		if(strncmp((const char *)uboot->boot_head.magic, UBOOT_MAGIC, MAGIC_SIZE))
-		{
-			printf("sunxi sprite: uboot magic is error\n");
-			return -1;
-		}
-		length = uboot->boot_head.length;
+	int sector_index;
 
+	debug("start: 0x%x, nsector: 0x%x \n", start, nsector);
+
+	if (nsector > SPINOR_BLOCK_SECTORS-start % SPINOR_BLOCK_SECTORS) {
+		printf("sector cnt error\n");
+		return -1;
 	}
-	else
-	{
-		sbrom_toc1_head_info_t *toc1 = (sbrom_toc1_head_info_t *)buffer;
-		if(gd->bootfile_mode  == SUNXI_BOOT_FILE_PKG )
-		{
-			printf("uboot_pkg magic 0x%x\n", toc1->magic);
-		}
-		else
-		{
-			printf("toc magic 0x%x\n", toc1->magic);
-		}
-		if(toc1->magic != TOC_MAIN_INFO_MAGIC)
-		{
-			printf("sunxi sprite: toc magic is error\n");
+
+	sector_index = start / SPINOR_BLOCK_SECTORS;
+	if ((start % SPINOR_BLOCK_SECTORS) || (nsector < SPINOR_BLOCK_SECTORS)) {
+		if (__spinor_sector_read(sector_index * SPINOR_BLOCK_SECTORS, SPINOR_BLOCK_SECTORS, spinor_write_cache)) {
+			printf("spinor read  sector fail\n");
 			return -1;
 		}
-		length = toc1->valid_len;
 	}
-	return length;
+
+	memcpy((spinor_write_cache + ((start % SPINOR_BLOCK_SECTORS) * 512)), buffer, nsector*512);
+
+	if (__spinor_erase_block(sector_index)) {
+		printf("erase 0x%x sector fail\n", sector_index);
+		return -1;
+	}
+
+	if (__spinor_sector_write(sector_index * SPINOR_BLOCK_SECTORS, SPINOR_BLOCK_SECTORS, spinor_write_cache)) {
+		printf("spinor write  0x%x sector fail\n", sector_index);
+		return -1;
+	}
+
+#ifdef SPINOR_DEBUG
+	/* verify */
+	if (__spinor_sector_read(start, nsector, spinor_write_cache)) {
+		printf("spinor read  sector fail\n");
+		return -1;
+	}
+
+	if (memcmp(spinor_write_cache, buffer, nsector*512)) {
+		printf("***write 0x%x sector fail***\n", sector_index*SPINOR_BLOCK_SECTORS);
+		return -1;
+	}
+#endif
+	return SPINOR_BLOCK_SECTORS;
 }
 
-int spinor_fetch_boot0_length(void *buffer)
+int spinor_boot_write(uint start, uint nblock, void *buffer)
 {
-    int length = 0;
-    if(gd->bootfile_mode  == SUNXI_BOOT_FILE_NORMAL || gd->bootfile_mode  == SUNXI_BOOT_FILE_PKG)
-	{
-		boot0_file_head_t    *boot0  = (boot0_file_head_t *)buffer;
-		debug("%s\n", boot0->boot_head.magic);
-		if(strncmp((const char *)boot0->boot_head.magic, BOOT0_MAGIC, MAGIC_SIZE))
-		{
-			printf("sunxi sprite: boot0 magic is error\n");
-			return -1;
-		}
-		length = boot0->boot_head.length;
+	uint start_sector;
+	int ret;
+	int offset;
+	int nsector = 0;
+	int sector_once_write = SPINOR_BLOCK_SECTORS;
+
+	if (nblock < SPINOR_BLOCK_SECTORS) {
+		sector_once_write = nblock;
 	}
-	else
-	{
-		toc0_private_head_t  *toc0   = (toc0_private_head_t *)buffer;
-		debug("%s\n", (char *)toc0->name);
-		if(strncmp((const char *)toc0->name, TOC0_MAGIC, MAGIC_SIZE))
-		{
-			printf("sunxi sprite: toc0 magic is error\n");
-			return -1;
+
+	offset = start%SPINOR_BLOCK_SECTORS;
+	/*  deal with first sector,make it align with 64k */
+	if (offset) {
+		nsector = SPINOR_BLOCK_SECTORS - offset;
+		ret =  __spinor_boot_sector_write(start, nsector, buffer);
+		if (ret < 0) {
+			printf("spinor sprite write fail\n");
+			return 0;
 		}
-		length = toc0->length;
 	}
-	return length;
+
+	for (start_sector = start + nsector; start_sector < start + nblock; start_sector += SPINOR_BLOCK_SECTORS) {
+		if (start+nblock - start_sector < SPINOR_BLOCK_SECTORS)
+			sector_once_write = start+nblock - start_sector;
+		ret = __spinor_boot_sector_write(start_sector, sector_once_write,
+						(void *)((uint)buffer + (start_sector - start) * 512));
+		if (ret < 0) {
+			printf("spinor sprite write fail\n");
+			return 0;
+		}
+	}
+	return nblock;
 }
 
 int spinor_download_uboot(uint length, void *buffer)
@@ -1310,9 +1241,14 @@ int spinor_download_uboot(uint length, void *buffer)
 		printf("warning:spinor need init\n");
 		sunxi_sprite_init(0);
 	}
-	ret = spinor_sprite_write(UBOOT_START_SECTOR_IN_SPINOR, length/512, buffer);
-	if (ret < 0)
-	{
+
+	if (uboot_spare_head.boot_data.work_mode == WORK_MODE_BOOT) {
+		ret = spinor_boot_write(UBOOT_START_SECTOR_IN_SPINOR, length/512, buffer);
+	} else {
+		ret = spinor_sprite_write(UBOOT_START_SECTOR_IN_SPINOR, length/512, buffer);
+	}
+
+	if (ret < 0) {
 		printf("spinor download uboot fail\n");
 		return -1;
 	}
@@ -1324,74 +1260,26 @@ int spinor_download_boot0(uint length, void *buffer)
 {
 	int ret = -1;
 
-	if(update_boot0_dram_para(buffer))
-	{
+    ret = spinor_get_boot0_size(&length, buffer);
+	if (ret < 0) {
+		printf("spinor boot0_size is fail\n");
 		return -1;
 	}
+	if (ret > 0) {
+		if (update_boot0_dram_para(buffer)) {
+			return -1;
+		}
+	}
 
-	ret = spinor_sprite_write(0, length/512, buffer);
+	if (uboot_spare_head.boot_data.work_mode == WORK_MODE_BOOT) {
+		ret = spinor_boot_write(0, length/512, buffer);
+	} else {
+		ret = spinor_sprite_write(0, length/512, buffer);
+	}
+
 	if (ret < 0)
 	{
 		printf("spinor download boot0 fail\n");
-		return -1;
-	}
-
-	return 0;
-}
-
-
-int spinor_flash_download_uboot(uint length, void *buffer)
-{
-	int ret = -1;
-	ret = spinor_write(UBOOT_START_SECTOR_IN_SPINOR, length/512, buffer);
-	if (ret < 0)
-	{
-		printf("spinor download uboot fail\n");
-		return -1;
-	}
-
-	return 0;
-}
-
-int spinor_flash_download_boot0(uint length, void *buffer)
-{
-	int ret = -1;
-
-	if(update_boot0_dram_para(buffer))
-	{
-		return -1;
-	}
-
-	ret = spinor_write(0, length/512, buffer);
-	if (ret < 0)
-	{
-		printf("spinor download boot0 fail\n");
-		return -1;
-	}
-
-	return 0;
-}
-
-int spinor_read_uboot(uint length, void *buffer)
-{
-	int ret = -1;
-	ret = spinor_read(UBOOT_START_SECTOR_IN_SPINOR, length/512, buffer);
-	if (ret < 0)
-	{
-		printf("spinor read uboot fail\n");
-		return -1;
-	}
-
-	return 0;
-}
-
-int spinor_read_boot0(uint length, void *buffer)
-{
-	int ret = -1;
-	ret = spinor_read(0, length/512, buffer);
-	if (ret < 0)
-	{
-		printf("spinor read boot0 fail\n");
 		return -1;
 	}
 
@@ -1488,15 +1376,13 @@ s32 spi_nor_rw_test(u32 spi_no)
 	if(spinor_init(0))
 	{
 		printf("spinor init failed \n");
-		free(wbuf);
-		free(rbuf);
+		goto _free_mem;
 		return -1;
 	}
 	if(__spinor_read_id(&id))
 	{
 		printf("spinor read id failed \n");
-		free(wbuf);
-		free(rbuf);
+		goto _free_mem;
 		return -1;
 	}
 	__spinor_wrsr(0);
@@ -1517,8 +1403,7 @@ s32 spi_nor_rw_test(u32 spi_no)
 
 	if (!wbuf || !rbuf) {
 		printf("spi %d malloc buffer failed\n", spi_no);
-		free(wbuf);
-		free(rbuf);
+		goto _free_mem;
 		return -1;
 	}
 
@@ -1530,9 +1415,8 @@ s32 spi_nor_rw_test(u32 spi_no)
 	ret = __spinor_sector_read( i, 1, rbuf);
  	if (ret) {
  		printf("spi %d read page %d failed\n", spi_no,i);
-			free(wbuf);
-			free(rbuf);
- 			return -1;
+		goto _free_mem;
+		return -1;
  	}
 
 	for (i = 0; i < (test_len >> 8)/4; i++)
@@ -1551,8 +1435,7 @@ s32 spi_nor_rw_test(u32 spi_no)
 		ret = __spinor_sector_write(i, 1, wbuf);
 		if (ret) {
 			printf("spi %d write page %d failed\n", spi_no,i);
-			free(wbuf);
-			free(rbuf);
+			goto _free_mem;
 			return -1;
 		}
 		printf("end to write \n");
@@ -1561,8 +1444,7 @@ s32 spi_nor_rw_test(u32 spi_no)
 		ret = __spinor_sector_read(i, 1, rbuf);
 		if (ret) {
 			printf("spi %d read page %d failed\n", spi_no,i);
-			free(wbuf);
-			free(rbuf);
+			goto _free_mem;
 			return -1;
 		}
 		printf("end to read \n");
@@ -1570,15 +1452,17 @@ s32 spi_nor_rw_test(u32 spi_no)
 		if (memcmp(wbuf, rbuf, 256)) {
 			printf("spi %d page %d read/write failed\n", spi_no, i);
 			while(1);
-			free(wbuf);
-			free(rbuf);
+			goto _free_mem;
 			return -1;
 		} else
 			printf("spi %d page %d read/write ok\n", spi_no, i);
 
 	}
-	free(wbuf);
-	free(rbuf);
+
+	_free_mem:
+		free(wbuf);
+		free(rbuf);
+
 	return 0;
 }
 #endif

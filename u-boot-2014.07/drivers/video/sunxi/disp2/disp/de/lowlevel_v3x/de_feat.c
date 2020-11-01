@@ -68,6 +68,8 @@ static const int sun50iw3_de_supported_output_types[] = {
 	DE_OUTPUT_TYPE_LCD,
 	/* DISP1 */
 	DE_OUTPUT_TYPE_LCD,
+	/* edp0 */
+	DE_OUTPUT_TYPE_EDP,
 };
 
 static const int sun50iw3_de_is_support_wb[] = {

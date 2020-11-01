@@ -24,6 +24,7 @@
 #include "usb_base.h"
 #include <scsi.h>
 #include <asm/arch/dma.h>
+#include <asm/arch/timer.h>
 #include <sys_partition.h>
 #include <fastboot.h>
 #include "usb_fastboot.h"
@@ -104,7 +105,7 @@ static int __usb_set_address(struct usb_device_request *req)
 
 	address = req->wValue & 0x7f;
 	printf("set address 0x%x\n", address);
-
+      __usdelay(10);
 	sunxi_udc_set_address(address);
 
 	return SUNXI_USB_REQ_SUCCESSED;

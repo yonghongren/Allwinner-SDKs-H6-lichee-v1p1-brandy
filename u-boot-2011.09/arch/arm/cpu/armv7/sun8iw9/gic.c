@@ -28,6 +28,8 @@
 #include <asm/arch/ccmu.h>
 #include <asm/arch/gic.h>
 
+DECLARE_GLOBAL_DATA_PTR;
+
 struct _irq_handler
 {
 	void                *m_data;
@@ -128,9 +130,8 @@ int irq_disable(int irq_no)
 	}
 
 	offset   = irq_no >> 5; // ³ý32
-	reg_val  = readl(GIC_SET_EN(offset));
-	reg_val &= ~(1 << (irq_no & 0x1f));
-	writel(reg_val, GIC_SET_EN(offset));
+	reg_val  = (1 << (irq_no & 0x1f));
+	writel(reg_val, GIC_CLR_EN(offset));
 
 	return 0;
 }
@@ -468,8 +469,13 @@ int arch_interrupt_init (void)
 		sunxi_int_handlers[i].m_data = default_isr;
 	}
 
-	gic_distributor_init();
-	gic_cpuif_init();
+	if((gd->securemode == SUNXI_SECURE_MODE_NO_SECUREOS) ||
+		(gd->securemode == SUNXI_NORMAL_MODE) || (gd->securemode == SUNXI_SECURE_MODE))
+	{
+		printf("gic: normal or no secure os mode\n");
+		gic_distributor_init();
+		gic_cpuif_init();
+	}
 
 	return 0;
 }

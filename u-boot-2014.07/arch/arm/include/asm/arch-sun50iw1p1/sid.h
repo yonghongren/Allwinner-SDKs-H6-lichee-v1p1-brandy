@@ -67,8 +67,5 @@
 
 extern void sid_set_security_mode(void);
 extern int  sid_probe_security_mode(void);
-extern int sid_get_security_status(void);
-extern uint sid_read_key(uint key_index);
-extern void sid_program_key(uint key_index, uint key_value);
 
 #endif    /*  #ifndef __EFUSE_H__  */

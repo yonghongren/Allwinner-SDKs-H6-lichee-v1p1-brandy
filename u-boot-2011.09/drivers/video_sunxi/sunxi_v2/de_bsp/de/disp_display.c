@@ -368,20 +368,6 @@ s32 bsp_disp_get_output_type(u32 screen_id)
 	return output_type;
 }
 
-s32 bsp_disp_get_lcd_output_type(u32 screen_id)
-{
-   struct disp_lcd *lcd = disp_get_lcd(screen_id);
-   u32 output_type = DISP_OUTPUT_TYPE_NONE;
-
-   if(lcd) {
-       output_type = lcd->type;
-   } else {
-       DE_WRN("get lcd%d output type fail\n", screen_id);
-   }
-
-   return output_type;
-}
-
 s32 bsp_disp_get_screen_width(u32 screen_id)
 {
 	struct disp_manager *mgr;
@@ -440,7 +426,7 @@ s32 bsp_disp_get_screen_physical_height(u32 screen_id)
 
 s32 bsp_disp_get_screen_width_from_output_type(u32 screen_id, u32 output_type, u32 output_mode)
 {
-	u32 width = 0, height = 0;
+	u32 width, height;
 
 	if(DISP_OUTPUT_TYPE_LCD == output_type) {
 		struct disp_lcd *lcd;
@@ -451,25 +437,19 @@ s32 bsp_disp_get_screen_width_from_output_type(u32 screen_id, u32 output_type, u
 		}
 	} else if(DISP_OUTPUT_TYPE_HDMI == output_type) {
 		switch(output_mode) {
-		case DISP_TV_MOD_NTSC:
-		case DISP_TV_MOD_480I:
-		case DISP_TV_MOD_480P:
-			width = 720;
-			height = 480;
-			break;
-		case DISP_TV_MOD_PAL:
-		case DISP_TV_MOD_576I:
 		case DISP_TV_MOD_576P:
 			width = 720;
 			height = 576;
+			break;
+		case DISP_TV_MOD_480P:
+			width = 720;
+			height = 480;
 			break;
 		case DISP_TV_MOD_720P_50HZ:
 		case DISP_TV_MOD_720P_60HZ:
 			width = 1280;
 			height = 720;
 			break;
-		case DISP_TV_MOD_1080I_50HZ:
-		case DISP_TV_MOD_1080I_60HZ:
 		case DISP_TV_MOD_1080P_50HZ:
 		case DISP_TV_MOD_1080P_60HZ:
 		case DISP_TV_MOD_1080P_30HZ:
@@ -478,13 +458,11 @@ s32 bsp_disp_get_screen_width_from_output_type(u32 screen_id, u32 output_type, u
 			height = 1080;
 			break;
 		case DISP_TV_MOD_3840_2160P_30HZ:
-		case DISP_TV_MOD_3840_2160P_25HZ:
 		case DISP_TV_MOD_3840_2160P_24HZ:
+		case DISP_TV_MOD_3840_2160P_25HZ:
 			width = 3840;
 			height = 2160;
 			break;
-		default:
-			DE_WRN("err:get_screen_width,output_mode=%d\n", output_mode);
 		}
 	}
 
@@ -493,7 +471,7 @@ s32 bsp_disp_get_screen_width_from_output_type(u32 screen_id, u32 output_type, u
 
 s32 bsp_disp_get_screen_height_from_output_type(u32 screen_id, u32 output_type, u32 output_mode)
 {
-	u32 width = 0, height = 0;
+	u32 width, height;
 
 	if(DISP_OUTPUT_TYPE_LCD == output_type) {
 		struct disp_lcd *lcd;
@@ -504,25 +482,19 @@ s32 bsp_disp_get_screen_height_from_output_type(u32 screen_id, u32 output_type, 
 		}
 	} else if(DISP_OUTPUT_TYPE_HDMI == output_type) {
 		switch(output_mode) {
-		case DISP_TV_MOD_NTSC:
-		case DISP_TV_MOD_480I:
-		case DISP_TV_MOD_480P:
-			width = 720;
-			height = 480;
-			break;
-		case DISP_TV_MOD_PAL:
-		case DISP_TV_MOD_576I:
 		case DISP_TV_MOD_576P:
 			width = 720;
 			height = 576;
+			break;
+		case DISP_TV_MOD_480P:
+			width = 720;
+			height = 480;
 			break;
 		case DISP_TV_MOD_720P_50HZ:
 		case DISP_TV_MOD_720P_60HZ:
 			width = 1280;
 			height = 720;
 			break;
-		case DISP_TV_MOD_1080I_50HZ:
-		case DISP_TV_MOD_1080I_60HZ:
 		case DISP_TV_MOD_1080P_50HZ:
 		case DISP_TV_MOD_1080P_60HZ:
 		case DISP_TV_MOD_1080P_30HZ:
@@ -531,13 +503,11 @@ s32 bsp_disp_get_screen_height_from_output_type(u32 screen_id, u32 output_type, 
 			height = 1080;
 			break;
 		case DISP_TV_MOD_3840_2160P_30HZ:
-		case DISP_TV_MOD_3840_2160P_25HZ:
 		case DISP_TV_MOD_3840_2160P_24HZ:
+		case DISP_TV_MOD_3840_2160P_25HZ:
 			width = 3840;
 			height = 2160;
 			break;
-		default:
-			DE_WRN("err:get_screen_height,output_mode=%d\n", output_mode);
 		}
 	}
 
@@ -825,9 +795,6 @@ s32 bsp_disp_lcd_set_panel_funs(char *name, disp_lcd_panel_fun * lcd_cfg)
 					gdisp.lcd_registered[screen_id] = 1;
 					DE_INF("panel driver %s register\n", name);
 				}
-				if(!strcmp("gm7121", drv_name)) {
-					lcd->type = DISP_OUTPUT_TYPE_TV;
-				}
 			}
 		}
 	}
@@ -946,25 +913,6 @@ s32 bsp_disp_lcd_gpio_set_direction(u32 screen_id, u32 io_index, u32 direction)
 	}
 
 	return DIS_FAIL;
-}
-
-s32 bsp_disp_lcd_get_tv_mode(u32 screen_id)
-{
-   struct disp_lcd *lcd = disp_get_lcd(screen_id);
-   if(lcd && lcd->get_tv_mode) {
-       return lcd->get_tv_mode(lcd);
-   }
-   return DIS_FAIL;
-}
-
-s32 bsp_disp_lcd_set_tv_mode(u32 screen_id, disp_tv_mode tv_mode)
-{
-   struct disp_lcd *lcd = disp_get_lcd(screen_id);
-   if(lcd && lcd->set_tv_mode) {
-       return lcd->set_tv_mode(lcd, tv_mode);
-   }
-   return DIS_FAIL;
-
 }
 
 s32 bsp_disp_get_lcd_registered(u32 screen_id)
@@ -1114,19 +1062,6 @@ s32 bsp_disp_set_hdmi_func(u32 screen_id, disp_hdmi_func * func)
 		gdisp.init_para.start_process();
 	}
 	return ret;
-}
-
-s32 bsp_disp_hdmi_get_hpd_status(u32 screen_id)
-{
-	struct disp_hdmi *hdmi;
-	hdmi = disp_get_hdmi(screen_id);
-	if (!hdmi) {
-	    DE_WRN("get hdmi%d failed!\n", screen_id);
-	    return DIS_FAIL;
-	}
-	if (hdmi->hdmi_get_HPD_status)
-	    return hdmi->hdmi_get_HPD_status(hdmi);
-	return DIS_FAIL;
 }
 
 #endif

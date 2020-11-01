@@ -50,7 +50,6 @@ int arm_svc_arisc_write_pmu(ulong addr,u32 value);
 int arm_svc_efuse_read(void *key_buf, void *read_buf);
 int arm_svc_efuse_write(void *key_buf);
 int arm_svc_probe_secure_mode(void);
-int arm_svc_poweroff(void);
 
 
 int smc_init(void);
@@ -68,5 +67,11 @@ int smc_tee_probe_drm_configure(ulong *drm_base, ulong *drm_size);
 int arm_svc_set_cpu_on(int cpu, uint entry);
 int arm_svc_set_cpu_off(int cpu);
 int arm_svc_set_cpu_wfi(void);
+
+/*for multi cluster*/
+int sunxi_smc_set_cpu_entry(u32 entry, int cpu);
+/*for multi cluster*/
+int sunxi_smc_set_cpu_off(void);
+
 
 #endif

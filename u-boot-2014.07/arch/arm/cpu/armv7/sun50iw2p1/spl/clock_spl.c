@@ -150,14 +150,6 @@ void reset_pll( void )
 
 void set_gpio_gate(void)
 {
-	volatile unsigned int reg_val;
-	// R_GPIO reset deassert
-	reg_val = readl(SUNXI_RPRCM_BASE+0xb0);
-	reg_val |= 1;
-	writel(reg_val, SUNXI_RPRCM_BASE+0xb0);
-	// R_GPIO GATING open
-	reg_val = readl(SUNXI_RPRCM_BASE+0x28);
-	reg_val |= 1;
-	writel(reg_val, SUNXI_RPRCM_BASE+0x28);
+
 }
 

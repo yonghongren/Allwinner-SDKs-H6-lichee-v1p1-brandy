@@ -81,7 +81,7 @@ static s32 tv_i2c_read(u8 sub_addr, u8 *data);
 s32 tv_i2c_write(u8 sub_addr, u8 data);
 //s32 tv_i2c_read(u8 sub_addr, u8 *data);
 s32 tv_i2c_exit(void);
-void i2c_init(uint bus_id, int speed, int slaveaddr);
+void i2c_init(int bus_id, int speed, int slaveaddr);
 
 extern struct disp_device* disp_vdevice_register(disp_vdevice_init_data *data);
 extern s32 disp_vdevice_unregister(struct disp_device *vdevice);
@@ -469,7 +469,6 @@ int  gm7121_module_init(void)
 
 		if(tv_used)
 		{
-			printf("gm7121 used");
 			ret = disp_sys_script_get_item(key_name, "tv_power", (int*)tv_power, 32/sizeof(int));
 			if(2 == ret) {
 				tv_power_used = 1;

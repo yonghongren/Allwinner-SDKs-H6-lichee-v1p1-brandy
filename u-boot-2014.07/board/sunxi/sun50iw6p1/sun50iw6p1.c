@@ -1,20 +1,5 @@
 /*
  * (C) Copyright 2016
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- * zhouhuacai <zhouhuacai@allwinnertech.com>
- *
- * See file CREDITS for list of people who contributed to this
- * project.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
- * GNU General Public License for more details.
  *
  * SPDX-License-Identifier:	GPL-2.0
  */
@@ -24,6 +9,7 @@
 #include <boot_type.h>
 #include <sys_partition.h>
 #include <sys_config.h>
+#include <sys_config_old.h>
 #include <mmc.h>
 #include <power/sunxi/axp.h>
 #include <asm/io.h>
@@ -31,6 +17,10 @@
 #include <asm/arch/ccmu.h>
 #include <i2c.h>
 #include <sunxi_i2c.h>
+#include <fdt_support.h>
+#include <asm/arch/efuse.h>
+#include <asm/arch/dram.h>
+#include <fdt_support.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -80,16 +70,19 @@ void dram_init_banksize(void)
     gd->bd->bi_dram[0].size = gd->ram_size;
 }
 
+
+
 int dram_init(void)
 {
 	uint dram_size = 0;
 	dram_size = uboot_spare_head.boot_data.dram_scan_size;
-	if(dram_size)
-	{
-		gd->ram_size = dram_size * 1024 * 1024;
-	}
-	else
-	{
+	/*SDRAM >=3G, relocation addr and cache out of bounds.
+	 * so uboot phase is limited to (3G -4) */
+	if (dram_size >= SDRAM_LIMIT_SIZE) {
+		gd->ram_size = ((SDRAM_LIMIT_SIZE << 20) - 4);
+	}  else if (dram_size) {
+		gd->ram_size = dram_size << 20;
+	} else {
 		gd->ram_size = get_ram_size((long *)PHYS_SDRAM_1, PHYS_SDRAM_1_SIZE);
 	}
 
@@ -324,31 +317,272 @@ void ir_clk_cfg(void)
 {
 	unsigned int tmp;
 
-	//reset
+	/* //reset */
 	tmp = readl(SUNXI_RPRCM_BASE + 0x1cc);
-	tmp |= 0x10001;  				//IR
+	tmp |= 0x10001; /* //IR */
 	writel(tmp, SUNXI_RPRCM_BASE + 0x1cc);
 
-
-	//config Special Clock for IR	(24/1/(0+1))=24MHz)
+	/* //config Special Clock for IR   (24/1/(0+1))=24MHz) */
 	tmp = readl(SUNXI_RPRCM_BASE + 0x1c0);
-							//Select 24MHz
+	/* //Select 24MHz */
 	tmp |= (0x1 << 24);
 
-	tmp &= ~(0x3 << 8);		//Divisor N = 1
+	tmp &= ~(0x3 << 8); /* //Divisor N = 1 */
 
-	tmp &= ~(0x1f << 0);			//Divisor M = 0
+	tmp &= ~(0x1f << 0); /* //Divisor M = 0 */
 
 	writel(tmp, SUNXI_RPRCM_BASE + 0x1c0);
 	__msdelay(1);
 
-	//open Clock
+	/* //open Clock */
 	tmp = readl(SUNXI_RPRCM_BASE + 0x1c0);
-	tmp |= (0x1 << 31);  				//IR
+	tmp |= (0x1 << 31); /* //IR */
 	writel(tmp, SUNXI_RPRCM_BASE + 0x1c0);
 
 	__msdelay(2);
-
 }
 #endif
+
+static int fdt_set_gpu_dvfstable(int limit_max_freq)
+{
+	u32 operating_points[50] = {0};
+	int len, ret, i;
+	int  nodeoffset;	/* node offset from libfdt */
+	char path_tmp[128] = {0};
+	char node_name[32] = {0};
+	int pmu_type = 0, vol = 0;
+
+	pmu_type = uboot_spare_head.boot_ext[0].data[0];
+
+	sprintf(path_tmp, "/gpu/");
+	nodeoffset = fdt_path_offset (working_fdt, path_tmp);
+	if (nodeoffset < 0) {
+			/*
+			* Not found or something else bad happened.
+			*/
+
+			printf ("can't find node \"%s\"!!!!\n", path_tmp);
+			return 0;
+	}
+	sprintf(node_name, "operating-points");
+	len = fdt_getprop_u32(working_fdt, nodeoffset,
+				node_name, operating_points);
+	if (len < 0) {
+		printf("Get %s%s failed\n", path_tmp, node_name);
+		return 0;
+	}
+
+	for (i = 0; i < len; i++) {
+		if (operating_points[i] == limit_max_freq) {
+			vol = operating_points[i+1];
+			break;
+		}
+	}
+	for (i = 0; i < len; i++) {
+		if (pmu_type) {
+			if (i % 2 == 0) {
+				if (operating_points[i] > limit_max_freq) {
+					operating_points[i] = limit_max_freq;
+					operating_points[i+1] = ((vol > 0) ?
+							vol : 104000);
+				}
+			}
+		} else {
+			if (i % 2 == 0) {
+				if (operating_points[i] > limit_max_freq) {
+					operating_points[i] = limit_max_freq;
+					if (operating_points[i] == 576000) {
+						operating_points[i+1] = 930000;
+					 } else if (operating_points[i] == 624000) {
+						operating_points[i+1] = 950000;
+					 } else if (operating_points[i] == 756000) {
+						operating_points[i+1] = 1040000;
+					 }
+				}
+			}
+		}
+	}
+
+	for (i = 0; i < len; i++) {
+		operating_points[i] = cpu_to_fdt32(operating_points[i]);
+	}
+
+	ret = fdt_setprop(working_fdt, nodeoffset, node_name,
+			operating_points, sizeof(u32) * len);
+	if (ret < 0) {
+		printf("Set %s%s failed\n", path_tmp, node_name);
+		return -1;
+	}
+
+	return 0;
+}
+
+int crosstalk_verify(void)
+{
+	int chipid = 0;
+	int crosstalk = 0;
+	int ret = -1;
+
+	chipid = sid_read_key(0x0) & 0xff;
+
+	ret = script_parser_fetch("platform", "crosstalk", (int *)&crosstalk, sizeof(int) / 4);
+	if (ret) {
+		pr_notice("no set crosstalk, id=%x\n", chipid);
+		if (chipid == 0x11) {
+			pr_error("no match\n");
+			return -1;
+		} else
+			return 0;
+	}
+
+	pr_notice("set crosstalk=%x, id=%x\n", crosstalk, chipid);
+	if ((crosstalk == 0x11) && (chipid == 0x11))
+		return 0;
+	else {
+		pr_error("no match\n");
+		return -1;
+	}
+}
+
+static int fdt_set_cpu_dvfstable(int limit_max_freq)
+{
+	int ret = 0, table_num = 0;
+	uint64_t max_freq = 0;
+	int  nodeoffset;	/* node offset from libfdt */
+	char path_tmp[128] = {0};
+	char node_name[32] = {0};
+	int i;
+	uchar max_flag;
+	for (;; ++table_num) {
+		max_flag = 0;
+		for (i = 0 ; i <= 6 ; i++) {
+			sprintf(path_tmp, "/opp_dvfs_table/opp_l_table%d/opp0%d", table_num, i);
+
+			nodeoffset = fdt_path_offset (working_fdt, path_tmp);
+			if (nodeoffset < 0) {
+				/*
+				* Not found or something else bad happened.
+				*/
+				debug ("can't find node \"%s\"!!!!\n", path_tmp);
+				return 0;
+			}
+			sprintf(node_name, "opp-hz");
+			ret = fdt_getprop_u64(working_fdt, nodeoffset,
+						node_name, &max_freq);
+			if (ret < 0) {
+				pr_error("Get %s%s failed\n", path_tmp, node_name);
+				return 0;
+			}
+			debug("max_freq%d:%lld\n", table_num, max_freq);
+			if (max_freq >= limit_max_freq) {
+				if (!max_flag) {
+					max_freq = limit_max_freq;
+				}
+			} else {
+				continue;
+			}
+			if (!max_flag) {
+				ret = fdt_setprop_u64(working_fdt, nodeoffset, node_name,
+						max_freq);
+				max_flag = 1;
+				if (ret < 0) {
+					pr_error("Set %s%s failed\n", path_tmp, node_name);
+					return -1;
+				}
+			} else {
+				ret = fdt_del_node(working_fdt, nodeoffset);
+				if (ret < 0) {
+					pr_error("del %s failed\n", nodeoffset);
+					return -1;
+				}
+			}
+		}
+	}
+	return 0;
+}
+
+int verify_init(void)
+{
+	int chipid = 0, ret = 0;
+
+	chipid = sid_read_key(0x0) & 0xff;
+
+	if (chipid == 0x07) {
+		/*h6cv200-AI*/
+		ret = fdt_set_cpu_dvfstable(1800000000);
+		if (ret == 0)
+			pr_msg("successfully[c%x%d]\n", chipid, 1800);
+		ret = fdt_set_gpu_dvfstable(756000);
+		if (ret == 0)
+			pr_msg("successfully[g%x%d]\n", chipid, 756);
+	} else if (chipid == 0x03 || chipid == 0x11) {
+		/*h6cv200-OS || H603*/
+		ret = fdt_set_cpu_dvfstable(1488000000);
+		if (ret == 0)
+			pr_msg("successfully[c%x%d]\n", chipid, 1488);
+		ret = fdt_set_gpu_dvfstable(756000);
+		if (ret == 0)
+			pr_msg("successfully[g%x%d]\n", chipid, 756);
+	} else if (chipid == 0x0b) {
+		/*h6cv300-OS*/
+		ret = fdt_set_cpu_dvfstable(1080000000);
+		if (ret == 0)
+			pr_msg("successfully[c%x%d]\n", chipid, 1000);
+		ret = fdt_set_gpu_dvfstable(576000);
+		if (ret == 0)
+			pr_msg("successfully[g%x%d]\n", chipid, 576);
+	} else {
+		pr_error("marker id:%d", chipid);
+	}
+	return ret;
+}
+
+int update_fdt_dram_para(void *dtb_base)
+{
+	/*fix dram para*/
+	int nodeoffset = 0;
+	uint32_t *dram_para = NULL;
+	dram_para = (uint32_t *)uboot_spare_head.boot_data.dram_para;
+
+	pr_msg("(sunxi):update dtb dram start\n");
+	nodeoffset = fdt_path_offset(dtb_base, "/dram");
+	if (nodeoffset < 0) {
+		printf("## error: %s : %s\n", __func__, fdt_strerror(nodeoffset));
+		return -1;
+	}
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_clk", dram_para[0]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_type", dram_para[1]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_zq", dram_para[2]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_odt_en", dram_para[3]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_para1", dram_para[4]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_para2", dram_para[5]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_mr0", dram_para[6]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_mr1", dram_para[7]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_mr2", dram_para[8]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_mr3", dram_para[9]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_mr4", dram_para[10]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_mr5", dram_para[11]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_mr6", dram_para[12]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr0", dram_para[13]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr1", dram_para[14]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr2", dram_para[15]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr3", dram_para[16]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr4", dram_para[17]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr5", dram_para[18]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr6", dram_para[19]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr7", dram_para[20]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr8", dram_para[21]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr9", dram_para[22]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr10", dram_para[23]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr11", dram_para[24]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr12", dram_para[25]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr13", dram_para[26]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr14", dram_para[27]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr15", dram_para[28]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr16", dram_para[29]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr17", dram_para[30]);
+	fdt_setprop_u32(dtb_base, nodeoffset, "dram_tpr18", dram_para[31]);
+	pr_msg("update dtb dram  end\n");
+	return 0;
+}
 

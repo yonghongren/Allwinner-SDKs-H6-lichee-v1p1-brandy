@@ -15,13 +15,11 @@ struct sunxi_lcd_drv g_lcd_drv;
 extern __lcd_panel_t default_panel;
 extern __lcd_panel_t lt070me05000_panel;
 extern __lcd_panel_t t27p06_panel;
-extern __lcd_panel_t hp800_lvds;
 
 __lcd_panel_t* panel_array[] = {
 	&default_panel,
 	&lt070me05000_panel,
 	&t27p06_panel,
-	&hp800_lvds,
 	/* add new panel below */
 
 	NULL,

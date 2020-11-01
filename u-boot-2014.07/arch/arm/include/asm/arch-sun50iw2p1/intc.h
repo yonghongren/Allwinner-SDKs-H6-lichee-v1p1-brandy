@@ -59,7 +59,6 @@
 #define AW_IRQ_CENS                    126
 #define AW_IRQ_DE                      127
 #define AW_IRQ_ROT                     128
-#define AW_IRQ_CIR					   69
 
 #define GIC_IRQ_NUM                    (156+1)
 

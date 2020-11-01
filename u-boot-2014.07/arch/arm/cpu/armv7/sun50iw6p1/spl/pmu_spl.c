@@ -21,7 +21,7 @@ int pmu_type;
 #define EFUSE_TF_ZONE		(0x1c)
 #define BIN_OFFSET		(5)
 #define BIN_MASK		(7)
-
+#ifdef CONFIG_SUNXI_MODULE_AXP
 static int axp_probe(void)
 {
 	u8  pmu_type;
@@ -191,6 +191,49 @@ static void set_vdd_sys_by_bin(void)
 	axp806_set_dcdcd(set_vol, VOL_ON);
 
 }
+#endif
+u8 vdd_port, vdd_port_num;
+
+void get_cpus_vdd_gpio(u8 reserve0, u8 reserve1)
+{
+	vdd_port = reserve0;
+	vdd_port_num = reserve1;
+}
+
+/*
+ * PL0 set to 0, when boot setup, and vdd-sys vol will
+ * set to 0.98v form 0.8v.
+ *
+ */
+static void set_vdd_sys_by_PL0(void)
+{
+	volatile unsigned int reg_val;
+	int n = 0;
+	debug("vdd_port = %d  pin_cfg = %d\n", vdd_port, vdd_port_num);
+	if (vdd_port == 12)
+		n = 0;
+	else if (vdd_port == 13)
+		n = 1;
+
+	reg_val = readl(SUNXI_RPIO_BASE + (n * 0x24) + (vdd_port_num >> 3));
+	reg_val &= ~(0x7 << ((vdd_port_num % 8)*4));
+	reg_val |= (0x1 << ((vdd_port_num % 8)*4));
+	writel(reg_val, SUNXI_RPIO_BASE +  (n * 0x24) + (vdd_port_num >> 3));
+
+	__usdelay(10);
+
+	reg_val = readl(SUNXI_RPIO_BASE + (n * 0x24) + 0x10);
+	reg_val &= (~0x1);
+	writel(reg_val, SUNXI_RPIO_BASE + (n * 0x24) + 0x10);
+
+	__usdelay(10);
+
+	reg_val = readl(SUNXI_RPIO_BASE +  (n * 0x24) + (vdd_port_num >> 3));
+	debug("P%c%d: 0x%x\n", n+'L', vdd_port_num, reg_val);
+	reg_val = readl(SUNXI_RPIO_BASE + (n * 0x24) + 0x10);
+	debug("P%c data: 0x%x\n",  n+'L', reg_val);
+	__usdelay(10);
+}
 
 int probe_power_key(void)
 {
@@ -200,25 +243,28 @@ int probe_power_key(void)
 
 int set_ddr_voltage(int set_vol)
 {
+#ifdef CONFIG_SUNXI_MODULE_AXP
 	if(pmu_type == AXP806_ADDR)
 	{
 		return axp806_set_dcdce(set_vol);
 	}
-
+#endif
 	return 0;
 }
 
 int set_pll_voltage(int set_vol)
 {
+#ifdef CONFIG_SUNXI_MODULE_AXP
 	if(pmu_type == AXP806_ADDR)
 	{
 		return axp806_set_dcdca(set_vol);
 	}
-
+#endif
 	return 0;
 }
 int axp_set_aldo3(int set_vol, int onoff)
 {
+#ifdef CONFIG_SUNXI_MODULE_AXP
 	u8 reg_value;
 
 	if(set_vol > 0) {
@@ -250,7 +296,7 @@ int axp_set_aldo3(int set_vol, int onoff)
 		printf("sunxi pmu error : unable to onoff aldo3\n");
 		return -1;
 	}
-
+#endif
 	return 0;
 }
 
@@ -276,23 +322,25 @@ static inline void disable_pmu_pfm_mode(void)
 
 int pmu_init(u8 power_mode)
 {
-        sunxi_set_all_cpu_off();
+	sunxi_set_all_cpu_off();
 	if (power_mode == DUMMY_MODE)
 	{
 		pmu_type = 0;
+		set_vdd_sys_by_PL0();
 	}
+#ifdef CONFIG_SUNXI_MODULE_AXP
 	else
 	{
 		i2c_init_cpus(CONFIG_SYS_I2C_SPEED, CONFIG_SYS_I2C_SLAVE);
 
 		pmu_type = axp_probe();
+		if (AXP806_ADDR == pmu_type) {
+			disable_pmu_pfm_mode();
+			/*set vdd-sys before dram init*/
+			set_vdd_sys_by_bin();
+		}
 	}
-	if (AXP806_ADDR == pmu_type) {
-		disable_pmu_pfm_mode();
-		/*set vdd-sys before dram init*/
-		set_vdd_sys_by_bin();
-	}
-
+#endif
 	return pmu_type;
 }
 

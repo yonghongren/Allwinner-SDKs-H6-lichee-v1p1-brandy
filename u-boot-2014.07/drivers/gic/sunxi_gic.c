@@ -60,7 +60,7 @@ static void gic_spi_set_target(int irq_no, int cpu_id);
 */
 static void default_isr(void *data)
 {
-	printf("default_isr():  called from IRQ %d\n", (uint)data);
+	pr_msg("default_isr():  called from IRQ %d\n", (uint)data);
 	while(1);
 }
 /*
@@ -86,7 +86,7 @@ int irq_enable(int irq_no)
 
 	if (irq_no >= GIC_IRQ_NUM)
 	{
-		printf("irq NO.(%d) > GIC_IRQ_NUM(%d) !!\n", irq_no, GIC_IRQ_NUM);
+		pr_msg("irq NO.(%d) > GIC_IRQ_NUM(%d) !!\n", irq_no, GIC_IRQ_NUM);
 		return -1;
 	}
 	if(irq_no == AW_IRQ_NMI)
@@ -126,7 +126,7 @@ int irq_disable(int irq_no)
 
 	if (irq_no >= GIC_IRQ_NUM)
 	{
-		printf("irq NO.(%d) > GIC_IRQ_NUM(%d) !!\n", irq_no, GIC_IRQ_NUM);
+		pr_msg("irq NO.(%d) > GIC_IRQ_NUM(%d) !!\n", irq_no, GIC_IRQ_NUM);
 		return -1;
 	}
 	if(irq_no == AW_IRQ_NMI)
@@ -160,7 +160,7 @@ int irq_disable(int irq_no)
 */
 static void gic_sgi_handler(uint irq_no)
 {
-	printf("SGI irq %d coming... \n", irq_no);
+	pr_msg("SGI irq %d coming... \n", irq_no);
 }
 /*
 ************************************************************************************************************
@@ -180,7 +180,7 @@ static void gic_sgi_handler(uint irq_no)
 */
 static void gic_ppi_handler(uint irq_no)
 {
-	printf("PPI irq %d coming... \n", irq_no);
+	pr_msg("PPI irq %d coming... \n", irq_no);
 }
 /*
 ************************************************************************************************************
@@ -327,11 +327,11 @@ void do_irq (struct pt_regs *pt_regs)
 
 	if ((idnum == 1022) || (idnum == 1023))
 	{
-		printf("spurious irq !!\n");
+		pr_msg("spurious irq !!\n");
 		return;
 	}
 	if (idnum >= GIC_IRQ_NUM) {
-		printf("irq NO.(%d) > GIC_IRQ_NUM(%d) !!\n", idnum, GIC_IRQ_NUM-32);
+		pr_msg("irq NO.(%d) > GIC_IRQ_NUM(%d) !!\n", idnum, GIC_IRQ_NUM-32);
 		return;
 	}
 	if (idnum < 16)
@@ -354,14 +354,14 @@ int do_irqinfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	int irq;
 
-	printf("Interrupt-Information:\n");
-	printf("Nr(Max)  Routine   Arg\n");
+	pr_msg("Interrupt-Information:\n");
+	pr_msg("Nr(Max)  Routine   Arg\n");
 
 	for (irq = 0; irq < GIC_IRQ_NUM; irq ++)
 	{
 		if (sunxi_int_handlers[irq].m_func != NULL)
 		{
-			printf("%d(%d)  0x%08lx  0x%08lx\n",
+			pr_msg("%d(%d)  0x%08lx  0x%08lx\n",
 					irq, GIC_IRQ_NUM,
 					(ulong)sunxi_int_handlers[irq].m_func,
 					(ulong)sunxi_int_handlers[irq].m_data);
@@ -404,7 +404,7 @@ static void gic_distributor_init(void)
 	}
 	if (gic_irqs < GIC_IRQ_NUM)
 	{
-		printf("GIC parameter config error, only support %d"
+		pr_msg("GIC parameter config error, only support %d"
 				" irqs < %d(spec define)!!\n", gic_irqs, GIC_IRQ_NUM);
 		return ;
 	}
@@ -535,16 +535,11 @@ int arch_interrupt_init (void)
 	int i;
 
 	for (i=0; i<GIC_IRQ_NUM; i++)
-	{
 		sunxi_int_handlers[i].m_data = default_isr;
-	}
-	if(sunxi_probe_secure_monitor())
-	{
-		printf("gic: sec monitor mode\n");
-	}
-	else
-	{
-		printf("gic: normal mode\n");
+	if (sunxi_probe_secure_monitor() || sunxi_probe_secure_os())
+		pr_msg("gic: sec monitor mode\n");
+	else {
+		pr_msg("gic: normal mode\n");
 		gic_distributor_init();
 		gic_cpuif_init();
 	}
@@ -568,8 +563,7 @@ int arch_interrupt_init (void)
 */
 int arch_interrupt_exit(void)
 {
-	if(!sunxi_probe_secure_monitor())
-	{
+	if (!(sunxi_probe_secure_monitor() || sunxi_probe_secure_os())) {
 		gic_distributor_init();
 		gic_cpuif_init();
 	}

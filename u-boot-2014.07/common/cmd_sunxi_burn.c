@@ -49,7 +49,7 @@ int do_burn_from_boot(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	int    ret;
 	ulong begin_time= 0, over_time = 0;
 
-	if(gd->vbus_status != SUNXI_VBUS_PC)
+	if (gd->vbus_status != SUNXI_VBUS_EXIST)
 	{
 		printf("out of usb burn from boot without usb\n");
 		return 0;
@@ -114,11 +114,13 @@ int do_burn_from_boot(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			ret = SUNXI_UPDATE_NEXT_ACTION_NORMAL;
 			break;
 		}
+#ifdef CONFIG_SUNXI_PHY_KEY
 		if(sunxi_key_read()>0)
 		{
 			ret = SUNXI_UPDATE_NEXT_ACTION_NORMAL;
 			break;
 		}
+#endif
 	}
 	tick_printf("exit usb burn from boot\n");
 	sunxi_usb_exit();
@@ -195,109 +197,3 @@ U_BOOT_CMD(
 	"NULL"
 );
 
-/*
-************************************************************************************************************
-*
-*                                             function
-*
-*    name          :
-*
-*    parmeters     :
-*
-*    return        :
-*
-*    note          :
-*
-*
-************************************************************************************************************
-*/
-int do_probe_secure_storage(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
-{
-#ifdef CONFIG_SUNXI_SECURE_STORAGE
-	char *cmd, *name;
-
-	cmd = argv[1];
-	name = argv[2];
-
-	if(!strcmp(cmd, "read"))
-	{
-		if(argc == 2)
-		{
-			return sunxi_secure_storage_list();
-		}
-		if(argc == 3)
-		{
-			char buffer[4096];
-			int ret, data_len;
-
-			memset(buffer, 0, 4096);
-			ret = sunxi_secure_storage_init();
-			if(ret < 0)
-			{
-				printf("%s secure storage init err\n", __func__);
-
-				return -1;
-			}
-			ret = sunxi_secure_object_read(name, buffer, 4096, &data_len);
-			if(ret < 0)
-			{
-				printf("private data %s is not exist\n", name);
-
-				return -1;
-			}
-			printf("private data:\n");
-			sunxi_dump(buffer, strlen((const char *)buffer));
-
-			return 0;
-		}
-	}
-	else if(!strcmp(cmd, "erase"))
-	{
-		int ret;
-
-		ret = sunxi_secure_storage_init();
-		if(ret < 0)
-		{
-			printf("%s secure storage init err\n", __func__);
-
-			return -1;
-		}
-
-		if(argc == 2)
-		{
-			ret = sunxi_secure_storage_erase_all();
-			if(ret < 0)
-			{
-				printf("erase secure storage failed\n");
-				return -1;
-			}
-		}
-		else if(argc == 3)
-		{
-			if(!strcmp(name, "key_burned_flag"))
-			{
-				if(sunxi_secure_storage_erase_data_only("key_burned_flag"))
-				{
-					printf("erase key_burned_flag failed\n");
-				}
-			}
-		}
-		sunxi_secure_storage_exit();
-
-		return 0;
-	}
-#endif
-	return -1;
-}
-
-U_BOOT_CMD(
-	pst, CONFIG_SYS_MAXARGS, 1, do_probe_secure_storage,
-	"read data from secure storage"
-	"erase flag in secure storage",
-	"pst read|erase [name]\n"
-	"pst read,  then dump all data\n"
-	"pst read name,  then dump the dedicate data\n"
-	"pst erase,  then erase all secure storage data\n"
-	"pst erase key_burned_flag,  then erase the dedicate data\n"
-	"NULL"
-);

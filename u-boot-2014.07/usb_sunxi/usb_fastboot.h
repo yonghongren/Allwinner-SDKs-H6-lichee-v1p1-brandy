@@ -31,7 +31,7 @@
 
 char sunxi_fastboot_normal_LangID[8]     = {0x04, 0x03, 0x09, 0x04, '\0'};
 #define SUNXI_FASTBOOT_DEVICE_MANUFACTURER				"USB Developer"  		/* 厂商信息 	*/
-#define SUNXI_FASTBOOT_DEVICE_PRODUCT					"Android Fastboot"  	/* 产品信息 	*/
+#define SUNXI_FASTBOOT_DEVICE_PRODUCT					"Android Fastboot                "  	/* 产品信息 	*/
 #define SUNXI_FASTBOOT_DEVICE_SERIAL_NUMBER				"20080411"  			/* 产品序列号 	*/
 #define SUNXI_FASTBOOT_DEVICE_CONFIG        			"Android Fastboot"
 #define SUNXI_FASTBOOT_DEVICE_INTERFACE     			"Android Bootloader Interface"

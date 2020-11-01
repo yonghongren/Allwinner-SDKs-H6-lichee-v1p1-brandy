@@ -43,5 +43,7 @@ extern int sunxi_sprite_verify_mbr(void *buffer);
 
 extern int sunxi_sprite_read_mbr(void *buffer, uint mbr_copy);
 
+extern int sunxi_sprite_verify_mbr_from_flash(u32 blocks, u32 mbr_copy);
+
 #endif
 

@@ -44,6 +44,11 @@ static  int  timer_used_status;
 int timer_init(void)
 {
 	struct sunxi_timer_reg *timer_reg = (struct sunxi_timer_reg *)SUNXI_TIMER_BASE;
+	#ifdef CONFIG_ARCH_SUN3IW1P1
+	writel(readl(CCMU_AVS_CLK_REG)|(1U << 31),CCMU_AVS_CLK_REG);
+	timer_reg->avs.ctl  = 3;
+	timer_reg->avs.div  |= 0xb04af;
+	#endif
 	timer_reg->tirqen  = 0;
 	timer_reg->tirqsta |= 0x03;
 
@@ -58,6 +63,11 @@ void timer_exit(void)
 	timer_reg->tirqsta |= 0x043f;
 	timer_reg->timer[0].ctl = 0;
 	timer_reg->timer[1].ctl = 0;
+	#ifdef CONFIG_ARCH_SUN3IW1P1
+	timer_reg->avs.ctl = 0;
+	timer_reg->avs.div = 0x05DB05DB;
+	writel(readl(CCMU_AVS_CLK_REG) & 0x0fffffff, CCMU_AVS_CLK_REG);
+	#endif
 }
 
 
@@ -70,6 +80,15 @@ ulong get_tbclk(void)
 	return 24000000;
 }
 
+#ifdef CONFIG_ARCH_SUN3IW1P1
+static inline u64 get_arch_counter(void)
+{
+	u32 t_us;
+	struct sunxi_timer_reg *timer_reg = (struct sunxi_timer_reg *)SUNXI_TIMER_BASE;
+	t_us = timer_reg->avs.cnt1;
+	return (u64)(t_us*24);
+}
+#else
 /*
 * 64bit arch timer.CNTPCT
 * Freq = 24000000Hz
@@ -83,6 +102,7 @@ static inline u64 get_arch_counter(void)
 		: "memory");
 	return (((u64)high)<<32 | low);
 }
+#endif
 
 void __usdelay(unsigned long us)
 {

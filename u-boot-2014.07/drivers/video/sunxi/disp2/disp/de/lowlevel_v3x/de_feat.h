@@ -17,6 +17,7 @@
 #define DE_OUTPUT_TYPE_TV    2
 #define DE_OUTPUT_TYPE_HDMI  4
 #define DE_OUTPUT_TYPE_VGA   8
+#define DE_OUTPUT_TYPE_EDP 32 /*16 for vdpo module*/
 
 #define de_writel(val, addr) writel(val, (void __iomem *)(addr))
 #define de_readl(addr) readl((void __iomem *)(addr))
@@ -24,7 +25,7 @@
 #if defined(CONFIG_ARCH_SUN50IW3P1)
 /* features for sun50iw3 */
 
-#define DEVICE_NUM	2
+#define DEVICE_NUM	3
 #define DE_NUM	2
 #define CHN_NUM		4
 #define VI_CHN_NUM	1
@@ -38,8 +39,9 @@
 #define SUPPORT_DSI
 #define DSI_VERSION_28
 #define CLK_NUM_PER_DSI 2
-
+#define SUPPORT_EDP
 #define DEVICE_DSI_NUM 2
+#define DEVICE_EDP_NUM 1
 /* #define SUPPORT_SMBL */
 #define SUPPORT_ATW
 /* #define SUPPORT_HDMI */

@@ -197,7 +197,9 @@ int stdio_init (void)
 	INIT_LIST_HEAD(&(devs.list));
 
 #ifdef CONFIG_SYS_I2C
+#ifndef CONFIG_ARCH_SUN8IW17P1
 	i2c_init_all();
+#endif
 #else
 #if defined(CONFIG_HARD_I2C)
 	i2c_init (CONFIG_SYS_I2C_SPEED, CONFIG_SYS_I2C_SLAVE);

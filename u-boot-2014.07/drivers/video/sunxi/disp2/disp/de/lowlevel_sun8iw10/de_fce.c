@@ -561,7 +561,7 @@ static void auto_ce_model(unsigned int width, unsigned height, unsigned int sumc
 		}
 		else
 		{
-		  printf("auto_ce_model : total_pixel_r == 0.\n");
+		  pr_msg("auto_ce_model : total_pixel_r == 0.\n");
 		  rate = highest_white-lowest_black;
 		  half = rate>>1;
 		}
@@ -825,7 +825,7 @@ static void auto_bws_model(unsigned int width, unsigned int height, unsigned int
 
 	if (mean<0 || pd_ymin_fix<0 || pd_black<0 || pd_white>255 || pd_white<0 || pd_ymax_fix<0 ||pd_ymax_fix>255)
 	{
-		printf("%s, ##################error para, mean=%d, validsum=%d, validcnt=%d, pd_ymin_fix=%d, pd_black=%d, pd_white=%d, pd_ymax_fix=%d,sum=%d\n",
+		pr_msg("%s, ##################error para, mean=%d, validsum=%d, validcnt=%d, pd_ymin_fix=%d, pd_black=%d, pd_white=%d, pd_ymax_fix=%d,sum=%d\n",
 			__func__, mean, validsum, validcnt, pd_ymin_fix, pd_black, pd_white, pd_ymax_fix, sum);
 		mean=0;
 		pd_ymin_fix = 16;

@@ -383,7 +383,7 @@ __s32 PHY_GetDefaultParam(__u32 bank)
         }
 
     }
-	else if(READ_RETRY_MODE==4)
+	else if((READ_RETRY_MODE==4)||(READ_RETRY_MODE==5))
     {
 			
 		otp_ok_flag = 0;

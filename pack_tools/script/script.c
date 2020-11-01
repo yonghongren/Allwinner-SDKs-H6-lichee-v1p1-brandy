@@ -755,7 +755,7 @@ u32 randto1k(u32 num)
 //      把A主键下的所有数据，按照从键名，键值的顺序排列，存放在另一个内存块中
 //      记录A主键的长度(从键的个数)，记录A主键下的数据存放在内存中的偏移量
 
-#define TIEM_MAIN_MAX       128
+#define TIEM_MAIN_MAX       256
 
 int parser_script(void *pbuf, int script_len, FILE *hfile)
 {

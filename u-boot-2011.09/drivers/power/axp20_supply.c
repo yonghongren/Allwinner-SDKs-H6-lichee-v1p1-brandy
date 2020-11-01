@@ -711,12 +711,31 @@ static int axp20_set_eldo3(int set_vol, int onoff)
 *
 ************************************************************************************************************
 */
-#if 0
 static int axp20_set_gpio0ldo(int set_vol, int onoff)
 {
+	u8 reg_value;
+	if(axp_i2c_read(AXP20_ADDR, BOOT_POWER20_GPIO0_CTL, &reg_value))
+	{
+		return -1;
+	}
+	if(onoff == 0)
+	{
+		reg_value &= ~(7 << 0);
+	}
+	else
+	{
+		reg_value &= ~(7 << 0);
+		reg_value |=  (0x01 << 0);
+	}
+	if(axp_i2c_write(AXP20_ADDR, BOOT_POWER20_GPIO0_CTL, reg_value))
+	{
+		printf("sunxi pmu error : unable to onoff gpio0ldo\n");
+
+		return -1;
+	}
+
 	return 0;
 }
-#endif
 /*
 ************************************************************************************************************
 *
@@ -733,12 +752,31 @@ static int axp20_set_gpio0ldo(int set_vol, int onoff)
 *
 ************************************************************************************************************
 */
-#if 0
 static int axp20_set_gpio1ldo(int set_vol, int onoff)
 {
+	u8 reg_value;
+	if(axp_i2c_read(AXP20_ADDR, BOOT_POWER20_GPIO1_CTL, &reg_value))
+	{
+		return -1;
+	}
+	if(onoff == 0)
+	{
+		reg_value &= ~(7 << 0);
+	}
+	else
+	{
+		reg_value &= ~(7 << 0);
+		reg_value |=  (0x01 << 0);
+	}
+	if(axp_i2c_write(AXP20_ADDR, BOOT_POWER20_GPIO1_CTL, reg_value))
+	{
+		printf("sunxi pmu error : unable to onoff gpio1ldo\n");
+
+		return -1;
+	}
+
 	return 0;
 }
-#endif
 /*
 ************************************************************************************************************
 *
@@ -807,7 +845,14 @@ static int axp20_set_eldo_output(int sppply_index, int vol_value, int onoff)
 
 static int axp20_set_gpioldo_output(int sppply_index, int vol_value, int onoff)
 {
-	return 0;
+	switch(sppply_index)
+	{
+		case 0:
+			return axp20_set_gpio0ldo(vol_value, onoff);
+		case 1:
+			return axp20_set_gpio1ldo(vol_value, onoff);
+	}
+	return -1;
 }
 
 static int axp20_set_misc_output(int sppply_index, int vol_value, int onoff)
@@ -822,7 +867,6 @@ int axp20_set_supply_status(int vol_name, int vol_value, int onoff)
 	int sppply_index;
 	supply_type  = vol_name & 0xffff0000;
 	sppply_index = vol_name & 0x0000ffff;
-
 	switch(supply_type)
 	{
 		case PMU_SUPPLY_DCDC_TYPE:

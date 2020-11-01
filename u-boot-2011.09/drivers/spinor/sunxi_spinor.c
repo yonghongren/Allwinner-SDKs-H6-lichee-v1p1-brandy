@@ -26,9 +26,7 @@
 #include <spi.h>
 #include <asm/arch/spi.h>
 #include <sunxi_mbr.h>
-#include <asm/arch/sunxi_display2.h>
 #include <private_boot0.h>
-#include <sys_config.h>
 
 static int   spinor_flash_inited = 0;
 uint  total_write_bytes;
@@ -55,8 +53,6 @@ static int   spinor_cache_block = -1;
 #define SPINOR_SE          0xd8
 #define SPINOR_BE          0xc7
 #define SPINOR_RDID        0x9f
-#define SPINOR_FREAD_DUAL_OUT 	0x3b // sclk <= 75MHz
-
 #else
 #define SPINOR_READ		0x03 // sclk <= 30MHz
 #define SPINOR_FREAD_DUAL_IO 	0xbb // sclk <= 50MHz
@@ -95,42 +91,6 @@ extern uint sunxi_sprite_generate_checksum(void *buffer, uint length, uint src_s
 
 extern int sunxi_sprite_verify_checksum(void *buffer, uint length, uint src_sum);
 #endif
-
-static int copy_color_function(int x1,int y1,int bmp_bpix1,int zero_num1,char *buffer )
-{
-	int i;
-	int color = 0xff0000;		//red color
-	int x = x1;
-	int y = y1;
-	int bmp_bpix = bmp_bpix1;
-	int zero_num = x*y*bmp_bpix;
-	//uint line_bytes, real_line_byte;
-
-	//printf("bmp x = %d, bmp y = %d,zero_num= %d,bmp_bpix=%d", x, y,zero_num,bmp_bpix);
-	//line_bytes = (x * bmp_bpix) + zero_num;
-	//real_line_byte = x * bmp_bpix;
-	for(i=0; i<zero_num; i++)
-	{
-		memcpy(buffer, &color, 4);
-		buffer += 4;
-	}
-	
-	return 0;
-}
-
-extern int card_board_display_framebuffer_set(int width, int height, int bitcount, void *buffer,int count);
-static void card_burn_lcd_disp(int count,int weidth,int height)
-{
-	//printf("############[debug_jaosn]:debug by jason #############\n");
-	char *buffer = (char *)SUNXI_DISPLAY_FRAME_BUFFER_ADDR;
-
-	copy_color_function(weidth,height,4,0,buffer);
-	//board_display_framebuffer_set(weidth, height, 32, buffer,count);
-	card_board_display_framebuffer_set(weidth, height, 32, buffer,count);
-	board_display_layer_para_set();
-	board_display_show_until_lcd_open(0);
-}
-
 /*
 ************************************************************************************************************
 *
@@ -306,55 +266,6 @@ static int __spinor_erase_block(uint block_index)
 *
 ************************************************************************************************************
 */
-#ifndef CONFIG_SUNXI_SPINOR_PLATFORM
-static int total_count = 0;
-static int card_spinor_erase_all(int wigth,int height)
-{
-    uint  sdata = 0;
-    int   ret = -1;
-    u8    status = 0;
-    uint  txnum, rxnum;
-    printf("begin to erase all .");
-	//int total;
-	ret = __spinor_wren();
-	if (-1 == ret)
-	{
-	    return -1;
-	}
-
-	txnum = 1;
-	rxnum = 0;
-
-	sdata = SPINOR_BE;
-#ifdef CONFIG_ARCH_SUN8IW8P1
-	spic_config_dual_mode(0, 0, 0, txnum);
-#endif
-    ret = spic_rw(txnum, (void*)&sdata, rxnum, 0);
-	if (ret==-1)
-    {
-        return -1;
-    }
-
-
-	do
-	{
-	    ret = __spinor_rdsr(&status);
-	    if (-1 == ret)
-	    {
-	        return -1;
-	    }
-		total_count ++;
-		//card_burn_lcd_disp((total_count*wigth)/185,wigth,height);
-		sprite_cartoon_upgrade((total_count*100)/195);
-                __msdelay(500);
-                printf(".");
-	} while (status & 0x01);
-	printf("\nstatus = %d\n",status);
-	printf("count = %d \n",total_count);
-	return 0;
-}
-#endif
-
 static int __spinor_erase_all(void)
 {
     uint  sdata = 0;
@@ -491,57 +402,6 @@ static int __spinor_read_id(uint *id)
 #endif
 	return spic_rw(1, (void *)&sdata, 3, (void *)id);
 }
-
-static int spi_nor_fast_read_dual_output(uint start, uint sector_cnt, void *buf)
-{
-    uint page_addr;
-    uint rbyte_cnt;
-    u8   sdata[5] = {0};
-    int ret = 0;
-    uint tmp_cnt, tmp_offset = 0;
-    void  *tmp_buf;
-    uint txnum, rxnum;
-
-    txnum = 5;
-
-    while (sector_cnt)
-    {
-        if (sector_cnt > 127)
-        {
-            tmp_cnt = 127;
-        }
-        else
-        {
-            tmp_cnt = sector_cnt;
-        }
-
-        page_addr = (start + tmp_offset) * SYSTEM_PAGE_SIZE;
-        rbyte_cnt = tmp_cnt * SYSTEM_PAGE_SIZE;
-        sdata[0]  =  SPINOR_FREAD_DUAL_OUT;     
-    	sdata[1]  = (page_addr >> 16) & 0xff;
-    	sdata[2]  = (page_addr >> 8 ) & 0xff;
-    	sdata[3]  =  page_addr        & 0xff;
-		sdata[4]  = 0 ;
-
-        rxnum   = rbyte_cnt;
-        tmp_buf = (u8 *)buf + (tmp_offset << 9);
-#ifdef CONFIG_ARCH_SUN8IW8P1
-		spic_config_dual_mode(0, 1, 0, txnum);
-#endif
-//		flush_cache(tmp_buf,rxnum);  // guoyingyang debug
-        if (spic_rw(txnum, (void *)sdata, rxnum, tmp_buf))
-        {
-            ret = -1;
-            break;
-        }
-
-        sector_cnt -= tmp_cnt;
-        tmp_offset += tmp_cnt;
-    }
-
-    return ret;
-}
-
 /*
 ************************************************************************************************************
 *
@@ -558,7 +418,7 @@ static int spi_nor_fast_read_dual_output(uint start, uint sector_cnt, void *buf)
 *
 ************************************************************************************************************
 */
-static int __spinor_sector_normal_read(uint start, uint sector_cnt, void *buf)
+static int __spinor_sector_read(uint start, uint sector_cnt, void *buf)
 {
     uint page_addr;
     uint rbyte_cnt;
@@ -604,9 +464,7 @@ static int __spinor_sector_normal_read(uint start, uint sector_cnt, void *buf)
     }
 
     return ret;
-
 }
-
 /*
 ************************************************************************************************************
 *
@@ -623,80 +481,6 @@ static int __spinor_sector_normal_read(uint start, uint sector_cnt, void *buf)
 *
 ************************************************************************************************************
 */
-static int __spinor_sector_read(uint start, uint sector_cnt, void *buf)
-{
-	int flash_speed = 0;
-	static int volatile read_flag = 0;
-	int ret = 0;
-	
-	if(read_flag == 0) {
-		script_parser_fetch("boot_spi_board0", "speed_mod", &flash_speed, 1);
-		printf("hello @flash_speed=%d\n",flash_speed);
-	}
-	if ( (read_flag == 1) || (1 == flash_speed) ) 
-	{
-		ret = spi_nor_fast_read_dual_output( start,sector_cnt,buf);
-		read_flag = 1;
-	}
-	else
-	{
-		ret = __spinor_sector_normal_read( start,sector_cnt,buf);
-		read_flag = 0;
-	}
-	
-	return ret;
-}
-
-/*
-************************************************************************************************************
-*
-*                                             function
-*
-*    name          :
-*
-*    parmeters     :
-*
-*    return        :
-*
-*    note          :
-*
-*
-************************************************************************************************************
-*/
-static int card_spinor_sector_write(uint sector_start, uint sector_cnt, void *buf,int weight,int height)
-{
-#ifndef CONFIG_SUNXI_SPINOR_PLATFORM
-    uint page_addr = sector_start * SYSTEM_PAGE_SIZE;
-    uint nor_page_cnt = sector_cnt * (NPAGE_IN_1SYSPAGE);
-    uint i = 0;
-    int ret = -1;
-	//int total;
-
-	printf("start = 0x%x, cnt=0x%x\n", sector_start, sector_cnt);
-	printf("nor_page_cnt=%d\n", nor_page_cnt);
-
-    for (i = 0; i < nor_page_cnt; i++)
-    {
-    	//printf("spinor program page : 0x%x\n", page_addr + SPINOR_PAGE_SIZE * i);
-		if((i & 0x1ff) == 0x1ff)
-		{
-			total_count += 1;
-			//card_burn_lcd_disp((total_count*weight)/185,weight,height);
-			sprite_cartoon_upgrade((total_count*100)/195);
-			printf("nor_page_cnt=%d\n", i);
-		}
-        ret = __spinor_pp(page_addr + SPINOR_PAGE_SIZE * i, (void *)((uint)buf + SPINOR_PAGE_SIZE * i), SPINOR_PAGE_SIZE);
-        if (-1 == ret)
-        {
-        	printf(" __spinor_sector_write error \n");
-            return -1;
-        }
-    }
-	printf("count=%d\n",total_count);
-#endif
-    return 0;
-}
-
 static int __spinor_sector_write(uint sector_start, uint sector_cnt, void *buf)
 {
     uint page_addr = sector_start * SYSTEM_PAGE_SIZE;
@@ -716,7 +500,6 @@ static int __spinor_sector_write(uint sector_start, uint sector_cnt, void *buf)
         ret = __spinor_pp(page_addr + SPINOR_PAGE_SIZE * i, (void *)((uint)buf + SPINOR_PAGE_SIZE * i), SPINOR_PAGE_SIZE);
         if (-1 == ret)
         {
-        	printf(" __spinor_sector_write error \n");
             return -1;
         }
     }
@@ -773,19 +556,14 @@ int spinor_init(int stage)
 			return -1;
 		}
 	}
-#if 0 //def CONFIG_SUNXI_SPINOR_PLATFORM	
-	spinor_write_cache  = (char *)malloc(64 * 1024);
-#else
 	spinor_write_cache  = (char *)malloc_noncache(64 * 1024);
-#endif
-
 	if(!spinor_write_cache)
 	{
 		puts("memory malloced fail for spinor data buffer\n");
 
 		if(spinor_store_buffer)
 		{
-			free(spinor_store_buffer);
+			free_noncache(spinor_store_buffer);
 
 			return -1;
 		}
@@ -881,11 +659,11 @@ int spinor_read(uint start, uint nblock, void *buffer)
 {
 	int tmp_block_index;
 
-	//printf("spinor read: start 0x%x, sector 0x%x\n", start, nblock);
+	printf("spinor read: start 0x%x, sector 0x%x\n", start, nblock);
 
 	if(spinor_cache_block < 0)
 	{
-		//printf("%s %d\n", __FILE__, __LINE__);
+		printf("%s %d\n", __FILE__, __LINE__);
 		if(__spinor_sector_read(start, nblock, buffer))
 		{
 			printf("spinor read fail no buffer\n");
@@ -976,13 +754,6 @@ int spinor_write(uint start, uint nblock, void *buffer)
 
 	return nblock;
 }
-
-int spinor_read_nocache(uint start, uint nblock, void *buffer)
-{
-       __spinor_sector_read(start, nblock, buffer);
-       return 0;
-}
-
 /*
 ************************************************************************************************************
 *
@@ -1041,19 +812,7 @@ int spinor_erase_all_blocks(int erase)
 }
 
 
-int spinor_erase_one_block(uint index)
-{
-	if(__spinor_erase_block(index) !=0){
-			printf("erase block fail!!!");
-	}
-	return 0;
-}
 
-int spinor_net_datafinish(uint sector_start, uint total_write_bytes, void *buf)
-{
-	 __spinor_sector_write(sector_start, total_write_bytes/512, buf);
-	 return 0;
-}
 
 
 
@@ -1075,29 +834,8 @@ int spinor_net_datafinish(uint sector_start, uint total_write_bytes, void *buf)
 */
 int spinor_size(void)
 {
-	int size = 0;
-	int ret = 0;
-    ret = script_parser_fetch("spi_board0","sflash_size", &size, sizeof(int));
-	if (ret)
-	{
-		size = 8*1024*1024/512;
-		printf("get flash_size warning\n"); 
-	}
-	else
-	{
-		if(size == 16)
-		{
-			size =  16*1024*1024/512; 
-		}
-		else
-		{
-			size =  8*1024*1024/512 ;
-		}
-	}
-	printf("flash size =%d M\n",size);
-	return size;
+	return 8 * 1024 * 1024/512;
 }
-
 /*
 ************************************************************************************************************
 *
@@ -1246,58 +984,9 @@ int spinor_datafinish(void)
 //	}
 
 	printf("spinor download data ok\n");
+
 	return 0;
 }
-
-/*
-*
-*/
-int spinor_datafinish_card(void)
-{
-#ifndef CONFIG_SUNXI_SPINOR_PLATFORM
-	uint  id = 0xff;
-	int   ret;
-	int screen_width,screen_height;
-	uint arg[4];
-	//sprite_cartoon_upgrade(10);
-	
-	__spinor_read_id(&id);
-	arg[0] = 0;
-	screen_width = disp_ioctl(NULL, DISP_GET_SCN_WIDTH, (void*)arg);
-	screen_height = disp_ioctl(NULL, DISP_GET_SCN_HEIGHT, (void*)arg);
-		//board_display_framebuffer_set(sprite_source.screen_width, sprite_source.screen_height, 32, (void *)sprite_source.screen_buf);
-
-	sprite_cartoon_create();
-	//sprite_uichar_printf("#####################\n");
-	//sprite_uichar_printf("  starting card upgrade...\n");
-	
-	printf("@@@@@@@@[debug_jaosn]:spinor_datafinish\n");
-	
-	printf("spinor id = 0x%x\n", id);
-	card_spinor_erase_all(screen_width,screen_height);
-	__spinor_wrsr(0);
-	//__spinor_erase_all();
-	
-
-	
-	printf("spinor has erasered\n");
-
-	printf("total write bytes = %d\n", total_write_bytes);
-	ret = card_spinor_sector_write(0, total_write_bytes/512, spinor_store_buffer,screen_width,screen_height);
-	if(ret)
-	{
-		printf("spinor write img fail\n");
-
-		return -1;
-	}
-
-	//sprite_uichar_printf("   !! card upgrade is over !!\n");
-	sprite_cartoon_upgrade(100);
-	printf("spinor download data ok\n");
-#endif
-	return 0;
-}
-
 /*
 ************************************************************************************************************
 *

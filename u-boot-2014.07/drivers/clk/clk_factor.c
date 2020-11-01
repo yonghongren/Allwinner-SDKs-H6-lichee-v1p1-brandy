@@ -29,7 +29,7 @@ static int sunxi_clk_disable_plllock(struct sunxi_clk_factors *factor)
 			return 0;
 		}
 		default: {
-			printf("invaid pll lock mode:%u\n", factor->lock_mode);
+			pr_msg("invaid pll lock mode:%u\n", factor->lock_mode);
 			return -1;
 		}
 	}
@@ -72,10 +72,10 @@ static int sunxi_clk_is_lock(struct sunxi_clk_factors *factor)
 
 			if(!loop) {
 #if (defined CONFIG_FPGA_V4_PLATFORM) || (defined CONFIG_FPGA_V7_PLATFORM)
-				printf("clk %s wait lock timeout\n", factor->hw.clk->name);
+				pr_msg("clk %s wait lock timeout\n", factor->hw.clk->name);
 				return 0;
 #else
-				printf("clk %s wait lock timeout\n", factor->hw.clk->name);
+				pr_msg("clk %s wait lock timeout\n", factor->hw.clk->name);
 				return -1;
 #endif
 			}
@@ -95,16 +95,16 @@ static int sunxi_clk_is_lock(struct sunxi_clk_factors *factor)
 
 			if(!loop) {
 #if (defined CONFIG_FPGA_V4_PLATFORM) || (defined CONFIG_FPGA_V7_PLATFORM)
-				printf("clk %s wait lock timeout\n", factor->hw.clk->name);
+				pr_msg("clk %s wait lock timeout\n", factor->hw.clk->name);
 #else
-				printf("clk %s wait lock timeout\n", factor->hw.clk->name);
+				pr_msg("clk %s wait lock timeout\n", factor->hw.clk->name);
 				return -1;
 #endif
 			}
 			return 0;
 		}
 		default: {
-			printf("invaid pll lock mode:%u\n", factor->lock_mode);
+			pr_msg("invaid pll lock mode:%u\n", factor->lock_mode);
 			return -1;
 		}
 	}
@@ -138,7 +138,7 @@ static int sunxi_clk_fators_enable(struct clk_hw *hw)
 	factor_writel(factor, reg, factor->reg);
 
 	if (sunxi_clk_is_lock(factor)) {
-		printf("clk %s wait lock timeout\n", factor->hw.clk->name);
+		pr_msg("clk %s wait lock timeout\n", factor->hw.clk->name);
 		return -1;
 	}
 
@@ -213,7 +213,7 @@ static int sunxi_clk_fators_enable(struct clk_hw *hw)
 		}
 	}
 	if (i == PLL_LOCK_TIMEOUT_CNT) {
-		printf("clk %s wait lock timeout\n", factor->hw.init->name);
+		pr_msg("clk %s wait lock timeout\n", factor->hw.init->name);
 		return -1;
 	}
 
@@ -223,7 +223,7 @@ static int sunxi_clk_fators_enable(struct clk_hw *hw)
 	factor_writel(factor, reg, factor->reg);
 
 	if (sunxi_clk_is_lock(factor)) {
-		printf("clk %s wait lock timeout\n", factor->hw.init->name);
+		pr_msg("clk %s wait lock timeout\n", factor->hw.init->name);
 		return -1;
 	}
 
@@ -238,7 +238,7 @@ static void sunxi_clk_fators_disable(struct clk_hw *hw)
 	unsigned long reg = factor_readl(factor,factor->reg);
 
 	if(!GET_BITS(config->enshift, 1, reg)) {
-		printf("clk %s is already disable.\n", factor->hw.clk->name);
+		pr_msg("clk %s is already disable.\n", factor->hw.clk->name);
 		return;
 	}
 	/* When the pll is not in use, just set it to the minimum frequency */
@@ -432,7 +432,7 @@ static int sunxi_clk_factors_set_rate(struct clk_hw *hw, unsigned long rate, uns
 	 * it may change the original register value.
 	 */
 	if( factor->get_factors(rate, parent_rate, &factor_val) < 0 ) {
-		printf("clk set rate failed!");
+		pr_msg("clk set rate failed!");
 		/* cannot get right factors for clk,just break */
 		return 0;
 	}
@@ -480,7 +480,7 @@ static int sunxi_clk_factors_set_rate(struct clk_hw *hw, unsigned long rate, uns
 #ifndef CONFIG_SUNXI_CLK_DUMMY_DEBUG
     if(GET_BITS(config->enshift, 1, reg)) {
         if (sunxi_clk_is_lock(factor)) {
-		printf("clk %s wait lock timeout\n", factor->hw.clk->name);
+		pr_msg("clk %s wait lock timeout\n", factor->hw.clk->name);
 		return -1;
 	}
     }
@@ -525,7 +525,7 @@ int sunxi_clk_register_factors(void *dev, void  *base, struct factor_init_data* 
 	if (factors) {
 		memset(factors,0,sizeof(struct sunxi_clk_factors));
 	} else {
-		printf("%s: could not allocate factors clk\n", __func__);
+		pr_msg("%s: could not allocate factors clk\n", __func__);
 		return -1;
 	}
 

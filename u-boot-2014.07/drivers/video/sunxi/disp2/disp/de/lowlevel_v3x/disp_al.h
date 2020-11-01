@@ -113,4 +113,9 @@ int disp_al_get_fb_info(unsigned int sel, struct disp_layer_info *info);
 int disp_al_get_display_size(unsigned int sel, unsigned int *width,
 			     unsigned int *height);
 
+#if defined(SUPPORT_EDP)
+int disp_al_edp_cfg(u32 screen_id, u32 fps, u32 edp_index);
+int disp_al_edp_disable(u32 screen_id);
+#endif /*endif support_EDP */
+
 #endif

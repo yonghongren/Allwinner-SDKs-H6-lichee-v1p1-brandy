@@ -33,7 +33,7 @@
 #define GIC_CON_TYPE		(ARMA9_GIC_BASE + 0x0004)
 #define GIC_CON_IIDR		(ARMA9_GIC_BASE + 0x0008)
 
-#define GIC_CON_IGRP		(ARMA9_GIC_BASE + 0x0080)
+#define GIC_CON_IGRP(n)		(ARMA9_GIC_BASE + 0x0080 + (n)*4)
 
 #define GIC_SET_EN(_n)		(ARMA9_GIC_BASE + 0x100 + 4 * (_n))
 #define GIC_SET_EN0			GIC_SET_EN(0)	// 0x100

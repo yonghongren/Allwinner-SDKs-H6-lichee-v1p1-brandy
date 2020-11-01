@@ -183,6 +183,6 @@ extern int sunxi_clock_set_pll6(void);
 extern int sunxi_clock_set_mbus(void);
 extern int sunxi_clock_get_pll6(void);
 extern int sunxi_clock_get_pll5(void);
-
+extern int sunxi_clock_get_ahb(void);
 
 #endif /* _SUNXI_CLOCK_H */

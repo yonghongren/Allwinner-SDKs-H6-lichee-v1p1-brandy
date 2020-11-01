@@ -261,13 +261,14 @@ __s32 NF_read_status( __u32 blk_num )
 
 __u32 load_uboot_in_one_block_judge(__u32 length)
 {
-	__u32 lsb_page_type;
-	__u32 lsb_blk_size;
+//	__u32 lsb_page_type;
+//	__u32 lsb_blk_size;
 	
-	lsb_page_type = NAND_Getlsbpage_type();
-	lsb_blk_size = NAND_GetLsbblksize();
+//	lsb_page_type = NAND_Getlsbpage_type();
+//	lsb_blk_size = NAND_GetLsbblksize();
 	
-	if((( length <=  NF_BLOCK_SIZE )&&(lsb_page_type==0))||(( length <=  lsb_blk_size )&&(lsb_page_type!=0)))
+	//if((( length <=  NF_BLOCK_SIZE )&&(lsb_page_type==0))||(( length <=  lsb_blk_size )&&(lsb_page_type!=0)))
+	if( length <=  NF_BLOCK_SIZE )
 		return 1;
 	else
 		return 0;

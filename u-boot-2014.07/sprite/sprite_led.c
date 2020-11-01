@@ -29,11 +29,8 @@
 #include <fdt_support.h>
 #include <sys_config_old.h>
 
-DECLARE_GLOBAL_DATA_PTR;
-
 struct timer_list TIMER0;
 static int   sprite_led_status;
-static int   sprite_led_inited = 0;
 static __u32 sprite_led_hd;
 
 /*
@@ -84,17 +81,8 @@ int sprite_led_init(void)
 	user_gpio_set_t	gpio_init;
 	int	ret = 0;
 	int	delay = 0;
-    int work_mode = uboot_spare_head.boot_data.work_mode;
-	if( work_mode != WORK_MODE_SPRITE_RECOVERY && work_mode != WORK_MODE_CARD_PRODUCT )
-		return 0;
 
-    if( sprite_led_inited == 0 )
-    {
-		sprite_led_inited = 1;
-		sprite_led_status = 1;
-	}
-	else
-		return 0;
+	sprite_led_status = 1;
 
 	//正常工作时，灯闪烁的时间
 	ret = script_parser_fetch("card_boot", "sprite_work_delay", (void *)&delay, 1);
@@ -156,9 +144,7 @@ int sprite_led_exit(int status)
 	//int ret;
 	int delay;
 	int nodeoffset;
-	if(sprite_led_inited != 1)
-		return 0;
-	sprite_led_inited = 0;
+
 	del_timer(&TIMER0);
 	
 	//出错的时候，led的闪烁加快
@@ -180,11 +166,6 @@ int sprite_led_exit(int status)
 		TIMER0.function = sprite_timer_func;
 		//init_timer(&TIMER0);
 		add_timer(&TIMER0);
-	}
-	else
-	{
-		//power off  led when card product ok
-		gpio_write_one_pin_value(sprite_led_hd, 1, "sprite_gpio0");
 	}
 
 	return 0;

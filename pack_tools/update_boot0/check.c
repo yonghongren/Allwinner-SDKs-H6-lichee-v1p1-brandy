@@ -61,25 +61,6 @@ __s32 check_magic( __u32 *mem_base, const char *magic )
 	return CHECK_IS_CORRECT;
 }
 
-__u32 check_extend_magic( __u32 *mem_base, const char *magic )
-{
-		__u32 i;
-	boot0_extend_config *bfh;
-	__u32 sz;
-	unsigned char *p;
-
-	bfh = (boot0_extend_config *)mem_base;
-	p = bfh->magic;
-	for( i = 0, sz = sizeof( bfh->magic );  i < sz;  i++ )
-	{
-		if( *p++ != *magic++ )
-			return CHECK_IS_WRONG;
-	}
-
-
-	return CHECK_IS_CORRECT;
-}
-
 //#pragma arm section
 
 

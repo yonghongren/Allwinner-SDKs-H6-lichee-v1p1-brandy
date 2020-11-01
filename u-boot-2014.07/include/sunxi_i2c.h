@@ -88,11 +88,21 @@
 
 enum {
 	SUNXI_I2C0 = 0,
+#if defined (CONFIG_ARCH_SUN50IW3P1)
+	SUNXI_I2C1,
+	SUNXI_I2C2,
+	SUNXI_I2C3,
+	SUNXI_I2C4,
+#if defined(CONFIG_CPUS_I2C)
+	SUNXI_R_I2C0,
+#endif
+#else
 #if defined(CONFIG_USE_AC200) && defined (CONFIG_ARCH_SUN50IW6P1)
 	SUNXI_I2C3,
 #endif
 #if defined(CONFIG_CPUS_I2C)
 	SUNXI_R_I2C0,
+#endif
 #endif
 };
 

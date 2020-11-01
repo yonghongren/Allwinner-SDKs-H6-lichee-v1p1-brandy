@@ -1,3 +1,13 @@
+/*
+ * (C) Copyright 2018-2028
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * lianpengcai <lianpengcai@allwinnertech.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
 #ifndef __DE_DRV_V3_H__
 #define __DE_DRV_V3_H__
 
@@ -62,6 +72,7 @@ static inline int _get_hpd_state(int sel, int type)
 {
 	unsigned long arg[4] = {0};
 	int hpd_state = 0;
+	int tryTime = 0;
 
 	arg[0] = sel;
 	switch (type) {
@@ -69,7 +80,12 @@ static inline int _get_hpd_state(int sel, int type)
 		hpd_state = disp_ioctl(NULL, DISP_HDMI_GET_HPD_STATUS, (void *)arg);
 		break;
 	case DISP_OUTPUT_TYPE_TV:
-		hpd_state = disp_ioctl(NULL, DISP_TV_GET_HPD_STATUS, (void *)arg);
+		while (tryTime++ < 200 && !hpd_state) {
+			hpd_state = disp_ioctl(NULL, DISP_TV_GET_HPD_STATUS, (void *)arg);
+			if (!hpd_state) {
+				udelay(10 * 1000);
+			}
+		}
 		break;
 	default:
 		return 0;

@@ -57,7 +57,6 @@ static __inline void smc_writel_secos(uint value, uint addr);
 #define TEE_SMC_CPU_POWERDOWN       (0xFFFF0003)
 #define TEE_SMC_CLUSTER_POWERUP     (0xFFFF0004)
 #define TEE_SMC_CLUSTER_POWERDOWN   (0xFFFF0005)
-#define TEE_SMC_LOAD_ARISC          (0xFFFF0006)
 
 #define TEE_SMC_EFUSE_WRITE_REG			(0xFFFF000A)
 #define TEE_SMC_EFUSE_READ_REG			(0xFFFF000B)
@@ -295,15 +294,6 @@ typedef struct
 smc_ss_en_de_config;
 
 
-struct tee_load_arisc_param
-{
-	uint  image_phys;
-	uint  image_size;
-	uint  para_phys;
-	uint  para_size;
-	uint  para_offset;
-};
-
 int smc_aes_bssk_encrypt_to_dram(void *srcdata, int srclen, void *dstbuffer, int *dst_len)
 {
 	smc_ss_en_de_config  ss_en_config;
@@ -324,18 +314,6 @@ int smc_aes_bssk_decrypt_to_keysram(void *srcdata, int srclen)
 int smc_create_huk(void *huk_data, int len)
 {
 	return do_smc(TEE_SMC_PLAFORM_OPERATION, TEE_SMC_CREATE_HUK, (uint)huk_data, len);
-}
-
-int smc_load_arisc(uint image_addr, uint image_size, uint para_addr, uint para_size, uint para_offset)
-{
-	struct tee_load_arisc_param param;
-	param.image_phys = image_addr;
-	param.image_size = image_size;
-	param.para_phys = para_addr;
-	param.para_size = para_size;
-	param.para_offset = para_offset;
-
-	return do_smc(TEE_SMC_PLAFORM_OPERATION, TEE_SMC_LOAD_ARISC, (uint)(&param), 0);
 }
 /*
 ************************************************************************************************************

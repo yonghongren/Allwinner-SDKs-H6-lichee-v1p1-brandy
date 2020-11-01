@@ -145,32 +145,6 @@ int sunxi_probe_securemode(void)
 	return 0;
 }
 
-int sunxi_get_securemode(void)
-{
-	return gd->securemode;
-}
-
-int sunxi_probe_secure_monitor(void)
-{
-	return uboot_spare_head.boot_data.secureos_exist == SUNXI_SECURE_MODE_USE_SEC_MONITOR?1:0;
-}
-
-/*
-************************************************************************************************************
-*
-*                                             function
-*
-*    name          :
-*
-*    parmeters     :
-*
-*    return        :
-*
-*    note          :
-*
-*
-************************************************************************************************************
-*/
 int sunxi_set_secure_mode(void)
 {
 	return 0;

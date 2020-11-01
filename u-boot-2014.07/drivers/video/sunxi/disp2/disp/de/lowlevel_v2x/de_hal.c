@@ -89,16 +89,16 @@ de_calc_overlay_scaler_para(unsigned int screen_id,
 	/* get the original crop frame data */
 	for (j = 0, k = 0; j < chn; j++) {
 		for (i = 0; i < layno;) {
-			memcpy((void *)&crop64[j][i], &data[k].config.info.fb.crop,
+			memcpy(&crop64[j][i], &data[k].config.info.fb.crop,
 			       sizeof(struct disp_rect64));
-			memcpy((void *)&frame[j][i], &data[k].config.info.screen_win,
+			memcpy(&frame[j][i], &data[k].config.info.screen_win,
 			       sizeof(struct disp_rect));
 			lay_en[j][i] = data[k].config.enable;
 			premul[j][i] = data[k].config.info.fb.pre_multiply;
 
 			/* 3d mode */
 			if (data[k].config.info.fb.flags) {
-				memcpy((void *)&crop64[j][i + 1],
+				memcpy(&crop64[j][i + 1],
 				       &data[k].config.info.fb.crop,
 				       sizeof(struct disp_rect64));
 				de_rtmx_get_3d_in_single_size(
@@ -597,7 +597,7 @@ int de_al_lyr_apply(unsigned int screen_id, struct disp_layer_config_data *data,
 	for (i = 0; i < chn; i++) {
 		if (pipe_used[i]) {
 			u32 chn_index = pipe_sel[i];
-			memcpy((void *)&pipe_rect[i], &bld_rect[chn_index],
+			memcpy(&pipe_rect[i], &bld_rect[chn_index],
 			       sizeof(struct disp_rect));
 			dispsize[i].width = bld_rect[i].w;
 			dispsize[i].height = bld_rect[i].h;

@@ -167,16 +167,6 @@ void set_pll( void )
 	}
 	while(readl(CCM_APB0_RATIO_CTRL) != 0x00000003);
 	writel(0x01000003, CCM_APB0_RATIO_CTRL);
-#if defined(CONFIG_ARCH_HOMELET)
-	//设置APB1, 时钟源为PLL_P0, 除频=1,M=14,即APB1=960/(14+1)=64M
-	writel(0x0000000E, CCM_APB1_RATIO_CTRL);
-	do
-	{
-		__usdelay(10);
-	}
-	while(readl(CCM_APB1_RATIO_CTRL) != 0x0000000E);
-	writel(0x0100000E, CCM_APB1_RATIO_CTRL);
-#endif
 	//设置GTBUS，时钟源为PLL_P1，除频=2，即GTBUS=1200/3=400
 	writel(0x00000002, CCM_GTCLK_RATIO_CTRL);
 	do

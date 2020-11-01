@@ -66,11 +66,6 @@
 #include <smc.h>
 #include <securestorage.h>
 #include <arisc.h>
-
-#if defined(CONFIG_BOOT_PARAMETER)
-#include <sunxi_bootparam.h>
-#endif
-
 #ifdef CONFIG_SUNXI_MULITCORE_BOOT
 #include <asm/arch/platsmp.h>
 #include <cputask.h>
@@ -81,16 +76,10 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 ulong monitor_flash_len;
+__attribute__((section(".data")))
+volatile int flash_init_flag;
 
-unsigned long secondary_cpu_data_groups[4] __attribute__((section(".data")));
-unsigned long secondary_cpu_mode_stack[4] __attribute__((section(".data")));
-
-
-
-int __attribute__((weak)) get_disp_para_mode(void)
-{
-	return -1;
-}
+void sunxi_multi_core_boot(void);
 
 int __board_flash_wp_on(void)
 {
@@ -105,20 +94,25 @@ int __board_flash_wp_on(void)
 int board_flash_wp_on(void)
 	__attribute__ ((weak, alias("__board_flash_wp_on")));
 
-#ifdef CONFIG_SUNXI_DISPLAY
-int initr_sunxi_display(void);
-#endif
+__weak int sunxi_hdcp_keybox_install(void)
+{
+	return 0;
+}
 
-#ifdef CONFIG_SUNXI_MULITCORE_BOOT
+__weak int sunxi_widevine_keybox_install(void)
+{
+	return 0;
+}
 
-__attribute__((section(".data")))
-uint * p_spin_lock_uart = NULL;
+__weak int sunxi_get_hdcp_cfg(void)
+{
+	return 0;
+}
 
-__attribute__((section(".data")))
-uint * p_spin_lock_heap = NULL;
-
-__attribute__((section(".data")))
-volatile int flash_init_flag;
+__weak int sunxi_keymaster_keybox_install(void)
+{
+	return 0;
+}
 
 static inline void set_sunxi_flash_init_flag(void)
 {
@@ -129,73 +123,6 @@ static inline int get_sunxi_flash_init_flag(void)
 	return flash_init_flag;
 }
 
-uint * request_spin_lock(void)
-{
-	uint *p_spin_lock = NULL;
-	p_spin_lock = malloc_noncache(4);
-	if(p_spin_lock == NULL)
-	{
-		return NULL;
-	}
-	*p_spin_lock = 0;
-	return p_spin_lock;
-}
-
-void cpu_secondary_init_r(void)
-{
-	secondary_cpu_data_groups[0] = gd->arch.tlb_addr;
-	secondary_cpu_data_groups[1] = (unsigned long)gd;
-
-	secondary_cpu_mode_stack[0] = gd->secondary_cpu_svc_sp[1];	//cpu1 svc sp
-	secondary_cpu_mode_stack[1] = gd->secondary_cpu_irq_sp[1];  //cpu1 irq sp
-	secondary_cpu_mode_stack[2] = gd->secondary_cpu_svc_sp[2];  //cpu2 svc sp
-
-	flush_cache((long unsigned int)secondary_cpu_data_groups, 16);
-	flush_cache((long unsigned int)secondary_cpu_mode_stack, 16);
-
-	p_spin_lock_uart = request_spin_lock();
-	if(p_spin_lock_uart == NULL)
-	{
-		printf("error:p_spin_lock_uart is NULL: %s %d\n",__func__,__LINE__);
-		return;
-	}
-	p_spin_lock_heap = request_spin_lock();
-	if(p_spin_lock_heap == NULL)
-	{
-		printf("error:p_spin_lock_heap is NULL: %s %d\n",__func__,__LINE__);
-		return;
-	}
-
-	asm volatile("isb");
-	asm volatile("dmb");
-
-	tick_printf("power on cpu1\n");
-	sunxi_set_cpu_on(1,(uint)secondary_cpu_start);
-	udelay(10000);
-	tick_printf("power on cpu2\n");
-	sunxi_set_cpu_on(2, (uint)third_cpu_start);
-}
-
-static int initr_secondary_cpu(void)
-{
-	/*
-	 * after non-volatile devices & environment is setup and cpu code have
-	 * another round to deal with any initialization that might require
-	 * full access to the environment or loading of some image (firmware)
-	 * from a non-volatile device
-	 */
-	/* TODO: maybe define this for all archs? */
-	gd->logo_status_multiboot=IDLE_STATUS;
-	if (uboot_spare_head.boot_data.work_mode != WORK_MODE_BOOT)
-	{
-		initr_sunxi_display();
-		return 0;
-	}
-	cpu_secondary_init_r();
-
-	return 0;
-}
-#endif
 
 static int initr_trace(void)
 {
@@ -279,7 +206,7 @@ static int initr_serial(void)
 #ifdef CONFIG_AUTO_UPDATE
 extern int auto_update_check(void);
 #endif
-extern int sunxi_widevine_keybox_install(void);
+
 extern void mem_noncache_malloc_init(uint noncache_start, uint noncache_size);
 static int initr_malloc(void)
 {
@@ -302,10 +229,8 @@ static int initr_malloc(void)
 
 __weak int power_init_board(void)
 {
-#ifdef CONFIG_SUNXI_AXP
 	extern int axp_reinit(void);
 	axp_reinit();
-#endif
 	return 0;
 }
 
@@ -355,9 +280,7 @@ static int initr_env(void)
 	if (should_load_env())
 		env_relocate();
 	else
-	{
 		set_default_env(NULL);
-	}
 
 	/* Initialize from environment */
 	load_addr = getenv_ulong("loadaddr", 16, load_addr);
@@ -394,22 +317,18 @@ extern int script_init(void);
 extern int parameter_init(void);
 extern int PowerCheck(void);
 extern int sunxi_keydata_burn_by_usb(void);
+
 #if defined(CONFIG_BOX_STANDBY)
 extern int do_box_standby(void);
 #endif
-extern int detect_part_back_work(void);
+#if defined(CONFIG_CROSSTALK)
+extern int crosstalk_verify(void);
+#endif
+extern int sunxi_led_init(void);
 
 static int initr_sunxi_base(void)
 {
 	board_late_init();
-	return 0;
-}
-
-static int detect_part_back_work_base(void)
-{
-#ifdef CONFIG_BACKUP_PARTITION
-	detect_part_back_work();
-#endif
 	return 0;
 }
 
@@ -422,223 +341,146 @@ static int sunxi_burn_key(void)
 	return 0;
 }
 
-#ifdef CONFIG_SUNXI_MULITCORE_BOOT
-static int sunxi_load_logo_multiboot(void)
-{
-	int ret,advert_enable;
-	if(uboot_spare_head.boot_data.work_mode != WORK_MODE_BOOT)
-	{
-		return 0;
-	}
-	ret = script_parser_fetch("target", "advert_enable", (int *)&advert_enable, sizeof(int) / 4);
-	if(ret || !advert_enable)
-		return 0;
-    while(gd->logo_status_multiboot == IDLE_STATUS);
-	printf("cpu1 disp init ok\n");
-#ifdef CONFIG_BOOT_GUI
-	ret=sunxi_bmp_load("bootlogo.bmp");
-        if(!ret)
-        {
-            gd->logo_status_multiboot = DISPLAY_LOGO_LOAD_OK;
-        }
-        else
-        {
-            gd->logo_status_multiboot = DISPLAY_LOGO_LOAD_FAIL;
-        }
-#endif
-	return 0;
-}
-#endif
 
-#ifdef  CONFIG_SUNXI_DISPLAY
-extern int sunxi_hdcp_keybox_install(void);
-
-#ifdef CONFIG_SUNXI_HDCP_IN_SECURESTORAGE
-static int display_for_hdcp (void)
-{
-        if(uboot_spare_head.boot_data.work_mode != WORK_MODE_BOOT)
-        {
-                return 0;
-        }
-
-	int hdcpkey_enable=0;
-	int ret = 0;
-	sunxi_secure_storage_info_t secure_object;
-
-	ret = script_parser_fetch("hdmi", "hdmi_hdcp_enable", &hdcpkey_enable, 1);
-	if((ret) || (hdcpkey_enable != 1))
-	{
-		printf("hdmi hdcp not enable!\n");
-		return 0;
-	}
-
-	memset(&secure_object, 0, sizeof(secure_object));
-
-#ifdef CONFIG_SUNXI_MULITCORE_BOOT
-	while (!get_sunxi_flash_init_flag());
-#endif
-	ret = sunxi_secure_storage_init();
-	if(ret)
-	{
-		printf("sunxi init secure storage failed\n");
-		return -1;
-	}
-
-	ret = sunxi_secure_object_up("hdcpkey",(void*)&secure_object,sizeof(secure_object));
-	if(ret)
-	{
-		printf("probe hdcp key failed\n");
-		return -1;
-	}
-
-#if 0
-        printf("***** hdcpdata:\n");
-        sunxi_dump(secure_object.key_data, 288);
-#endif
-
-	ret = smc_tee_keybox_store("hdcpkey", (void*)&secure_object, sizeof(secure_object));
-	if (ret) {
-		printf("ssk encrypt failed\n");
-
-		return -1;
-	}
-
-	ret = smc_aes_rssk_decrypt_to_keysram();
-	if(ret)
-	{
-		printf("push hdcp key failed\n");
-		return -1;
-	}
-
-	printf("push hdcp key finish!\n");
-	return 0;
-}
-#endif
 
 int initr_sunxi_display(void)
 {
+#ifdef CONFIG_SUNXI_DISPLAY
 
-	int workmode = uboot_spare_head.boot_data.work_mode;
-	if(!((workmode == WORK_MODE_BOOT) ||
-		(workmode == WORK_MODE_CARD_PRODUCT) ||
-		(workmode == WORK_MODE_SPRITE_RECOVERY)))
-	{
+	int workmode = get_boot_work_mode();
+	if ((workmode == WORK_MODE_USB_PRODUCT) ||
+		(workmode == WORK_MODE_USB_UPDATE) ||
+		(workmode == WORK_MODE_USB_DEBUG)) {
 		return 0;
 	}
-
-	if(get_disp_para_mode())
-		return 0;
-
-	tick_printf("start\n");
-	drv_disp_init();
-
-#ifndef CONFIG_ARCH_HOMELET
-	#ifdef CONFIG_SUNXI_HDCP_IN_SECURESTORAGE
-	display_for_hdcp();
-	#endif
-
-	#ifndef CONFIG_BOOT_GUI
-	board_display_device_open();
-	board_display_layer_request();
-	#else
-	disp_devices_open();
-	fb_init();
-	#endif
-#else
-	#ifdef CONFIG_SUNXI_HDCP_IN_SECURESTORAGE
-	display_for_hdcp();
-	#endif
-
-	#ifndef CONFIG_BOOT_GUI
-	board_display_device_open();
-	board_display_layer_request();
-	#else
-	disp_devices_open();
-	fb_init();
-	#endif
-
-#endif
-	tick_printf("end\n");
-	return 0;
-}
-#ifndef CONFIG_SUNXI_MULITCORE_BOOT
-static int initr_sunxi_display_ex(void)
-{
-
-	int workmode = uboot_spare_head.boot_data.work_mode;
-	if(!((workmode == WORK_MODE_BOOT) ||
-		(workmode == WORK_MODE_CARD_PRODUCT) ||
-		(workmode == WORK_MODE_SPRITE_RECOVERY)))
-	{
-		return 0;
-	}
-
-	if(!get_disp_para_mode())
-		return 0;
-
 	pr_msg("display init start\n");
 	drv_disp_init();
+#ifndef CONFIG_EINK_PANEL_USED
+	/* wait flash init for prepare hdcp key */
+	if (sunxi_get_hdcp_cfg())
+		while (!get_sunxi_flash_init_flag())
+			;
 
-#ifndef CONFIG_ARCH_HOMELET
-	#ifdef CONFIG_SUNXI_HDCP_IN_SECURESTORAGE
-	display_for_hdcp();
-	#else
-	#ifndef CONFIG_BOOT_GUI
+
+#ifndef CONFIG_BOOT_GUI
 	board_display_device_open();
 	board_display_layer_request();
-	#else
-	disp_devices_open();
-	fb_init();
-	#endif
-	#endif
 #else
-	#ifdef CONFIG_SUNXI_HDCP_IN_SECURESTORAGE
-        display_for_hdcp();
-	#endif
-
-	#ifndef CONFIG_BOOT_GUI
-	board_display_device_open();
-	board_display_layer_request();
-	#else
 	disp_devices_open();
 	fb_init();
-	#endif
-
+#endif
 #endif
 	pr_msg("display init end\n");
+#endif
 	return 0;
 }
-#endif
-#endif
 
-extern int sunxi_led_init(void);
-extern int sunxi_led_exit(int status);
+
 
 static int initr_sunxi_flash(void)
 {
 	int ret = 0;
 
+	pr_msg("flash init start\n");
 	ret = sunxi_flash_handle_init();
-	if(!ret)
-	{
+	if (!ret) {
 #ifdef CONFIG_SUNXI_UBIFS
 		sunxi_nand_mtd_init();
 #endif
-
-#if defined(DISABLE_SUNXI_MBR) && defined(CONFIG_SUN8IW12P1_NOR)
-		initr_env();
-#endif
 		sunxi_partition_init();
 	}
-
-        sunxi_led_exit(ret);
-#ifdef CONFIG_SUNXI_MULITCORE_BOOT
+	/* install key box for DRM */
+	sunxi_hdcp_keybox_install();
+	sunxi_widevine_keybox_install();
+	sunxi_keymaster_keybox_install();
+	/* flash ready, set the flag */
 	set_sunxi_flash_init_flag();
-#endif
+	pr_msg("flash init end\n");
 
 	return ret;
-
 }
+
+#ifdef CONFIG_EINK_PANEL_USED
+int initr_sunxi_eink(void)
+{
+	int workmode = uboot_spare_head.boot_data.work_mode;
+
+	if (!((workmode == WORK_MODE_BOOT) ||
+				(workmode == WORK_MODE_CARD_PRODUCT) ||
+				(workmode == WORK_MODE_SPRITE_RECOVERY)))
+		return 0;
+
+	board_display_eink_update("bootlogo.bmp", 0x04);
+	__msdelay(3000);
+	return 0;
+}
+#endif
+
+#if defined(CONFIG_SUNXI_MULITCORE_BOOT) && defined(ENABLE_ADVERT_PICTURE)
+static int sunxi_load_logo_multiboot(void)
+{
+	int ret, advert_enable;
+	if (uboot_spare_head.boot_data.work_mode != WORK_MODE_BOOT)
+		return 0;
+	ret = script_parser_fetch("target", "advert_enable",
+				  (int *)&advert_enable, sizeof(int) / 4);
+	if (ret || !advert_enable)
+		return 0;
+	while (gd->logo_status_multiboot == IDLE_STATUS)
+		;
+	printf("cpu1 disp init ok\n");
+	ret = sunxi_bmp_load("bootlogo.bmp");
+	if (!ret)
+		gd->logo_status_multiboot = DISPLAY_LOGO_LOAD_OK;
+	else
+		gd->logo_status_multiboot = DISPLAY_LOGO_LOAD_FAIL;
+	return 0;
+}
+#endif
+
+#if defined(CONFIG_SUNXI_MULITCORE_BOOT)
+static int initr_multi_core(void)
+{
+
+	gd->logo_status_multiboot = IDLE_STATUS;
+	if (get_boot_work_mode() == WORK_MODE_BOOT) {
+
+		/* we use multi-core only at boot mode */
+		sunxi_multi_core_boot();
+		if (initr_sunxi_flash())
+			return -1;
+		return 0;
+
+	}
+
+	/* we should init disp for other boot mode: card burn mode */
+	if (initr_sunxi_flash())
+		return -1;
+	initr_sunxi_display();
+
+
+	return 0;
+}
+#else
+static int initr_single_core(void)
+{
+
+	/* the init for flash shoul be eralier than
+	    disp because of hdcp key */
+	if (sunxi_get_hdcp_cfg()) {
+		if (initr_sunxi_flash())
+			return -1;
+		initr_sunxi_display();
+	} else {
+		initr_sunxi_display();
+		if (initr_sunxi_flash())
+			return -1;
+	}
+
+	return 0;
+}
+#endif
+
 static int platform_dma_init(void)
 {
 #ifdef CONFIG_SUNXI_DMA
@@ -664,6 +506,22 @@ __weak int show_platform_info(void)
 	return 0;
 }
 
+#ifndef CONFIG_SUNXI_MULITCORE_BOOT
+#ifndef CONFIG_SUNXI_MODULE_AXP
+static int sunxi_show_logo(void)
+{
+#if defined(CONFIG_SUNXI_DISPLAY)
+	printf("sunxi_bmp_logo_display\n");
+#ifdef CONFIG_SUNXI_LOAD_JPEG
+	sunxi_load_jpeg("bootlogo.jpg");
+#else
+	sunxi_bmp_display("bootlogo.bmp");
+#endif
+#endif /*endif CONFIG_SUNXI_DISPLAY */
+	return 0;
+}
+#endif
+#endif
 /*
  * Over time we hope to remove these functions with code fragments and
  * stub funtcions, and instead call the relevant function directly.
@@ -673,6 +531,18 @@ __weak int show_platform_info(void)
  *
  * TODO: perhaps reset the watchdog in the initcall function after each call?
  */
+#ifdef CONFIG_IR_BOOT_RECOVERY
+extern int check_ir_boot_recovery(void);
+int respond_ir_boot_recovery_action(void)
+{
+	if (uboot_spare_head.boot_data.work_mode != WORK_MODE_BOOT) {
+		return 0;
+	}
+	return check_ir_boot_recovery();
+}
+#endif
+
+
 init_fnc_t init_sequence_r[] = {
 	initr_trace,
 	initr_reloc,
@@ -701,70 +571,59 @@ init_fnc_t init_sequence_r[] = {
 	console_init_r,		/* fully init console as a device */
 	interrupt_init,
 
-#if defined(CONFIG_BOX_STANDBY)
-	do_box_standby,
-#endif
-
-        //will not use multi core when sprite mode(onekey recovery,etc)
-	check_physical_key_early, //call the func here for check sprite mode
-
-#ifdef CONFIG_SUNXI_MULITCORE_BOOT
-	initr_secondary_cpu,
-#endif
 
 #if defined(CONFIG_ARM) || defined(CONFIG_x86)
 	initr_enable_interrupts,
 #endif
+#ifdef CONFIG_IR_BOOT_RECOVERY
+	respond_ir_boot_recovery_action,
+#endif
+#ifdef CONFIG_SUNXI_PHY_KEY
+	check_physical_key_early,
+#endif
+
 #ifdef CONFIG_SUNXI
 	platform_dma_init,
+#ifdef CONFIG_CROSSTALK
+	crosstalk_verify,
+#endif
+#if defined(CONFIG_BOX_STANDBY)
+	do_box_standby,
+#endif
 	sunxi_led_init,
-#ifdef CONFIG_SUNXI_HDCP_IN_SECURESTORAGE
-	initr_sunxi_flash,
-#endif
-
-
-#if defined(CONFIG_SUNXI_DISPLAY)
-#ifndef CONFIG_SUNXI_MULITCORE_BOOT
-	initr_sunxi_display,
-#endif
-#endif
-//	sunxi_led_init,
-//	check_physical_key_early, //call the func here for check sprite mode
-#ifndef CONFIG_SUNXI_HDCP_IN_SECURESTORAGE
-	initr_sunxi_flash,
-#endif
-	sunxi_burn_key,
-#if defined(CONFIG_SUNXI_DISPLAY)
-#ifndef CONFIG_SUNXI_MULITCORE_BOOT
-	initr_sunxi_display_ex,
-#endif
-#endif
-
-#ifdef CONFIG_SUNXI_MULITCORE_BOOT
-	sunxi_load_logo_multiboot,
-#endif
 
 #ifdef CONFIG_AUTO_UPDATE
 	auto_update_check,
 #endif
 
-#ifndef DISABLE_SUNXI_MBR
-	initr_env,
+#ifdef CONFIG_SUNXI_MULITCORE_BOOT
+	initr_multi_core,
 #else
-#ifndef CONFIG_SUN8IW12P1_NOR
+	initr_single_core,
+#endif
+	sunxi_burn_key,
 	initr_env,
-#endif
-#endif
-	detect_part_back_work_base,
 	initr_sunxi_base,
 
-#ifdef CONFIG_WIDEVINE_KEY_INSTALL
-	sunxi_widevine_keybox_install,
+
+#ifdef CONFIG_EINK_PANEL_USED
+      /* initr_sunxi_eink, */
 #endif
 
 #ifndef CONFIG_SUNXI_MULITCORE_BOOT
+#ifndef CONFIG_SUNXI_MODULE_AXP
+	sunxi_show_logo,
+#else
 	PowerCheck,
 #endif
+#endif /*END CONFIG_SUNXI_MULITCORE_BOOT*/
+
+
+#if defined(CONFIG_SUNXI_MULITCORE_BOOT) && defined(ENABLE_ADVERT_PICTURE)
+	sunxi_load_logo_multiboot,
+#endif
+
+
 #endif
 	usb_net_init,
 	run_main_loop,
@@ -800,6 +659,10 @@ void intr_vector_fix(void)
 		*(vec_array[i]) +=  (gd->reloc_off);
 		debug("after  fix: vector %d, addr %lx ,value 0x%lx\n", i ,(ulong)vec_array[i], *(vec_array[i]));
 	}
+#ifdef  CONFIG_ARCH_SUN3IW1P1
+	u32 addr = 0;
+    memcpy((void *)&addr, (const void *) _start, 1024);
+#endif
 }
 #endif
 #endif

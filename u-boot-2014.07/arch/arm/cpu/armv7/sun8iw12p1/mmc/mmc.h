@@ -344,7 +344,7 @@ struct boot_sdmmc_private_info_t {
 	u32 ext_para0;
 
 	/**GPIO 1.8V bias setting***/
-	#define  EXT_PARA1_1V8_GPIO_BIAS	0x1
+	#define  EXT_PARA1_1V8_GPIO_BIAS	0x1 
 	u32 ext_para1;
 	/* ext_para/2/3 reseved for future */
 	u32 ext_para2;

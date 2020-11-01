@@ -50,10 +50,7 @@ obj-$(CONFIG_CMD_SUNXI_TIMER) += cmd_sunxi_timer.o
 obj-$(CONFIG_CMD_SUNXI_EFEX) += cmd_sunxi_efex.o
 obj-$(CONFIG_CMD_SUNXI_SHUTDOWN) += cmd_sunxi_shutdown.o
 obj-$(CONFIG_CMD_SUNXI_MEMTEST) += cmd_sunxi_memtest.o
-#ifdef CONFIG_SUNXI_DISPLAY
 obj-$(CONFIG_CMD_SUNXI_BMP) += cmd_sunxi_bmp.o
-#endif
-obj-$(CONFIG_SUNXI_LOAD_JPEG) += sunxi_load_jpeg.o
 
 obj-$(CONFIG_CMD_SUNXI_BURN) += cmd_sunxi_burn.o
 obj-$(CONFIG_CMD_MODIFY_SYSCONFIG) += cmd_modify_sysconfig.o
@@ -282,13 +279,13 @@ obj-$(CONFIG_IO_TRACE) += iotrace.o
 obj-y += memsize.o
 obj-y += stdio.o
 obj-y += sunxi_mem_alloc.o
+obj-y += sunxi_keybox_install.o
 obj-$(CONFIG_SUNXI_CMD_SMC) += cmd_sunxi_smc.o
 obj-$(CONFIG_SUNXI_CMD_DMA) += cmd_sunxi_dma.o
 obj-$(CONFIG_CMD_SUNXI_PMU) += cmd_sunxi_pmu.o
 obj-$(CONFIG_CMD_SUNXI_SYSCFG) += cmd_sunxi_sysconfig.o
-
-obj-$(CONFIG_SUNXI_PRIVATE_KEY) += cmd_svudata.o
-ifndef CONFIG_SUNXI_SPINOR_PLATFORM
-obj-y += cmd_onekey_recovery.o
-endif
+obj-y += cmd_svudata.o
 CFLAGS_env_embedded.o := -Wa,--no-warn -DENV_CRC=$(shell tools/envcrc 2>/dev/null)
+
+ccflags-$(CONFIG_SUNXI_FINS_FUNC_EXCLUDE_FILE) += -finstrument-functions-exclude-file-list=console.c
+subdir-ccflags-$(CONFIG_SUNXI_FINS_FUNC_COMMON_DIR) += -finstrument-functions

@@ -524,14 +524,13 @@ int fw_setenv(int argc, char *argv[])
 
 		if (value)
 			value[len - 1] = ' ';
-		char * value_new = realloc(value, len + val_len + 1);
-		if (!value_new) {
+		value = realloc(value, len + val_len + 1);
+		if (!value) {
 			fprintf(stderr,
 				"Cannot malloc %zu bytes: %s\n",
 				len, strerror(errno));
 			return -1;
 		}
-                value = value_new;
 
 		memcpy(value + len, val, val_len);
 		len += val_len;
@@ -863,10 +862,7 @@ static int flash_write_buf (int dev, int fd, void *buf, size_t count,
 		rc = flash_read_buf (dev, fd, data, write_total, erase_offset,
 				     mtd_type);
 		if (write_total != rc)
-                {
-                    free(data);
-                    return -1;
-                }
+			return -1;
 
 #ifdef DEBUG
 		fprintf(stderr, "Preserving data ");

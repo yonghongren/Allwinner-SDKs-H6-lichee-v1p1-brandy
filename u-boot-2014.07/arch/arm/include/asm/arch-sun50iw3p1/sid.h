@@ -4,26 +4,6 @@
  *
  * SPDX-License-Identifier:     GPL-2.0+
  */
-/*
-**********************************************************************************************************************
-*
-*	 the Embedded Secure Bootloader System
-*
-*
-*	 Copyright(C), 2006-2014, Allwinnertech Co., Ltd.
-*        All Rights Reserved
-*
-* File    :
-*
-* By      :
-*
-* Version : V2.00
-*
-* Date	  :
-*
-* Descript:
-**********************************************************************************************************************
-*/
 
 #ifndef __EFUSE_H__
 #define __EFUSE_H__
@@ -75,11 +55,7 @@
 #define EFUSE_NV2               (0xFC) /* 0xFC-0x117,224bits */
 #define EFUSE_BACKUP_KEY        (0x118)/* 0x118-0x13F,320bits */
 
-
 extern void sid_set_security_mode(void);
 extern int  sid_probe_security_mode(void);
-extern int sid_get_security_status(void);
-extern uint sid_read_key(uint key_index);
-extern void sid_program_key(uint key_index, uint key_value);
 
 #endif    /*  #ifndef __EFUSE_H__  */

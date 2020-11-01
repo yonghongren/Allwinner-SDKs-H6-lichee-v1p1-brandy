@@ -220,8 +220,7 @@ static void gic_clear_pending(uint irq_no)
 	uint offset;
 
 	offset = irq_no >> 5; // ³ý32
-	reg_val = readl(GIC_PEND_CLR(offset));
-	reg_val |= (1 << (irq_no & 0x1f));
+	reg_val = (1 << (irq_no & 0x1f));
 	writel(reg_val, GIC_PEND_CLR(offset));
 
 	return ;

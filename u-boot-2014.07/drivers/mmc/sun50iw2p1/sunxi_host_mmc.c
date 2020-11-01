@@ -155,24 +155,28 @@ static int mmc_init_default_timing_para(int sdc_no)
 		mmchost->tm4.def_odly[HSSDR52_SDR25*MAX_CLK_FREQ_NUM+CLK_50M] = TM4_OUT_PH180;
 		mmchost->tm4.def_sdly[HSSDR52_SDR25*MAX_CLK_FREQ_NUM+CLK_50M] = 0;
 
-		mmchost->tm4.def_odly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_400K] = TM1_OUT_PH90;
+		mmchost->tm4.def_odly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_400K] = TM4_OUT_PH180;
 		mmchost->tm4.def_sdly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_400K] = 0xe;
-		mmchost->tm4.def_odly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_25M] = TM1_OUT_PH90;
+		mmchost->tm4.def_odly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_25M] = TM4_OUT_PH180;
 		mmchost->tm4.def_sdly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_25M] = 0xe;
-		mmchost->tm4.def_odly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_50M] = TM1_OUT_PH90;
+		mmchost->tm4.def_odly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_50M] = TM4_OUT_PH180;
 		mmchost->tm4.def_sdly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_50M] = 0xe;
 
-		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_25M] = TM4_OUT_PH180;
+		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_400K] = TM4_OUT_PH180;
+		mmchost->tm4.def_sdly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_400K] = 0x0;
+		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_25M] = TM4_OUT_PH90;
 		mmchost->tm4.def_sdly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_25M] = 0x0;
-		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_50M] = TM4_OUT_PH180;
+		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_50M] = TM4_OUT_PH90;
 		mmchost->tm4.def_sdly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_50M] = 0x11;
-		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_100M] = TM4_OUT_PH180;
+		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_100M] = TM4_OUT_PH90;
 		mmchost->tm4.def_sdly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_100M] = 0x12;
-		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_150M] = TM4_OUT_PH180;
+		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_150M] = TM4_OUT_PH90;
 		mmchost->tm4.def_sdly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_150M] = 0x13;
-		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_200M] = TM4_OUT_PH180;
+		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_200M] = TM4_OUT_PH90;
 		mmchost->tm4.def_sdly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_200M] = 0x6;
 
+		mmchost->tm4.def_odly[HS400*MAX_CLK_FREQ_NUM+CLK_400K] = TM4_OUT_PH180;
+		mmchost->tm4.def_sdly[HS400*MAX_CLK_FREQ_NUM+CLK_400K] = 0x0;
 		mmchost->tm4.def_odly[HS400*MAX_CLK_FREQ_NUM+CLK_25M] = TM4_OUT_PH90;
 		mmchost->tm4.def_sdly[HS400*MAX_CLK_FREQ_NUM+CLK_25M] = 0x0;
 		mmchost->tm4.def_odly[HS400*MAX_CLK_FREQ_NUM+CLK_50M] = TM4_OUT_PH90;
@@ -251,15 +255,27 @@ static int mmc_get_sdly_auto_sample(int sdc_no)
 		if (spd_md == HS400)
 		{
 			val = p[spd_md*2 + 0];
-			for (f=0; f<4; f++) {
+			for (f = 0; f < 4; f++) {
 				mmchost->tm4.dsdly[f] = (val>>(f*8)) & 0xFF;
-				//MMCINFO("dsdly-0 0x%x\n", mmchost->tm4.dsdly[f]);
+				/*MMCINFO("hs400 dsdly-0 0x%x\n", mmchost->tm4.dsdly[f]);*/
 			}
 
 			val = p[spd_md*2 + 1];
-			for (f=4; f<MAX_CLK_FREQ_NUM; f++) {
+			for (f = 4; f < MAX_CLK_FREQ_NUM; f++) {
 				mmchost->tm4.dsdly[f] = (val>>((f-4)*8)) & 0xFF;
-				//MMCINFO("dsdly-1 0x%x\n", mmchost->tm4.dsdly[f]);
+				/*MMCINFO("hs400 dsdly-1 0x%x\n", mmchost->tm4.dsdly[f]);*/
+			}
+
+			val = p[spd_md*2 + 2 + 0];
+			for (f = 0; f < 4; f++) {
+				mmchost->tm4.sdly[spd_md*MAX_CLK_FREQ_NUM + f] = (val>>(f*8)) & 0xFF;
+				/*MMCINFO("hs400 sdly-0 0x%x\n", mmchost->tm4.sdly[spd_md*MAX_CLK_FREQ_NUM + f]);*/
+			}
+
+			val = p[spd_md*2 + 2 + 1];
+			for (f = 4; f < MAX_CLK_FREQ_NUM; f++) {
+				mmchost->tm4.sdly[spd_md*MAX_CLK_FREQ_NUM + f] = (val>>((f-4)*8)) & 0xFF;
+				/*MMCINFO("hs400 sdly-1 0x%x\n", mmchost->tm4.sdly[spd_md*MAX_CLK_FREQ_NUM + f]);*/
 			}
 		}
 		else
@@ -267,13 +283,13 @@ static int mmc_get_sdly_auto_sample(int sdc_no)
 			val = p[spd_md*2 + 0];
 			for (f=0; f<4; f++) {
 				mmchost->tm4.sdly[spd_md*MAX_CLK_FREQ_NUM + f] = (val>>(f*8)) & 0xFF;
-				//MMCINFO("sdly-0 0x%x\n", mmchost->tm4.sdly[spd_md*MAX_CLK_FREQ_NUM + f]);
+				/*MMCINFO("sdly-0 0x%x\n", mmchost->tm4.sdly[spd_md*MAX_CLK_FREQ_NUM + f]);*/
 			}
 
 			val = p[spd_md*2 + 1];
 			for (f=4; f<MAX_CLK_FREQ_NUM; f++) {
 				mmchost->tm4.sdly[spd_md*MAX_CLK_FREQ_NUM + f] = (val>>((f-4)*8)) & 0xFF;
-				//MMCINFO("sdly-1 0x%x\n", mmchost->tm4.sdly[spd_md*MAX_CLK_FREQ_NUM + f]);
+				/*MMCINFO("sdly-1 0x%x\n", mmchost->tm4.sdly[spd_md*MAX_CLK_FREQ_NUM + f]);*/
 			}
 		}
 
@@ -639,6 +655,27 @@ static void mmc_get_para_from_fex(int sdc_no)
 			}
 		}
 
+		ret = fdt_getprop_u32(working_fdt, nodeoffset, "sdc_wp", (uint32_t *)(&rval));
+		if (ret < 0)
+			MMCINFO("get sdc2 sdc_wp fail.\n");
+		else {
+			if (rval & DRV_PARA_ENABLE_EMMC_USER_PART_WP) {
+				MMCINFO("enable emmc write protect.\n");
+				cfg->platform_caps.drv_wp_feature |= DRV_PARA_ENABLE_EMMC_USER_PART_WP;
+			}
+		}
+
+		ret = fdt_getprop_u32(working_fdt, nodeoffset,  "sdc_hc_cap_unit", (uint32_t *)(&rval));
+		if (ret < 0)
+			MMCINFO("get sdc2 sdc_hc_cap_unit fail.\n");
+		else {
+			if (rval & DRV_PARA_ENABLE_EMMC_USER_PART_WP) {
+				MMCINFO("enable emmc high capacity-erase/high-capacity write protect unit size.\n");
+				cfg->platform_caps.drv_hc_cap_unit_feature |= DRV_PARA_ENABLE_EMMC_HC_CAP_UNIT;
+			}
+		}
+
+
 		ret = fdt_getprop_u32(working_fdt, nodeoffset, "sdc_cal_delay_unit", (uint32_t *)(&rval));
 		if (ret < 0)
 			MMCDBG("get card2_boot_para: sdc_cal_delay_unit fail\n");
@@ -676,15 +713,12 @@ static void mmc_get_para_from_fex(int sdc_no)
 				} else {
 					/* copy sample point cfg from uboot header to internal variable */
 					if (((priv_info->ext_para0 & 0xFF000000) == EXT_PARA0_ID)
-						&& (priv_info->ext_para0 & EXT_PARA0_TUNING_SUCCESS_FLAG))
-					{
+						&& (priv_info->ext_para0 & EXT_PARA0_TUNING_SUCCESS_FLAG)) {
 						if (sdly != NULL)
 							memcpy(p, sdly, sizeof(struct tune_sdly));
 						else
 							memset(p, 0xFF, sizeof(struct tune_sdly));
-					}
-					else
-					{
+					} else {
 						memset(p, 0xFF, sizeof(struct tune_sdly));
 						MMCINFO("get sdly from uboot header fail\n");
 					}
@@ -698,7 +732,7 @@ static void mmc_get_para_from_fex(int sdc_no)
 			}
 		}
 
-		ret = fdt_getprop_u32(working_fdt,nodeoffset,"sdc_force_boot_tuning", (uint32_t*)(&rval));
+		ret = fdt_getprop_u32(working_fdt, nodeoffset, "sdc_force_boot_tuning", (uint32_t *)(&rval));
 		if (ret < 0)
 			MMCDBG("get card2_boot_para:sdc_force_boot_tuning fail\n");
 		else {
@@ -709,9 +743,9 @@ static void mmc_get_para_from_fex(int sdc_no)
 				MMCDBG("card2 don't force to execute tuning during boot.\n");
 				cfg->platform_caps.force_boot_tuning = 0;
 			}
-        }
+		}
 
-		ret = fdt_getprop_u32(working_fdt,nodeoffset,"sdc_io_1v8", (uint32_t*)(&rval));
+		ret = fdt_getprop_u32(working_fdt, nodeoffset, "sdc_io_1v8", (uint32_t *)(&rval));
 		if (ret < 0)
         	MMCDBG("get card2_boot_para:sdc_io_1v8 fail\n");
         else {

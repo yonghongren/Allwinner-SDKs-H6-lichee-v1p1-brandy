@@ -25,13 +25,13 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
-#undef DEBUG
+#undef DEBUG 
 
 #ifndef __KERNEL__
 #define __KERNEL__
 #endif
 
-#define LINUX_MACHINE_ID        3893
+#define LINUX_MACHINE_ID        3495
 
 #define UBOOT_VERSION			"1.1.0"
 #define UBOOT_PLATFORM		    "1.0.0"
@@ -40,7 +40,7 @@
 /*
  * High Level Configuration Options
  */
-//#define USE_PRIVATE_LIBGCC      yes
+#define USE_PRIVATE_LIBGCC      yes
 #define CONFIG_ARM_A8
 #define CONFIG_ALLWINNER			/* It's a Allwinner chip */
 #define	CONFIG_SUNXI				/* which is sunxi family */
@@ -50,7 +50,10 @@
 //#define CONFIG_ARCH_HOMELET
 
 #undef FORCE_BOOT_STANDBY
-
+#define CONFIG_NO_BOOT_STANDBY
+#define CONFIG_SUNXI_SPI 
+#define CONFIG_SUNXI_SPINOR 
+#define CONFIG_SPINOR_LOGICAL_OFFSET        ((256 - 16) * 1024/512)
 /*
 * define dram  & sram parameters
 */
@@ -58,7 +61,7 @@
 #define CONFIG_SYS_SDRAM_BASE		     (0x40000000)
 #define CONFIG_SYS_TEXT_BASE		     (0x4A000000)
 // the sram base address, and the stack address in stage1
-#define CONFIG_SYS_INIT_RAM_ADDR	     0x0
+#define CONFIG_SYS_INIT_RAM_ADDR	     00
 #define CONFIG_SYS_INIT_RAM_SIZE	     0x00008000
 
 #define CONFIG_SYS_INIT_SP_OFFSET \
@@ -71,7 +74,7 @@
 #define PHYS_SDRAM_1_SIZE			(512 << 20)				/* 0x20000000, 512 MB Bank #1 */
 
 #define CONFIG_NONCACHE_MEMORY
-#define CONFIG_NONCACHE_MEMORY_SIZE (16 * 1024 * 1024)
+#define CONFIG_NONCACHE_MEMORY_SIZE (20 * 1024 * 1024)
 /*
  * define malloc space
  * Size of malloc() pool
@@ -130,6 +133,8 @@
 *
 ***************************************************************/
 #define CONFIG_SUNXI_I2C
+#define CONFIG_PMU_USE_I2C
+#define CONFIG_SUN6I_RESERVE
 #define CONFIG_SYS_I2C_SPEED        400000
 #define CONFIG_USE_IRQ
 #define CONFIG_CMD_IRQ
@@ -141,11 +146,9 @@
 #define CONFIG_CMD_MEMORY
 #define CONFIG_SUNXI_DISPLAY
 #define CONFIG_SUN5I_DISPLAY
-#define POWER_CONFIG_SUNXI_I2C	//axp communication bus
-
 #define CONFIG_SUNXI_AXP
-#define CONFIG_SUNXI_AXP15
-#define CONFIG_SUNXI_AXP_MAIN        PMU_TYPE_15X
+#define CONFIG_SUNXI_AXP20
+#define CONFIG_SUNXI_AXP_MAIN        PMU_TYPE_20X
 #define PMU_SCRIPT_NAME                 "pmu_para"
 #define BOARD_LATE_INIT				/* init the fastboot partitions */
 

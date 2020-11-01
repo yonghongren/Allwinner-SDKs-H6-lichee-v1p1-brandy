@@ -665,6 +665,9 @@ irq:
     msr     cpsr_c, #(ARMV7_FIQ_MASK | ARMV7_IRQ_MASK | ARMV7_SVC_MODE)     @; 切换到SVC模式
     stmfd   sp!, {r0-r12, lr}                                @; 保存lr_usr和其它用到的寄存器
 
+    ldr     r7, =gd_bk_addr
+    ldr     r8, [r7]
+
 	bl      do_irq
 
     ldmfd   sp!, {r0-r12, lr}                           @; 恢复SYSTEM模式寄存器

@@ -5,5 +5,7 @@
 #
 
 obj-y += disp/
-obj-$(CONFIG_SUNXI_MODULE_HDMI) += hdmi2/
+obj-$(CONFIG_SUNXI_MODULE_HDMI) += hdmi/
+obj-$(CONFIG_SUNXI_MODULE_HDMI2) += hdmi2/
 obj-$(CONFIG_SUNXI_MODULE_TV) += tv/
+obj-$(CONFIG_EDP_DISP2_SUNXI) += edp/

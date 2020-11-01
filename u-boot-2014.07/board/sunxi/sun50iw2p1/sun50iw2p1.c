@@ -350,39 +350,3 @@ int board_eth_init(bd_t *bis)
 }
 
 #endif
-
-#ifdef CONFIG_IR_BOOT_RECOVERY
-void ir_clk_cfg(void)
-{
-	unsigned int tmp;
-
-	//reset
-	tmp = readl(SUNXI_RPRCM_BASE + 0xB0);
-	tmp |= (0x1 << 1);  				//IR
-	writel(tmp, SUNXI_RPRCM_BASE + 0xB0);
-
-	//Gating APB0 clock for R_CIR
-	tmp = readl(SUNXI_RPRCM_BASE + 0x28);
-	tmp |= (0x1 << 1);  				//IR
-	writel(tmp, SUNXI_RPRCM_BASE + 0x28);
-
-	//config Special Clock for IR	(24/1/(0+1))=24MHz)
-	tmp = readl(SUNXI_RPRCM_BASE + 0x54);
-	tmp &= ~(0x3 << 24);		//Select 24MHz
-	tmp |= (0x1 << 24);
-
-	tmp &= ~(0x3 << 16);		//Divisor N = 1
-
-	tmp &= ~(0xf << 0);			//Divisor M = 0
-
-	writel(tmp, SUNXI_RPRCM_BASE + 0x54);
-	__msdelay(1);
-
-	//open Clock
-	tmp = readl(SUNXI_RPRCM_BASE + 0x54);
-	tmp |= (0x1 << 31);  				//IR
-	writel(tmp, SUNXI_RPRCM_BASE + 0x54);
-	__msdelay(2);
-
-}
-#endif

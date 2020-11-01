@@ -663,6 +663,36 @@ U_BOOT_I2C_ADAP_COMPLETE(sunxi_i2c0, sunxi_i2c_init, sunxi_i2c_probe,
 
 #endif
 
+#if defined (CONFIG_ARCH_SUN50IW3P1)
+U_BOOT_I2C_ADAP_COMPLETE(sunxi_i2c1, sunxi_i2c_init, sunxi_i2c_probe,
+			 sunxi_i2c_read, sunxi_i2c_write, sunxi_i2c_setspeed,
+			 CONFIG_SYS_I2C_SPEED,
+			 CONFIG_SYS_I2C_SLAVE, /*don't care*/
+			 1)
+U_BOOT_I2C_ADAP_COMPLETE(sunxi_i2c2, sunxi_i2c_init, sunxi_i2c_probe,
+			 sunxi_i2c_read, sunxi_i2c_write, sunxi_i2c_setspeed,
+			 CONFIG_SYS_I2C_SPEED,
+			 CONFIG_SYS_I2C_SLAVE, /*don't care*/
+			 2)
+U_BOOT_I2C_ADAP_COMPLETE(sunxi_i2c3, sunxi_i2c_init, sunxi_i2c_probe,
+			 sunxi_i2c_read, sunxi_i2c_write, sunxi_i2c_setspeed,
+			 CONFIG_SYS_I2C_SPEED,
+			 CONFIG_SYS_I2C_SLAVE, /*don't care*/
+			 3)
+U_BOOT_I2C_ADAP_COMPLETE(sunxi_i2c4, sunxi_i2c_init, sunxi_i2c_probe,
+			 sunxi_i2c_read, sunxi_i2c_write, sunxi_i2c_setspeed,
+			 CONFIG_SYS_I2C_SPEED,
+			 CONFIG_SYS_I2C_SLAVE, /*don't care*/
+			 4)
+#if defined(CONFIG_CPUS_I2C)
+U_BOOT_I2C_ADAP_COMPLETE(sunxi_r_i2c0, sunxi_r_i2c_init, sunxi_i2c_probe,
+			 sunxi_i2c_read, sunxi_i2c_write,
+			 sunxi_i2c_setspeed,
+			 CONFIG_SYS_I2C_SPEED,
+			 CONFIG_SYS_I2C_SLAVE, /*don't care*/
+			 5)
+#endif
+#else
 #if defined(CONFIG_USE_AC200) && defined (CONFIG_ARCH_SUN50IW6P1)
 U_BOOT_I2C_ADAP_COMPLETE(sunxi_i2c3, sunxi_i2c_init, sunxi_i2c_probe,
 			 sunxi_i2c_read, sunxi_i2c_write,
@@ -679,5 +709,6 @@ U_BOOT_I2C_ADAP_COMPLETE(sunxi_r_i2c0, sunxi_r_i2c_init, sunxi_i2c_probe,
 			 CONFIG_SYS_I2C_SPEED,
 			 CONFIG_SYS_I2C_SLAVE,
 			 4)
+#endif
 #endif
 

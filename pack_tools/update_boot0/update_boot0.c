@@ -409,7 +409,7 @@ int update_sdcard_info(char  *buf)
 
 				return -1;
 			}
-			//support to init 8 line 
+			//support to init 8 line
 			if(8 == card_info->line_sel[i])
 			{
 				//获取DATA4
@@ -453,7 +453,7 @@ int update_sdcard_info(char  *buf)
 				{
 					storage_gpio[7].port      = gpio_set.port;
 					storage_gpio[7].port_num  = gpio_set.port_num;
-					storage_gpio[7].mul_sel   = gpio_set.mul_sel;
+					storage_gpio[7].mul_sel = gpio_set.mul_sel;
 					storage_gpio[7].pull      = gpio_set.pull;
 					storage_gpio[7].drv_level = gpio_set.drv_level;
 					storage_gpio[7].data      = gpio_set.data;
@@ -516,6 +516,46 @@ int update_sdcard_info(char  *buf)
 
 					return -1;
 				}
+
+				/*获取emmc hw reset*/
+				memset(&gpio_set, 0, sizeof(script_gpio_set_t));
+				if (!script_parser_fetch(card_str, \
+				"sdc_emmc_rst", (int *)&gpio_set)) {
+					storage_gpio[10].port =\
+						gpio_set.port;
+					storage_gpio[10].port_num  = \
+						gpio_set.port_num;
+					storage_gpio[10].mul_sel =\
+						gpio_set.mul_sel;
+					storage_gpio[10].pull =\
+						gpio_set.pull;
+					storage_gpio[10].drv_level =\
+						gpio_set.drv_level;
+					storage_gpio[10].data =
+						gpio_set.data;
+				} else {
+					printf("unable to find SDC%d hw_rst\n", i);
+				}
+
+				/*fetch emmc ds*/
+				memset(&gpio_set, 0, sizeof(script_gpio_set_t));
+				if (!script_parser_fetch(card_str,
+				"sdc_ds", (int *)&gpio_set)) {
+					storage_gpio[11].port =
+						gpio_set.port;
+					storage_gpio[11].port_num  =
+						gpio_set.port_num;
+					storage_gpio[11].mul_sel =
+						gpio_set.mul_sel;
+					storage_gpio[11].pull =
+						gpio_set.pull;
+					storage_gpio[11].drv_level =
+						gpio_set.drv_level;
+					storage_gpio[11].data =
+						gpio_set.data;
+				} else {
+					printf("unable to find SDC%d ds\n", i);
+				}
 			}
 		}
 	}
@@ -523,32 +563,12 @@ int update_sdcard_info(char  *buf)
 	return 0;
 }
 
-int update_boot0_extend_config(char *buf)
-{
-	int value[1] = {0};
-	boot0_extend_config *boot0_config;
-	boot0_config = (boot0_extend_config *)buf;
-	
-	if(check_extend_magic((__u32 *)boot0_config, EXTEND_CONFIG_MAGIC) != CHECK_IS_CORRECT)
-	{
-		printf("check extend config magic error, maybe not used extend config\n");
-		return -1;
-	}
-
-	//取出if_reduce_power_waste进行修正,用于判断是否降低功耗
-	if(!script_parser_fetch("pmu1_para", "pmu_reduce_power_waste", value))
-	{
-		boot0_config->if_reduce_power_waste = value[0];
-	}
-	return 0;
-}
 
 int update_for_boot0(char *boot0_name, int storage_type)
 {
 	FILE *boot0_file = NULL;
 	boot0_file_head_t  *boot0_head;
 	char *boot0_buf = NULL;
-	char *boot0_config = NULL;
 	int   length = 0;
 	int   i;
 	int   ret = -1;
@@ -577,8 +597,6 @@ int update_for_boot0(char *boot0_name, int storage_type)
 	rewind(boot0_file);
 
 	boot0_head = (boot0_file_head_t *)boot0_buf;
-	boot0_config = (char *)(boot0_buf + sizeof(boot0_file_head_t) + 64);
-
 	//检查boot0的数据结构是否完整
     ret = check_file( (unsigned int *)boot0_buf, boot0_head->boot_head.length, BOOT0_MAGIC );
     if( ret != CHECK_IS_CORRECT )
@@ -590,15 +608,19 @@ int update_for_boot0(char *boot0_name, int storage_type)
                 printf("debug_mode \n");
 		boot0_head->prvt_head.debug_mode = value[0];
 	}
-    else
-    {
-        boot0_head->prvt_head.debug_mode = 8;
-	}
+        else
+        {
+            boot0_head->prvt_head.debug_mode = 8;
+        }
 
-	//取出数据进行修正,供电方式
 	if (!script_parser_fetch("target", "power_mode", value))
 	{
 		boot0_head->prvt_head.power_mode = value[0];
+	}
+
+	if (!script_parser_fetch("cpus_vdd_para", "cpus_vdd_port", (int *)&gpio_set[0])) {
+		boot0_head->prvt_head.reserve[0] = gpio_set[0].port;
+		boot0_head->prvt_head.reserve[1] = gpio_set[0].port_num;
 	}
 	//取出数据进行修正,DRAM参数
 	if(script_parser_sunkey_all("dram_para", (void *)boot0_head->prvt_head.dram_para))
@@ -616,7 +638,6 @@ int update_for_boot0(char *boot0_name, int storage_type)
 	{
 		boot0_head->boot_head.boot_cpu = value[0];
 	}
-
 	//取出A15 使能引脚配置
 	memset(&(boot0_head->boot_head.a15_power_gpio), 0, sizeof(special_gpio_cfg));
 	if(!script_parser_fetch("external_power", "a15_pwr_en", (int *)&gpio_set[0]))
@@ -663,9 +684,6 @@ int update_for_boot0(char *boot0_name, int storage_type)
 			boot0_head->prvt_head.jtag_gpio[i].data      = gpio_set[i].data;
 		}
 	}
-	//更新拓展boot0配置
-	update_boot0_extend_config(boot0_config);
-
 	//取出数据进行修正，NAND参数
 	if(!storage_type)
 	{

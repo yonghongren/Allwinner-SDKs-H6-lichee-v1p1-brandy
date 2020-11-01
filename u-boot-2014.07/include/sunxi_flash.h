@@ -25,7 +25,7 @@
 #define __SUNXI_FLASH_H__
 #include <common.h>
 
-//sprite 
+/*sprite*/
 extern int  sunxi_sprite_init(int stage);
 extern int  sunxi_sprite_erase(int erase, void *mbr_buffer);
 extern int  sunxi_sprite_exit(int force);
@@ -36,7 +36,7 @@ extern int  sunxi_sprite_write(uint start_block,uint nblock,void * buffer);
 extern int  sunxi_sprite_flush(void);
 extern int  sunxi_sprite_phyread(unsigned int start_block, unsigned int nblock, void *buffer);
 extern int  sunxi_sprite_phywrite(unsigned int start_block, unsigned int nblock, void *buffer);
-extern int sunxi_sprite_force_erase(void);
+extern int sunxi_sprite_force_erase(int erase, void *mbr_buffer);
 extern int sunxi_sprite_mmc_phywrite(unsigned int start_block, unsigned int nblock, void *buffer);
 extern int sunxi_sprite_mmc_phyread(unsigned int start_block, unsigned int nblock, void *buffer);
 extern int sunxi_sprite_mmc_phyerase(unsigned int start_block, unsigned int nblock, void *skip);
@@ -44,7 +44,7 @@ extern int sunxi_sprite_mmc_phywipe(unsigned int start_block, unsigned int nbloc
 extern void board_mmc_pre_init(int card_num);
 
 
-//normal 
+/*normal*/
 extern int  sunxi_flash_init (int type);
 extern uint sunxi_flash_size (void);
 extern int  sunxi_flash_exit (int force);
@@ -70,12 +70,6 @@ extern int sunxi_sprite_setdata_finish(void);
 extern int spinor_erase(int erase, void *mbr_buffer);
 extern int spinor_download_uboot(uint length, void *buffer);
 extern int spinor_download_boot0(uint length, void *buffer);
-extern int spinor_flash_download_uboot(uint length, void *buffer);
-extern int spinor_flash_download_boot0(uint length, void *buffer);
-extern int spinor_read_uboot(uint length, void *buffer);
-extern int spinor_read_boot0(uint length, void *buffer);
-extern int spinor_fetch_uboot_length(void *buffer);
-extern int spinor_fetch_boot0_length(void *buffer);
 #endif
 
 extern int read_boot_package(int storage_type, void *package_buf);

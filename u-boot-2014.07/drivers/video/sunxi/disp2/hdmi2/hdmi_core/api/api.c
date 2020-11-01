@@ -497,7 +497,7 @@ void hdmitx_api_init(char *name)
 	struct hdmi_tx_ctrl *tx_ctrl;
 	hdmi_api = kmalloc(sizeof(hdmi_tx_dev_t), GFP_KERNEL);
 	memset(&func, 0, sizeof(struct hdmi_dev_func));
-	memset(hdmi_api, 0, sizeof(hdmi_tx_dev_t)); 
+	memset(hdmi_api, 0, sizeof(hdmi_tx_dev_t));
 	memcpy(hdmi_api->device_name, name, sizeof(hdmi_api->device_name));
 
 	tx_ctrl = &hdmi_api->snps_hdmi_ctrl;

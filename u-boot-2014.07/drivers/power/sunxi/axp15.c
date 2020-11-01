@@ -55,10 +55,10 @@ int axp15_probe(void)
 	__msdelay(100);//确保硬件ADC准备好。
 	if(axp_i2c_read(AXP15_ADDR,BOOT_POWER15_VERSION, &pmu_type))
 	{
-		printf("axp152 read error\n");
+		pr_msg("axp152 read error\n");
 		return -1;
 	}
-	printf("pmu_type = %x\n",pmu_type);
+	pr_msg("pmu_type = %x\n",pmu_type);
 	pmu_type &= 0x0f;
 	if(pmu_type == 0x05)
 	{
@@ -280,11 +280,11 @@ int axp15_set_power_off(void)
 {
 	u8 reg_addr;
     u8  reg_value;
-	printf("axp15_set_power_off\n");
+	pr_msg("axp15_set_power_off\n");
 	reg_addr = BOOT_POWER15_OFF_CTL;
 	if(axp_i2c_read(AXP15_ADDR, reg_addr, &reg_value))
 	{
-	    printf("axp15_set_power_off read error\n");
+	    pr_msg("axp15_set_power_off read error\n");
     	return -1;
 	}
 	reg_value |= 1 << 7;
@@ -292,7 +292,7 @@ int axp15_set_power_off(void)
     {
         return -1;
     }
-    printf("axp15_set_power_off failed\n");
+    pr_msg("axp15_set_power_off failed\n");
 	return 0;
 }
 
@@ -329,7 +329,7 @@ int axp15_probe_int_pending(uchar *addr)
 	{
 		if(axp_i2c_read(AXP15_ADDR,BOOT_POWER15_INTSTS1+i,addr+i))
 		{
-			printf("can't read the axp15's int_pending!\n");
+			pr_msg("can't read the axp15's int_pending!\n");
 			return -1;
 		}
 	}
@@ -337,7 +337,7 @@ int axp15_probe_int_pending(uchar *addr)
 	{
 		if(axp_i2c_write(AXP15_ADDR,BOOT_POWER15_INTSTS1+i,0xff))
 		{
-			printf("can't write the axp15's int_pending!\n");
+			pr_msg("can't write the axp15's int_pending!\n");
 			return -1;
 		}
 	}
@@ -352,7 +352,7 @@ int axp15_probe_int_enable(uchar *addr)
 	{
 		if(axp_i2c_read(AXP15_ADDR,int_reg,addr+i))
 		{
-			printf("can't read the axp15's int_en!\n");
+			pr_msg("can't read the axp15's int_en!\n");
 			return -1;
 		}
 		int_reg++;
@@ -370,7 +370,7 @@ int axp15_set_int_enable(uchar *addr)
 	{
 		if(axp_i2c_write(AXP15_ADDR, int_reg, addr[i]))
 		{
-			printf("can't write int_enable reg into BOOT_POWER15_INTEN1!\n");
+			pr_msg("can't write int_enable reg into BOOT_POWER15_INTEN1!\n");
 			return -1;
 		}
 		int_reg++;

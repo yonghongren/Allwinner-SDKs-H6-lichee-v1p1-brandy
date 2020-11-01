@@ -31,7 +31,11 @@ obj-$(CONFIG_CMD_SUNXI_EFEX) += efex_queue.o
 obj-$(CONFIG_SUNXI_HDCP_IN_SECURESTORAGE) += key_deal.o
 obj-y += usb_base_common.o
 
+ifdef CONFIG_ARCH_SUN3IW1P1
+obj-y   += usb_base_sun3iw1p1.o
+else
 obj-y   += usb_base_platform.o
+endif
 obj-y   += usb_dma_control.o
 
 #########################################################################

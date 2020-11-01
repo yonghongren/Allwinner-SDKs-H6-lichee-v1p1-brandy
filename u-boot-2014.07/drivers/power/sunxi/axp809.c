@@ -53,7 +53,7 @@ int axp809_probe(void)
     axp_i2c_config(SUNXI_AXP_809, AXP809_CHIP_ID);
 	if(axp_i2c_read(AXP809_CHIP_ID, BOOT_POWER809_VERSION, &pmu_type))
 	{
-		printf("axp read error\n");
+		pr_msg("axp read error\n");
 
 		return -1;
 	}
@@ -62,12 +62,7 @@ int axp809_probe(void)
 	if(pmu_type == 0x42)
 	{
 		/* pmu type AXP809 */
-        
-#ifdef CONFIG_ARCH_SUN8IW12P1
-		tick_printf("PMU: AXP233\n");
-#else 
-        tick_printf("PMU: AXP809\n");
-#endif
+		tick_printf("PMU: AXP809\n");
 
 		return 0;
 	}
@@ -177,10 +172,6 @@ int axp809_probe_battery_ratio(void)
         return -1;
     }
 
-	if(!(reg_value & 0x80))  //if bit7 ==0 ,meant the battery cabacity not valid.
-	{
-		return -1;
-	}
 	return reg_value & 0x7f;
 }
 /*
@@ -215,7 +206,6 @@ int axp809_probe_power_status(void)
 	{
 		return AXP_DCIN_EXIST;
 	}
-
 	return 0;
 }
 
@@ -288,102 +278,6 @@ int axp809_probe_battery_vol(void)
 
 	return bat_vol;
 }
-
-/*
-************************************************************************************************************
-*
-*                                             function
-*
-*    函数名称：
-*
-*    参数列表：
-*
-*    返回值  ：
-*
-*    说明    ：
-*
-*
-************************************************************************************************************
-*/
-int axp809_probe_battery_ocv_vol(void)
-{
-	u8  reg_value_h, reg_value_l;
-	int bat_vol, tmp_value;
-	if(axp_i2c_read(AXP809_CHIP_ID, BOOT_POWER809_OCV1, &reg_value_h))
-    {
-        return -1;
-    }
-    if(axp_i2c_read(AXP809_CHIP_ID, BOOT_POWER809_OCV0, &reg_value_l))
-    {
-        return -1;
-    }
-    tmp_value = (reg_value_h << 4) | reg_value_l;
-    bat_vol = tmp_value * 11;
-    bat_vol /= 10;
-
-	return bat_vol;
-}
-
-/*
-************************************************************************************************************
-*
-*                                             function
-*
-*    函数名称：
-*
-*    参数列表：
-*
-*    返回值  ：
-*
-*    说明    ：
-*
-*
-************************************************************************************************************
-*/
-int axp809_set_led_control(int flag)
-{
-	u8 reg_value;
-	if(axp_i2c_read(AXP809_CHIP_ID, BOOT_POWER809_OFF_CTL , &reg_value))
-    {
-        return -1;
-    }
-	if(flag == 0x00) //Hi-z ;return controled by charger
-	{
-		reg_value = reg_value | 0x08;
-		reg_value = reg_value & 0xcf;
-	}
-	else if(flag == 0x01)  //25%0.5Hz toggle ; get led control capacity
-	{
-		reg_value = reg_value & 0xf7;
-		reg_value = reg_value & 0xcf;
-		reg_value = reg_value | 0x10;
-	}
-	else if(flag == 0x02)  //25%2Hz toggle;get led control capacity
-	{
-		reg_value = reg_value & 0xf7;
-		reg_value = reg_value & 0xcf;
-		reg_value = reg_value | 0x20;
-	}
-	else if(flag == 0x02) //drive low;get led control capacity
-	{
-		reg_value = reg_value & 0xf7;
-		reg_value = reg_value & 0xcf;
-		reg_value = reg_value | 0x30;
-	}
-	else
-	{
-		printf("not support model\n");
-		return -1;
-	}
-    if(axp_i2c_write(AXP809_CHIP_ID, BOOT_POWER809_OFF_CTL , reg_value))
-    {
-        return -1;
-    }
-
-    return 0;
-}
-
-
 /*
 ************************************************************************************************************
 *
@@ -716,17 +610,17 @@ int axp809_probe_vbus_cur_limit(void)
     reg_value &= 0x03;
     if(reg_value == 0x01)
     {
-        printf("limit to 500mA \n");
+        pr_msg("limit to 500mA \n");
         return 500;
     }
     else if(reg_value == 0x00)
     {
-        printf("limit to 900 \n");
+        pr_msg("limit to 900 \n");
         return 900;
     }
     else
     {
-        printf("do not limit current \n");
+        pr_msg("do not limit current \n");
         return 0;
     }
 }
@@ -893,15 +787,14 @@ s32 axp809_usb_vbus_output(int hight)
 		return 0;
 
 	if (axp_i2c_read(AXP809_CHIP_ID, BOOT_POWER809_VBUS_SET, &tmp)) {
-			printf("axp809 read ips set error\n");
+			pr_msg("axp809 read ips set error\n");
 			return -1;
 	}
 	tmp |= 0x04;
 	if (axp_i2c_write(AXP809_CHIP_ID, BOOT_POWER809_VBUS_SET, tmp)) {
-		printf("axp809 write ips set error\n");
+		pr_msg("axp809 write ips set error\n");
 		return -1;
 	}
 	return 1;
 }
-
 

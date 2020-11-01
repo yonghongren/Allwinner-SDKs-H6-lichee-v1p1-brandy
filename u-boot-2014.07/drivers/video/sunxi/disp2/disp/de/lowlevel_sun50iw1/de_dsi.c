@@ -185,6 +185,23 @@ s32 dsi_close(u32 sel)
 	return 0;
 }
 
+/**
+ * @name       dsi_mode_switch
+ * @brief      switch dsi mode between cmd and video mode
+ * @param[IN]  sel: dsi module index; en:1-->video mode
+ *             0--> cmd mode
+ * @return     alway return 0
+ */
+__s32 dsi_mode_switch(__u32 sel, __u32 cmd_en, __u32 lp_en)
+{
+	return 0;
+}
+
+__s32 dsi_gen_short_rd(__u32 sel, __u8 *para_p, __u8 para_num, __u8 *result)
+{
+	return 0;
+}
+
 s32 dsi_tri_start(u32 sel)
 {
 	dsi_start(sel,DSI_START_HSTX);

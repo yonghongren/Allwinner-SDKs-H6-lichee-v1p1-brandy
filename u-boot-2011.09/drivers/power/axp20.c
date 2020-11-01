@@ -211,7 +211,7 @@ int axp20_probe_battery_ratio(void)
     int i = 0;
     int battery_exist = 0;
     int dcin_exist = 0;
-#if (defined(CONFIG_ARCH_HOMELET) || defined(CONFIG_ARCH_SUN8IW8P1))
+#ifdef CONFIG_ARCH_HOMELET
     return 100;
 #endif
 

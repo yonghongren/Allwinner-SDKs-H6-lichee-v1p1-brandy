@@ -467,18 +467,10 @@ struct sunxi_fdt_w_string_request {
 	uint32_t  node_offset;
 };
 
-struct sunxi_fdt_w_array_request {
-	char head_name[32];
-	char node_name[32];
-	int count;
-	uint32_t array[8];
-	uint32_t node_offset;
-};
-
 struct sunxi_fdt_w_request  fdt_w_group[16];
+#ifdef CONFIG_BOOT_GUI
 struct sunxi_fdt_w_string_request  fdt_w_string_group[2];
-struct sunxi_fdt_w_array_request   fdt_w_array_group[2];
-
+#endif
 
 int sunxi_fdt_getprop_store(void *fdt, const char *path, const char *name,
 				  uint32_t val)
@@ -500,15 +492,16 @@ int sunxi_fdt_getprop_store(void *fdt, const char *path, const char *name,
 	return 0;
 }
 
-int sunxi_fdt_getprop_store_string(void *fdt, const char *path, const char *name,
-				  char* str)
+#ifdef CONFIG_BOOT_GUI
+int sunxi_fdt_getprop_store_string(void *fdt, const char *path,
+				   const char *name, char *str)
 {
-	struct sunxi_fdt_w_string_request  *fdt_w_string_pt;
-	int  i;
+	struct sunxi_fdt_w_string_request *fdt_w_string_pt;
+	int i;
 
-	for(i=0;i<2;i++) {
+	for (i = 0; i < 2; i++) {
 		fdt_w_string_pt = fdt_w_string_group + i;
-		if(!fdt_w_string_pt->head_name[0]) {
+		if (!fdt_w_string_pt->head_name[0]) {
 			strcpy(fdt_w_string_pt->head_name, path);
 			strcpy(fdt_w_string_pt->node_name, name);
 			strcpy(fdt_w_string_pt->str, str);
@@ -519,66 +512,15 @@ int sunxi_fdt_getprop_store_string(void *fdt, const char *path, const char *name
 
 	return 0;
 }
-
-int sunxi_fdt_getprop_store_array(void *fdt,
-		const char *path, const char *name, uint32_t *vals, int count)
-{
-	int i = 0;
-	struct sunxi_fdt_w_array_request *request, *found = 0;
-
-	for (i = 0; i < 2; i++) {
-		request = &fdt_w_array_group[i];
-		if (!strcmp(request->head_name, path)
-			&& !strcmp(request->node_name, name)) {
-			found = request;
-			break;
-		}
-	}
-
-	for (i = 0; i < 2 && !found; i++) {
-		request = &fdt_w_array_group[i];
-		if (!request->head_name[0])
-			found = request;
-	}
-
-	if (found) {
-		strcpy(found->head_name, path);
-		strcpy(found->node_name, name);
-
-		found->count = count > 8 ? 8 : count;
-		memcpy(&found->array[0], vals, sizeof(uint32_t) * found->count);
-		return 0;
-	}
-	return -1;
-}
-
-int sunxi_fdt_reflush_arry_group(void)
-{
-	int i, j;
-	int node;
-	struct sunxi_fdt_w_array_request *request;
-
-	for (i = 0; i < 2; i++) {
-		request = &fdt_w_array_group[i];
-		if (request->head_name[0] && request->node_name[0]) {
-			node = fdt_path_offset(working_fdt, request->head_name);
-			if (node < 0) {
-				printf("%s: fdt path offset '%s' failed\n",
-					__func__, request->head_name);
-				continue;
-			}
-			for (j = 0; j < request->count; j++)
-				fdt_appendprop_u32(working_fdt, node, request->node_name, request->array[j]);
-		}
-	}
-	return 0;
-}
-
+#endif
 
 int sunxi_fdt_reflush_all(void)
 {
 	struct sunxi_fdt_w_request  *fdt_w_pt, *fdt_w_pt_pre;
-	struct sunxi_fdt_w_string_request  *fdt_w_string_pt, *fdt_w_string_pt_pre;
+#ifdef CONFIG_BOOT_GUI
+	struct sunxi_fdt_w_string_request *fdt_w_string_pt,
+	    *fdt_w_string_pt_pre;
+#endif
 	int  node, ret;
 	int  i, j;
 
@@ -616,43 +558,52 @@ int sunxi_fdt_reflush_all(void)
 		}
 	}
 
-
-	for(i=0;i<2;i++) {
+#ifdef CONFIG_BOOT_GUI
+	for (i = 0; i < 2; i++) {
 		fdt_w_string_pt = fdt_w_string_group + i;
 
-		if(fdt_w_string_pt->head_name[0]) {
+		if (fdt_w_string_pt->head_name[0]) {
 			node = 0;
-			for (j=0;j<i;j++) {
+			for (j = 0; j < i; j++) {
 				fdt_w_string_pt_pre = fdt_w_string_group + j;
-				if (!strcmp(fdt_w_string_pt_pre->head_name, fdt_w_string_pt->head_name)) {
+				if (!strcmp(fdt_w_string_pt_pre->head_name,
+					    fdt_w_string_pt->head_name)) {
 					node = fdt_w_string_pt_pre->node_offset;
 					break;
 				}
 			}
 			if (!node) {
-				node = fdt_path_offset(working_fdt, fdt_w_string_pt->head_name);
+				node = fdt_path_offset(
+				    working_fdt, fdt_w_string_pt->head_name);
 				if (node < 0) {
-					printf("%s:disp_fdt_nodeoffset %s fail\n", __func__,
-													fdt_w_string_pt->head_name);
+					printf(
+					    "%s:disp_fdt_nodeoffset %s fail\n",
+					    __func__,
+					    fdt_w_string_pt->head_name);
 					return -1;
 				}
-					fdt_w_string_pt->node_offset = node;
+				fdt_w_string_pt->node_offset = node;
 			}
 
-			ret = fdt_setprop_string(working_fdt, node, fdt_w_string_pt->node_name, fdt_w_string_pt->str);
-			if ( ret < 0) {
-				printf("fdt_setprop_string %s.%s(%s) fail.err code:%s\n",
-						fdt_w_string_pt->head_name, fdt_w_string_pt->node_name, fdt_w_string_pt->str,fdt_strerror(ret));
+			ret = fdt_setprop_string(working_fdt, node,
+						 fdt_w_string_pt->node_name,
+						 fdt_w_string_pt->str);
+			if (ret < 0) {
+				printf("%s %s.%s(%s) fali err code:%s\n",
+				       __func__,
+				       fdt_w_string_pt->head_name,
+				       fdt_w_string_pt->node_name,
+				       fdt_w_string_pt->str, fdt_strerror(ret));
 				return -1;
 			}
 
 		} else {
-				break;
-			}
+			break;
+		}
 	}
-	sunxi_fdt_reflush_arry_group();
+#endif
+
 	return 0;
 }
 
 #endif
-

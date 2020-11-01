@@ -35,6 +35,21 @@ int pmu_type;
 #define dbg(format,arg...)	printf(format,##arg)
 
 
+int pwrok_restart_enable(void)
+{
+	u8 reg_val = 0;
+	if (axp_i2c_read(AXP81X_ADDR, BOOT_POWER81X_HOTOVER_CTL, &reg_val)) {
+		return -1;
+	}
+	/* PWROK drive low restart function enable  */
+	/* for watchdog reset */
+	reg_val |= 1;
+	if (axp_i2c_write(AXP81X_ADDR, BOOT_POWER81X_HOTOVER_CTL, reg_val)) {
+		return -1;
+	}
+	return 0;
+}
+
 static int axp_probe(void)
 {
 	u8  pmu_type;
@@ -50,6 +65,7 @@ static int axp_probe(void)
 	{
 		/* pmu type AXP81x */
 		printf("PMU: AXP81X\n");
+		pwrok_restart_enable();
 		return AXP81X_ADDR;
 	}
 	else

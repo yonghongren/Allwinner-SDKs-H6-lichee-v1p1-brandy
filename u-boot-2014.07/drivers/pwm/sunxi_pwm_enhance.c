@@ -62,6 +62,8 @@ user_gpio_set_t pwm_gpio_info[PWM_NUM][2];
 		(defined CONFIG_ARCH_SUN50IW6P1) ||\
 		(defined CONFIG_ARCH_SUN50IW3P1))
 #define CLK_GATE_SUPPORT
+uint clk_count;
+uint sclk_count;
 #endif
 
 struct sunxi_pwm_cfg {
@@ -161,6 +163,7 @@ struct sunxi_pwm_chip {
 	struct sunxi_pwm_cfg *config;
 #ifdef CLK_GATE_SUPPORT
 	struct clk *pwm_clk;
+	struct clk *spwm_clk;
 #endif
 };
 
@@ -584,13 +587,23 @@ static void sunxi_pwm_disable(struct sunxi_pwm_chip *pchip)
 	sunxi_pwm_writel(pc, reg_offset, value);
 
 	/* disable pin config. */
-	if (base > 0)
+	if (base > 0) {
 		sprintf(pin_name, "spwm%d", pwm - base);
-	else
+#if defined CLK_GATE_SUPPORT
+		sclk_count--;
+#endif
+	} else {
 		sprintf(pin_name, "pwm%d", pwm);
+#if defined CLK_GATE_SUPPORT
+		clk_count--;
+#endif
+	}
 	sunxi_pwm_pin_set_state(pin_name, PWM_PIN_STATE_SLEEP);
 #if defined CLK_GATE_SUPPORT
-	clk_disable(pchip->pwm_clk);
+	if (clk_count == 0)
+		clk_disable(pchip->pwm_clk);
+	if (sclk_count == 0)
+		clk_disable(pchip->spwm_clk);
 #endif
 }
 
@@ -626,8 +639,6 @@ int pwm_config(int pwm, int duty_ns, int period_ns)
 				return pchip->ops->config(pchip, duty_ns,
 								period_ns);
 		}
-
-		return 0;
 	}
 
 	return -1;
@@ -642,7 +653,6 @@ int pwm_enable(int pwm)
 			if(pchip->ops->enable)
 				return pchip->ops->enable(pchip);
 		}
-		return 0;
 	}
 
 	return -1;
@@ -657,7 +667,6 @@ int pwm_disable(int pwm)
 			if(pchip->ops->disable)
 				pchip->ops->disable(pchip);
 		}
-		return 0;
 	}
 
 	return -1;
@@ -672,7 +681,6 @@ int pwm_set_polarity(int pwm, enum pwm_polarity polarity)
 			if(pchip->ops->set_polarity)
 				pchip->ops->set_polarity(pchip, polarity);
 		}
-		return 0;
 	}
 
 	return -1;
@@ -722,27 +730,29 @@ int pwm_request(int pwm, const char *label)
 		return -1;
 	}
 #if defined(CLK_GATE_SUPPORT)
-	pchip->pwm_clk = clk_get(NULL, "pwm");
-	if (pchip->pwm_clk == NULL) {
-		printf("%s: can't get pwm clk\n", __func__);
-		return -1;
-	}
-	ret = clk_prepare_enable(pchip->pwm_clk);
-	if (ret) {
-		printf("failed to enable pwm clock\n");
-		return -1;
+	clk_count++;
+	if (clk_count == 1) {
+		pchip->pwm_clk = clk_get(NULL, "pwm");
+		if (pchip->pwm_clk == NULL) {
+			printf("%s: can't get pwm clk\n", __func__);
+			return -1;
+		}
+		ret = clk_prepare_enable(pchip->pwm_clk);
+		if (ret) {
+			printf("failed to enable pwm clock\n");
+			return -1;
+		}
 	}
 #endif
-
-
 	/* pwm is included is in pwm area.*/
 	if (pwm >= pwm_base && pwm < (pwm_base + pwm_number)) {
 		/* get handle in pwm. */
 		handle_num = fdt_getprop_u32(working_fdt,node,"pwms",handle);
 		if (handle_num < 0) {
-              printf("%s:%d:error:get property handle %s error:%s\n",
-                       __func__, __LINE__, "clocks", fdt_strerror(handle_num));
-               return -1;
+			printf("%s:%d:error:get property handle %s error:%s\n",
+					__func__, __LINE__, "clocks",
+					fdt_strerror(handle_num));
+			return -1;
 		}
 	} else {
 		/* pwm is included is not  in pwm area,then find spwm area.*/
@@ -765,13 +775,29 @@ int pwm_request(int pwm, const char *label)
 		else
 			printf("%s:pwm number = %d\n",__func__, pwm_number);
 
+#if defined(CLK_GATE_SUPPORT)
+		sclk_count++;
+		if (sclk_count == 1) {
+			pchip->spwm_clk = clk_get(NULL, "cpurpwm");
+			if (pchip->spwm_clk == NULL) {
+				printf("%s: can't get spwm clk\n", __func__);
+				return -1;
+			}
+			ret = clk_prepare_enable(pchip->spwm_clk);
+			if (ret) {
+				printf("failed to enable pwm clock\n");
+				return -1;
+			}
+		}
+#endif
 		if (pwm >= pwm_base && pwm < (pwm_base + pwm_number)) {
-		/* get handle in pwm. */
+			/* get handle in pwm. */
 			handle_num = fdt_getprop_u32(working_fdt,node,"pwms",handle);
 			if (handle_num < 0) {
-	              printf("%s:%d:error:get property handle %s error:%s\n",
-	                       __func__, __LINE__, "clocks", fdt_strerror(handle_num));
-	               return -1;
+				printf("%s:%d:error:get property handle %s error:%s\n",
+						__func__, __LINE__, "clocks",
+						fdt_strerror(handle_num));
+				return -1;
 			}
 		} else {
 			printf("the pwm id is wrong,none pwm in dts.\n");

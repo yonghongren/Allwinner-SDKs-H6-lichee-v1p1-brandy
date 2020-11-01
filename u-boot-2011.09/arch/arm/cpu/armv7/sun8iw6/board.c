@@ -38,7 +38,6 @@
 #include <sys_config.h>
 #include <smc.h>
 #include <rsb.h>
-#include <i2c.h>
 /* The sunxi internal brom will try to loader external bootloader
  * from mmc0, nannd flash, mmc2.
  * We check where we boot from by checking the config
@@ -112,100 +111,17 @@ int display_inner(void)
 	return 0;
 }
 
-int script_probe_by_gpio(void)
-{
-	int multi_config_exist = 0;
-	multi_config_exist = uboot_spare_head.boot_data.multi_config_exist;
-	if(multi_config_exist != 1)
-	{
-		printf("not using multi config\n");
-		return -1;
-	}
-
-	//SUNXI_PIO_BASE = 0X01C20800
-	volatile __u32 value = 0;
-	volatile __u32 value_temp = 0;
-	//设置gpio为输入属性
-	value_temp = *((volatile unsigned int *)(SUNXI_PIO_BASE + 0xDC));
-	value_temp &= (~(0x0f << 12));											//PG11
-	value_temp &= (~(0x0f << 16));											//PG12
-	value_temp &= (~(0x0f << 20));											//PD13
-	*((volatile unsigned int *)(SUNXI_PIO_BASE + 0xDC)) = value_temp;
-	__usdelay(10);
-
-	//设置gpio为上拉模式
-	value_temp = *((volatile unsigned int *)(SUNXI_PIO_BASE + 0xF4));
-	value_temp &= (~(0x03 << 22));											//PG11
-	value_temp &= (~(0x03 << 24));											//PG12
-	value_temp &= (~(0x03 << 26));											//PG13
-	value_temp |= ((0x01 << 22) | (0x01 << 24) | (0x01 << 26));
-	*((volatile unsigned int *)(SUNXI_PIO_BASE + 0xF4)) = value_temp;
-	__usdelay(10);
-
-	//读取gpio数据
-	value_temp = *((volatile unsigned int *)(SUNXI_PIO_BASE + 0xE8));
-
-	__usdelay(10);
-	value  = (value_temp >> 11) & 0x07;
-
-	return value;
-}
-
-
 int script_init(void)
 {
-    int i;
     uint offset, length;
 	char *addr;
-	multi_script_head *multi_head = NULL;
-	script_head_t *script_head = NULL;
-	int hardware_type = 0;
-	hardware_type = script_probe_by_gpio();
-	if(hardware_type == -1)
-	{
-		offset = uboot_spare_head.boot_head.uboot_length;
-		length = uboot_spare_head.boot_head.length - uboot_spare_head.boot_head.uboot_length;
-		addr   = (char *)CONFIG_SYS_TEXT_BASE + offset;
-	}
-	else
-	{
-		addr   = (char *)CONFIG_SYS_TEXT_BASE + uboot_spare_head.boot_head.uboot_length;
-		script_head = (script_head_t *)addr;
-		printf("hardware_type=0x%x\n", hardware_type);
-		offset = uboot_spare_head.boot_head.uboot_length + script_head->length;
-		addr   = (char *)CONFIG_SYS_TEXT_BASE + offset;
-		multi_head = (multi_script_head *)addr;
-		if(strcmp(multi_head->magic, MULTI_CONFIG_MAGIC))
-		{
-			printf("multi magic=%s err, use default\n", multi_head->magic);
-			offset = uboot_spare_head.boot_head.uboot_length;
-			length = uboot_spare_head.boot_head.length - uboot_spare_head.boot_head.uboot_length;
-			addr   = (char *)CONFIG_SYS_TEXT_BASE + offset;
-		}
-		else
-		{
-			printf("toltal hardware type count=%d\n", multi_head->multi_count);
-			for(i = 0; i < multi_head->multi_count; i++)
-			{
-				debug("i=0x%x, coding=%d\n",i, multi_head->array[i].coding);
-				if(multi_head->array[i].coding == hardware_type)
-				{
-					printf("use config name=%s\n", multi_head->array[i].name);
-					offset = uboot_spare_head.boot_head.uboot_length + script_head->length + multi_head->config_length + multi_head->array[i].addr;
-					length = multi_head->array[i].length;
-					addr   = (char *)CONFIG_SYS_TEXT_BASE + offset;
-					break;
-				}
-			}
-			if(i >= multi_head->multi_count)
-			{
-				printf("no find config=0x%x\n", hardware_type);
-				return 0;
-			}
-		}
-	}
 
-	debug("script offset=%x, length = %x\n", offset, length);
+	offset = uboot_spare_head.boot_head.uboot_length;
+	length = uboot_spare_head.boot_head.length - uboot_spare_head.boot_head.uboot_length;
+	addr   = (char *)CONFIG_SYS_TEXT_BASE + offset;
+
+    debug("script offset=%x, length = %x\n", offset, length);
+
 	if(length)
 	{
 		memcpy((void *)SYS_CONFIG_MEMBASE, addr, length);
@@ -232,7 +148,6 @@ struct bias_set
 	int  index;
 };
 
-extern int plat_get_chip_id(void);
 int power_config_gpio_bias(void)
 {
 	char gpio_bias[32], gpio_name[32];
@@ -248,18 +163,7 @@ int power_config_gpio_bias(void)
 	struct bias_set bias_vol_config[8] =
 		{ {1800, 0}, {2500, 6}, {2800, 9}, {3000, 0xa}, {3300, 0xd}, {0, 0} };
 
-	int  chipid;
-
-	chipid = plat_get_chip_id();
-	//0x18:axp_818, 0x13:axp_813 0x03:axp_803 0x0: key not burn
-	if(chipid == 0x03)
-	{
-		main_hd = script_parser_fetch_subkey_start("gpio_bias_ext");
-	}
-	else
-	{
-		main_hd = script_parser_fetch_subkey_start("gpio_bias");
-	}
+	main_hd = script_parser_fetch_subkey_start("gpio_bias");
 
 	index = 0;
 	while(1)
@@ -476,100 +380,6 @@ __END:
     return ;
 }
 
-#define AC200_ADDR             	0x10
-#define AC200_ID_REG						0x0
-extern int plat_get_chip_id(void);
-void update_cfg_for_audio_and_tv(void)
-{
-	int chipid;
-	int tv_ac200_used = 0, tv_ac100_used = 0;
-	int err_flag = 0;
-	int board_serial = 0;
-	int twi_ac200_used = 0;
-	unsigned char ac200_id = 0;
-	int gm7121_tv_used = 0;
-	
-	if(script_parser_fetch("product", "board_serial", &board_serial, sizeof(int)/4) || board_serial != 2)
-	{
-		printf("no find board_serial or board_serial != 2\n");
-		return ;
-	}
-
-	chipid = plat_get_chip_id();
-
-	//0x18:axp_818, 0x13:axp_813 0x03:axp_803 0x0: key not burn
-	if (chipid == 0x03)
-	{
-		tv_ac100_used = 0;
-		if(script_parser_patch("acx0","ac100_used", &tv_ac100_used, sizeof(int)/4))
-		{
-			printf("update ac100_used cfg error\n");
-			err_flag ++;
-		}		
-	}
-	else
-	{
-		tv_ac100_used = 1;
-		if(script_parser_patch("acx0","ac100_used",&tv_ac100_used, sizeof(int)/4))
-		{
-			printf("update ac100_used cfg error\n");
-			err_flag ++;
-		}	
-	}
-	
-	// ac200 use twi0/twi1
-	if(script_parser_fetch("acx0","twi_ac200_used", &twi_ac200_used, sizeof(int)/4))
-	{
-			printf("no find twi_ac200_used\n");
-			//return ;
-	}
-	
-	if (i2c_read(twi_ac200_used, AC200_ADDR, AC200_ID_REG, 1, &ac200_id, 1))
-	{
-		printf("can't find ac200\n");
-		tv_ac200_used = 0;
-		gm7121_tv_used = 1;	
-	}
-	else
-	{
-		printf("find ac200\n");
-		tv_ac200_used = 1;
-		gm7121_tv_used = 0;	
-	}
-	
-	if(script_parser_patch("acx0","ac200_used", &tv_ac200_used, sizeof(int)/4))
-	{
-		printf("no find twi_ac200_used\n");
-		return ;
-	}
-	if(script_parser_patch("tv_gm7121_para","tv_used", &gm7121_tv_used, sizeof(int)/4))
-	{
-		printf("update [tv_ac100_para] cfg error\n");
-		err_flag ++;
-	}
-	if(script_parser_patch("tv_ac200_para","tv_used", &tv_ac200_used, sizeof(int)/4))
-	{
-		printf("update [tv_ac100_para] cfg error\n");
-		err_flag ++;
-	}
-	if(script_parser_patch("pwm0_para","pwm_used", &tv_ac200_used, sizeof(int)/4))
-	{
-		printf("update [pwm0_para]pwn_used cfg error\n");
-		err_flag ++;
-	}
-	
-	if(!err_flag)
-	{
-		printf("update tv/audio cfg sucess\n");
-	}
-#if 0
-	printf("tv_ac100_used=%d\n", tv_ac100_used);
-	printf("tv_ac200_used=%d\n", tv_ac200_used);
-	printf("pwm_used=%d\n", tv_ac200_used);
-	printf("ac200_used=%d\n", tv_ac200_used);
-	printf("gm7121_tv_used=%d\n", gm7121_tv_used);
-#endif
-}
 
 int power_source_init(void)
 {
@@ -631,7 +441,6 @@ int power_source_init(void)
 	power_limit_init();
     // AXP and RTC use the same interrupt line, so disable RTC INT in uboot
     disable_rtc_int();
-    update_cfg_for_audio_and_tv();
 
 	return 0;
 }
@@ -738,14 +547,14 @@ int sunxi_probe_securemode(void)
 	else		 //读到数据非0，那么只能是未使能secure
 	{
 		if(uboot_spare_head.boot_data.secureos_exist == 0)
-        {
-            printf("SUNXI_SECURE_MODE \n");
-            gd->securemode = SUNXI_SECURE_MODE;
-        }
-        else
-        {
-            gd->securemode = SUNXI_NORMAL_MODE;
-        	printf("SUNXI_NORMAL_MODE\n");
+		{
+			printf("SUNXI_SECURE_MODE \n");
+			gd->securemode = SUNXI_SECURE_MODE;
+		}
+		else
+		{
+			gd->securemode = SUNXI_NORMAL_MODE;
+			printf("SUNXI_NORMAL_MODE\n");
 		}
 	}
 
@@ -793,24 +602,24 @@ int sunxi_set_secure_mode(void)
 	return 0;
 }
 /*
-************************************************************************************************************
-*
-*                                             function
-*
-*    name          :
-*
-*    parmeters     :
-*
-*    return        :
-*
-*    note          :
-*
-*
-************************************************************************************************************
-*/
+ ************************************************************************************************************
+ *
+ *											  function
+ *	sunxi_get_securemode has two meanings
+ *	boot mode	: indicates secure bit is burned
+ *	product mode: secure bit is burned or will burn secure bit(fisrt time normal to secure)
+ *
+ *
+ ************************************************************************************************************
+ */
 int sunxi_get_securemode(void)
 {
-	return gd->securemode;
+	int workmode =	uboot_spare_head.boot_data.work_mode;
+	if( WORK_MODE_BOOT	== workmode || WORK_MODE_SPRITE_RECOVERY == workmode)
+		return gd->securemode;
+	else if( WORK_MODE_USB_PRODUCT	== workmode || WORK_MODE_CARD_PRODUCT == workmode)
+		return (gd->securemode || (gd->bootfile_mode == SUNXI_BOOT_FILE_TOC));
+	return -1;
 }
 /*
 ************************************************************************************************************

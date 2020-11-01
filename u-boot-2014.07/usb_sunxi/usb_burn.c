@@ -33,7 +33,6 @@
 #include <sunxi_board.h>
 #include "key_deal.h"
 #include <smc.h>
-#include <efuse_map.h>
 #include "../sprite/sprite_verify.h"
 DECLARE_GLOBAL_DATA_PTR;
 volatile int sunxi_usb_burn_from_boot_handshake, sunxi_usb_burn_from_boot_init, sunxi_usb_burn_from_boot_setup;
@@ -68,18 +67,25 @@ int sunxi_deal_hdcp_key(char *keydata, int keylen)
 
 __attribute__((weak))
 int sunxi_secure_object_down( const char *name , char *buf, int len, int encrypt, int write_protect)
+
 {
 	printf("call weak fun: %s\n",__func__);
 	return 0;
 }
 
 __attribute__((weak))
-int arm_svc_efuse_read(void *key_buf, void *read_buf)
+int sunxi_efuse_write(void *key_buf)
 {
 	printf("call weak fun: %s\n",__func__);
-	return 0;
+	return -1;
 }
 
+__attribute__((weak))
+int sunxi_efuse_read(void *key_name, void *read_buf,int *len)
+{
+	printf("call weak fun: %s\n",__func__);
+	return -1;
+}
 
 static  int sunxi_usb_pburn_write_enable = 0;
 #if defined(SUNXI_USB_30)
@@ -93,13 +99,41 @@ static  pburn_trans_set_t  trans_data;
 static  u8 *private_data_ext_buff_step = NULL;
 static u8 *private_data_ext_buff = NULL;
 
-static int burn_part_result_state = ERR_NO_SUCCESS; 
+static int burn_part_result_state = ERR_NO_SUCCESS;
 long long burn_part_bytes = 0;
 extern volatile int sunxi_usb_burn_from_boot_handshake;
 extern volatile int sunxi_usb_burn_from_boot_setup;
 static uint burn_private_start, burn_private_len;
 static uint burn_part_start, burn_part_len;
 extern int sunxi_get_securemode(void);
+#ifdef CONFIG_BURN_NORMAL_EFUSE
+extern int sunxi_efuse_write(void *key_buf);
+extern int  sunxi_efuse_read(void *key_name, void *read_buf,int *len);
+#endif
+
+static int sunxi_find_key(char *name)
+{
+	if (!strcmp(name, "widevine"))
+		return 1;
+	else if (!strcmp(name, "ec_key"))
+		return 2;
+	else if (!strcmp(name, "rsa_key"))
+		return 3;
+	else if (!strcmp(name, "ec_cert1"))
+		return 4;
+	else if (!strcmp(name, "ec_cert2"))
+		return 5;
+	else if (!strcmp(name, "ec_cert3"))
+		return 6;
+	else if (!strcmp(name, "rsa_cert1"))
+		return 7;
+	else if (!strcmp(name, "rsa_cert2"))
+		return 8;
+	else if (!strcmp(name, "rsa_cert3"))
+		return 9;
+
+	return 0;
+}
 
 void set_usb_burn_boot_init_flag(int flag )
 {
@@ -399,7 +433,7 @@ static int __usb_get_descriptor(struct usb_device_request *req, uchar *buffer)
 			qua_dscrpt = (struct usb_qualifier_descriptor *)buffer;
 			memset(&buffer, 0, sizeof(struct usb_qualifier_descriptor));
 
-			qua_dscrpt->bLength = MIN(req->wLength, sizeof(sizeof(struct usb_qualifier_descriptor)));
+			qua_dscrpt->bLength = MIN(req->wLength, sizeof(struct usb_qualifier_descriptor));
 			qua_dscrpt->bDescriptorType    = USB_DT_DEVICE_QUALIFIER;
 			qua_dscrpt->bcdUSB             = 0x200;
 			qua_dscrpt->bDeviceClass       = 0xff;
@@ -488,23 +522,21 @@ static int __sunxi_pburn_send_status(void *buffer, unsigned int buffer_size)
 *
 *                                             function
 *
-*    name          :  __sunxi_burn_key
+*    name          :
 *
-*    parmeters     : buff:the content that want to save; buff_len:the length of buffer
+*    parmeters     :
 *
-*    return        : void
+*    return        :
 *
-*    note          : burn userdata key to secure storage or private partition
+*    note          :
 *
 *
 ************************************************************************************************************
 */
-extern int common_str_2_oct(char *str, int str_len, unsigned char* octxt);
 int __sunxi_burn_key(u8 *buff, uint buff_len)
 {
 	sunxi_usb_burn_main_info_t *key_main = (sunxi_usb_burn_main_info_t *)buff;
 	sunxi_usb_burn_key_info_t  *key_list;
-	unsigned char* pt = NULL, *pt1 = NULL;
 	__attribute__((unused)) int ret;
 	sunxi_efuse_key_info_t	efuse_key_info;
 
@@ -571,44 +603,13 @@ int __sunxi_burn_key(u8 *buff, uint buff_len)
 				#endif
 			}
 
-			if (sunxi_get_securemode() == SUNXI_NORMAL_MODE)
+			if ((sunxi_get_securemode() == SUNXI_SECURE_MODE_WITH_SECUREOS) || (sunxi_probe_secure_monitor()))
 			{
-				if (sunxi_efuse_write(&efuse_key_info))
-				{
+				if (arm_svc_efuse_write(&efuse_key_info)) {
 					return -1;
 				}
-			}
-			else
-			{
-				if(!strcmp("efusemac", key_list->name))
-				{
-					if (key_list->len != 17)
-					{
-						printf("efuse mac lenth not write!!\n");
-						return -1;
-					}
-					int i;
-					pt = efuse_key_info.key_data + 2;
-					pt1 = efuse_key_info.key_data + 3;
-					/*change 00-11-22-33-44-55 to "001122334455"*/
-					for(i = 0;i < 5;i++)
-					{
-						memcpy(pt, pt1, 2);
-						pt += 2;
-						pt1+= 3;
-					}
-					pt[0] = pt[1] = pt[2] = pt[3] = 0;
-					efuse_key_info.len = 16;
-					efuse_key_info.len = common_str_2_oct((char*)efuse_key_info.key_data, efuse_key_info.len,
-										efuse_key_info.key_data);
-					if (efuse_key_info.key_data[0] % 2)
-					{
-						printf("invalid mac value!!\n");
-						return -1;
-					}
-				}
-				if(arm_svc_efuse_write(&efuse_key_info))
-				{
+			} else {
+				if (sunxi_efuse_write(&efuse_key_info)) {
 					return -1;
 				}
 			}
@@ -623,9 +624,9 @@ int __sunxi_burn_key(u8 *buff, uint buff_len)
 					printf("sunxi deal with hdcp key failed\n");
 					return -1;
 				}
-			}else if(!strcmp("widevine", key_list->name))
+			} else if (sunxi_find_key(key_list->name))
 			{
-				ret = sunxi_secure_object_down("widevine", (char *)key_list->key_data,key_list->len,
+				ret = sunxi_secure_object_down(key_list->name, (char *)key_list->key_data, key_list->len,
 					key_list->if_crypt,key_list->if_replace);
 				if(ret)
 				{
@@ -688,7 +689,7 @@ int __sunxi_burn_key(u8 *buff, uint buff_len)
 *
 *    return        :
 *
-*    note          : read userdata key form secure storage or private partition
+*    note          :
 *
 *
 ************************************************************************************************************
@@ -727,64 +728,59 @@ int __sunxi_read_key_by_name(void *buffer, uint buff_len, int *read_len)
 
 	if(!key_info->type)
 	{
-		//read from efuse
-		if ((gd->securemode == SUNXI_SECURE_MODE_WITH_SECUREOS) || (gd->securemode == SUNXI_SECURE_MODE_NO_SECUREOS))
+		if ((gd->securemode == SUNXI_SECURE_MODE_WITH_SECUREOS) || (sunxi_probe_secure_monitor()))
 		{
 			key_data_len = arm_svc_efuse_read(key_info->name, (void *)data_buff);
-			if(key_data_len <= 0)
+			if (key_data_len <= 0)
 			{
 				printf("efuse read %s err\n", key_info->name);
 				return -1;
 			}
-		}
-		else
-		{
-			key_data_len = sunxi_efuse_read(key_info->name, (void *)data_buff);
-			if(key_data_len <= 0)
-			{
+
+		} else {
+			if (sunxi_efuse_read(key_info->name, (void *)data_buff, &key_data_len)) {
 				printf("efuse read %s err\n", key_info->name);
 				return -1;
 			}
 		}
-		sunxi_dump(data_buff,128);
 
 		/* convert hex key to char,so that dragonkey tool can display it */
 		hex2char((void *)(key_info->key_data), (void *)(data_buff), key_data_len);
 		*read_len +=key_data_len*2;
+		return 0;
 	}
 	else
 	{
 #ifdef CONFIG_SUNXI_SECURE_STORAGE
-		ret = sunxi_secure_object_read(key_info->name, data_buff, 4096, &key_data_len);
-		if(ret < 0)
-		{
+		printf("read key form securestorage\n");
+		ret = sunxi_secure_object_read(key_info->name, data_buff, sizeof(sunxi_usb_burn_key_info_t), &key_data_len);
+		if (ret < 0)
 			printf("read %s form securestorage failed\n", key_info->name);
-		}
-		else
-		{
-			printf("read %s form securestorage ok, key_data_len is %d\n", key_info->name, key_data_len);
-			goto SEC_STORAGE_READ_OK;
+		else {
+			key_info->len = key_data_len;
+			memcpy((void *)(key_info->key_data),
+				(void *)data_buff, key_data_len);
+			*read_len += key_data_len;
+			return 0;
 		}
 #endif
+
 #ifdef CONFIG_SUNXI_PRIVATE_KEY
 		printf("read key form private\n");
 		memset(data_buff, 0, 4096);
 		ret = read_private_key_by_name(key_info->name, data_buff, sizeof(sunxi_usb_burn_key_info_t), &key_data_len);
 		if(ret < 0)
-		{
 			printf("read %s form private failed\n", key_info->name);
-			return -1;
+		else {
+			key_info->len = key_data_len;
+			memcpy((void *)(key_info->key_data),
+				(void *)data_buff, key_data_len);
+			*read_len += key_data_len;
 		}
-#else
-			return -1;
 #endif
-SEC_STORAGE_READ_OK:
-		//组装读取出来的key数据
-		key_info->len = key_data_len;
-	    memcpy((void *)(key_info->key_data), (void *)data_buff, key_data_len);
-	    *read_len += key_data_len;
 	}
-	return 0;
+
+	return ret;
 }
 
 /*
@@ -792,13 +788,13 @@ SEC_STORAGE_READ_OK:
 *
 *                                             function
 *
-*    name          :	__sunxi_erase_key
+*    name          :	__sunxi_read_key_by_name
 *
 *    parmeters     :
 *
 *    return        :
 *
-*    note          :  erase userdata key from secure storage or private partition
+*    note          :
 *
 *
 ************************************************************************************************************
@@ -842,13 +838,13 @@ int __sunxi_erase_key(void)
 *
 *                                             function
 *
-*    name          :	__sunxi_burn_flag
+*    name          :	__sunxi_read_key_by_name
 *
 *    parmeters     :
 *
 *    return        :
 *
-*    note          :  save burn_flag to secure storage or private partition
+*    note          :
 *
 *
 ************************************************************************************************************
@@ -907,13 +903,13 @@ int __sunxi_burn_flag(void)
 *
 *                                             function
 *
-*    name          : sunxi_burn_part_verify
+*    name          :
 *
 *    parmeters     :
 *
 *    return        :
 *
-*    note          :  verify the partition
+*    note          :
 *
 *
 ************************************************************************************************************
@@ -952,13 +948,13 @@ int sunxi_burn_part_verify(void *veryfy_info, long long burn_bytes)
 *
 *                                             function
 *
-*    name          : burn_part_probe
+*    name          :
 *
 *    parmeters     :
 *
 *    return        :
 *
-*    note          : parse the partition info from pc tools
+*    note          :
 *
 *
 ************************************************************************************************************
@@ -986,8 +982,8 @@ int burn_part_probe(void *burn_part_info)
 		else
 		{
 			printf("part info check success\n");
-			printf("part_info->lenhi=%d\n", part_info->lenhi);
-			printf("part_info->lenlo=%d\n", part_info->lenlo);
+			printf("part_info->lenhi=%u\n", part_info->lenhi);
+			printf("part_info->lenlo=%u\n", part_info->lenlo);
 			burn_part_bytes = part_info->lenhi;
 			burn_part_bytes = (burn_part_bytes << 32) + part_info->lenlo;
 			burn_state = ERR_NO_SUCCESS;
@@ -1005,13 +1001,13 @@ int burn_part_probe(void *burn_part_info)
 *
 *                                             function
 *
-*    name          : sunxi_pburn_init
+*    name          :
 *
 *    parmeters     :
 *
 *    return        :
 *
-*    note          : prepare recv and send buffer for receiving partition data 
+*    note          :
 *
 *
 ************************************************************************************************************
@@ -1049,13 +1045,13 @@ static int sunxi_pburn_init(void)
 *
 *                                             function
 *
-*    name          : sunxi_pburn_exit
+*    name          :
 *
 *    parmeters     :
 *
 *    return        :
 *
-*    note          : free recv and send buffer
+*    note          :
 *
 *
 ************************************************************************************************************
@@ -1081,13 +1077,13 @@ static int sunxi_pburn_exit(void)
 *
 *                                             function
 *
-*    name          : sunxi_pburn_reset
+*    name          :
 *
 *    parmeters     :
 *
 *    return        :
 *
-*    note          : reset the state of burning partition  
+*    note          :
 *
 *
 ************************************************************************************************************
@@ -1102,13 +1098,13 @@ static void sunxi_pburn_reset(void)
 *
 *                                             function
 *
-*    name          : sunxi_pburn_usb_rx_dma_isr
+*    name          :
 *
 *    parmeters     :
 *
 *    return        :
 *
-*    note          : 
+*    note          :
 *
 *
 ************************************************************************************************************
@@ -1612,7 +1608,9 @@ static int sunxi_pburn_state_loop(void  *buffer)
 							}
 
                             memset(handshake, 0, sizeof(__usb_handshake_t));
-							strcpy(handshake->magic, "usb_burn_handshake");
+							/* for private partition, use __usb_handshake_t, magic "usb_burn_handsha" */
+							/* for secure storage, use __usb_handshake_sec_t, magic "usb_burn_handshake" */
+							strncpy(handshake->magic, "usb_burn_handshake", 16);
 							handshake->sizelo = burn_private_len;
 							handshake->sizehi = 0;
 							sunxi_usb_pburn_status = SUNXI_USB_PBURN_SEND_DATA;

@@ -209,14 +209,14 @@ static int axp20_set_dcdc3(int set_vol, int onoff)
 			ret = script_parser_fetch("target", "dcdc3_vol", &vol_value, 1);
 			if(ret)
 			{
-				printf("boot power:unable to find dcdc3 set\n");
+				pr_msg("boot power:unable to find dcdc3 set\n");
 				return -1;
 			}
 			dcdc3_user_set = vol_value;
 		}
 		vol_value = dcdc3_user_set;
 		#endif
-		printf("boot power:invalid dcdc3  vol\n");
+		pr_msg("boot power:invalid dcdc3  vol\n");
 		return -1;
 	}
 	else
@@ -233,7 +233,7 @@ static int axp20_set_dcdc3(int set_vol, int onoff)
 			reg_value &= ~(1<<1);
 			if(axp_i2c_write(AXP20_ADDR, reg_addr, reg_value))
 			{
-				printf("boot power:unable to close dcdc3\n");
+				pr_msg("boot power:unable to close dcdc3\n");
 				return -1;
 			}
 		}
@@ -249,7 +249,7 @@ static int axp20_set_dcdc3(int set_vol, int onoff)
 				reg_value = ((vol_value - 700)/25);
 				if(axp_i2c_write(AXP20_ADDR, reg_addr, reg_value))
 				{
-					printf("boot power:unable to set dcdc3\n");
+					pr_msg("boot power:unable to set dcdc3\n");
 					return -1;
 				}
 			}
@@ -416,7 +416,7 @@ static int axp20_set_ldo2(int set_vol, int onoff)
 			ret = script_parser_fetch("target", "ldo2_vol", &vol_value, 1);
 				if(ret)
 				{
-					printf("boot power:unable to find ldo2 set\n");
+					pr_msg("boot power:unable to find ldo2 set\n");
 
 						return -1;
 				}
@@ -424,7 +424,7 @@ static int axp20_set_ldo2(int set_vol, int onoff)
 		}
 		vol_value = ldo2_user_set;
 		#endif
-		printf("boot power:  invalid ldo2 vol\n");
+		pr_msg("boot power:  invalid ldo2 vol\n");
 		return -1;
 	}
 	else
@@ -439,7 +439,7 @@ static int axp20_set_ldo2(int set_vol, int onoff)
             reg_value &= ~(1<<2);
             if(axp_i2c_write(AXP20_ADDR, reg_addr, reg_value))
             {
-                printf("boot power:unable to set ldo2\n");
+                pr_msg("boot power:unable to set ldo2\n");
                     return -1;
             }
         }
@@ -455,7 +455,7 @@ static int axp20_set_ldo2(int set_vol, int onoff)
                 reg_value |= (((vol_value - 1800)/100) << 4);
                 if(axp_i2c_write(AXP20_ADDR, reg_addr, reg_value))
                 {
-                    printf("boot power:unable to set ldo2\n");
+                    pr_msg("boot power:unable to set ldo2\n");
                         return -1;
                 }
             }
@@ -494,14 +494,14 @@ static int axp20_set_ldo3(int set_vol, int onoff)
 			ret = script_parser_fetch("target", "ldo3_vol", &vol_value, 1);
 				if(ret)
 				{
-					printf("boot power:unable to find ldo3 set\n");
+					pr_msg("boot power:unable to find ldo3 set\n");
 						return -1;
 				}
 			ldo3_user_set = vol_value;
 		}
 		vol_value = ldo3_user_set;
 		#endif
-		printf("boot power:invalid ldo3 vol\n");
+		pr_msg("boot power:invalid ldo3 vol\n");
 		return -1;
 	}
 	else
@@ -516,7 +516,7 @@ static int axp20_set_ldo3(int set_vol, int onoff)
             reg_value &= ~(1<<6);
             if(axp_i2c_write(AXP20_ADDR, reg_addr, reg_value))
             {
-                printf("boot power:unable to set ldo2\n");
+                pr_msg("boot power:unable to set ldo2\n");
                     return -1;
             }
         }
@@ -532,7 +532,7 @@ static int axp20_set_ldo3(int set_vol, int onoff)
                 reg_value |= ((vol_value - 700)/25);
                 if(axp_i2c_write(AXP20_ADDR, reg_addr, reg_value))
                 {
-                    printf("boot power:unable to set ldo3\n");
+                    pr_msg("boot power:unable to set ldo3\n");
                         return -1;
                 }
             }
@@ -572,14 +572,14 @@ static int axp20_set_ldo4(int set_vol, int onoff)
 			ret = script_parser_fetch("target", "ldo4_vol", &vol_value, 1);
 				if(ret)
 				{
-					printf("boot power:unable to find ldo4 set\n");
+					pr_msg("boot power:unable to find ldo4 set\n");
 						return -1;
 				}
 			ldo4_user_set = vol_value;
 		}
 		vol_value = ldo4_user_set;
 		#endif
-		printf("boot power:invalid ldo4 vol\n");
+		pr_msg("boot power:invalid ldo4 vol\n");
 		return -1;
 	}
 	else
@@ -594,7 +594,7 @@ static int axp20_set_ldo4(int set_vol, int onoff)
                 reg_value &= ~(1<<3);
                     if(axp_i2c_write(AXP20_ADDR, reg_addr, reg_value))
                     {
-                        printf("boot power:unable to set ldo2\n");
+                        pr_msg("boot power:unable to set ldo2\n");
                             return -1;
                     }
             }
@@ -640,7 +640,7 @@ static int axp20_set_ldo4(int set_vol, int onoff)
                     }
                 if(axp_i2c_write(AXP20_ADDR, reg_addr, reg_value))
                 {
-                    printf("boot power:unable to set ldo4\n");
+                    pr_msg("boot power:unable to set ldo4\n");
                         return -1;
                 }
             }
@@ -747,7 +747,7 @@ static int axp20_set_gpio0ldo(int set_vol, int onoff)
 	}
 	if(axp_i2c_write(AXP20_ADDR, BOOT_POWER20_GPIO0_CTL, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff gpio0ldo\n");
+		pr_msg("sunxi pmu error : unable to onoff gpio0ldo\n");
 
 		return -1;
 	}
@@ -788,7 +788,7 @@ static int axp20_set_gpio1ldo(int set_vol, int onoff)
 	}
 	if(axp_i2c_write(AXP20_ADDR, BOOT_POWER20_GPIO1_CTL, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff gpio1ldo\n");
+		pr_msg("sunxi pmu error : unable to onoff gpio1ldo\n");
 
 		return -1;
 	}

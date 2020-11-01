@@ -22,7 +22,7 @@
  */
 
 /*
- * Allwinner secure storage data format 
+ * Allwinner secure storage data format
  */
 #include <common.h>
 #include <command.h>
@@ -163,7 +163,7 @@ int sunxi_secure_object_read(const char *item_name, char *buffer, int buffer_len
 
 	ret = sunxi_secure_storage_read(item_name, secure_object, 4096, &retLen);
 	if(ret){
-		printf("sunxi storage read fail\n");
+		pr_error("sunxi storage read fail\n");
 		return -1 ;
 	}
 	so = (store_object_t *)secure_object;
@@ -201,7 +201,7 @@ int sunxi_secure_object_write(const char *item_name, char *buffer, int length)
 	memset(secure_object, 0, 4096);
 	ret = wrap_secure_object((void *)buffer, item_name, length,secure_object,&retLen);
 	if(ret <0 || retLen >4096){
-		printf("wrap fail before secure storage write\n");
+		pr_error("wrap fail before secure storage write\n");
 		return -1 ;
 	}
 	so = (store_object_t *)secure_object;
@@ -260,21 +260,21 @@ static int secure_object_op_test(void)
 
 	tagt = (unsigned char *)malloc(LEN);
 	if(!tagt){
-		printf("out of memory\n");
+		pr_error("out of memory\n");
 		return -1 ;
 	}
 
 	ret = wrap_secure_object( hdmi_data, "HDMI",  
 							ARRAY_SIZE(hdmi_data), tagt, &retLen ) ;
 	if( ret <0){
-		printf("Error: wrap secure object fail\n");
+		pr_error("Error: wrap secure object fail\n");
 		free(tagt);
 		return -1 ;
 	}
 
 	ret = sunxi_secure_storage_write( "HDMI" , (void *)tagt, retLen )	;
 	if(ret <0){
-		printf("Error: store HDMI object fail\n");
+		pr_error("Error: store HDMI object fail\n");
 		free(tagt);
 		return -1 ;
 	}
@@ -282,17 +282,17 @@ static int secure_object_op_test(void)
 	ret = sunxi_secure_storage_read( "HDMI" , (void *)sec_buf, 
 			4096 , (int *)&retLen )	;
 	if(ret <0){
-		printf("Error: store HDMI object read fail\n");
+		pr_error("Error: store HDMI object read fail\n");
 		free(tagt);
 		return -1 ;
 	}
 	
 	if( memcmp(tagt, sec_buf, retLen ) !=0 ){
-		printf("Error: HDMI write/read fail\n");
+		pr_error("Error: HDMI write/read fail\n");
 		return -1 ;
 	}
 	
-	printf("HDMI dump:\n");
+	pr_msg("HDMI dump:\n");
 			print_buffer((u32)sec_buf,
 					(void*)sec_buf,
 					 1,
@@ -302,14 +302,14 @@ static int secure_object_op_test(void)
 	ret = wrap_secure_object(widevine_data, "Widevine",  
 							ARRAY_SIZE(widevine_data), tagt, &retLen ) ;
 	if( ret <0){
-		printf("Error: wrap secure object fail\n");
+		pr_error("Error: wrap secure object fail\n");
 		free(tagt);
 		return -1 ;
 	}
 
 	ret = sunxi_secure_storage_write( "Widevine" , (void *)tagt, retLen )	;
 	if(ret <0){
-		printf("Error: store Widevine object fail\n");
+		pr_error("Error: store Widevine object fail\n");
 		free(tagt);
 		return -1 ;
 	}
@@ -317,17 +317,17 @@ static int secure_object_op_test(void)
 	ret = sunxi_secure_storage_read( "Widevine" , (void *)sec_buf, 
 			4096 , (int *)&retLen )	;
 	if(ret <0){
-		printf("Error: store Widevine object read fail\n");
+		pr_error("Error: store Widevine object read fail\n");
 		free(tagt);
 		return -1 ;
 	}
 	
 	if( memcmp(tagt, sec_buf, retLen ) !=0 ){
-		printf("Error: Widevine write/read fail\n");
+		pr_error("Error: Widevine write/read fail\n");
 		return -1 ;
 	}
 			
-	printf("Widevine dump:\n");
+	pr_msg("Widevine dump:\n");
 	print_buffer((u32)sec_buf,
 					(void*)sec_buf,
 					 1,
@@ -375,20 +375,20 @@ static int sunxi_secure_object_list(void)
 
 	if(sunxi_secure_storage_init())
 	{
-		printf("%s secure storage init err\n", __func__);
+		pr_error("%s secure storage init err\n", __func__);
 
 		return -1;
 	}
 	
 	if( sunxi_secstorage_read( 0 , _inner_buffer,4096  )<0){
-		printf("read map fail\n");
+		pr_error("read map fail\n");
 		return -1 ;
 	}
 
 	char  name[64], length[32];
 	int   i,j, len;
 
-	printf("Map: \n");
+	pr_msg("Map: \n");
 	sunxi_dump(_inner_buffer,0x100 );
 
 	while(*buf_start != '\0')
@@ -409,7 +409,7 @@ static int sunxi_secure_object_list(void)
 		}
 
 		len = simple_strtoul((const char *)length, NULL, 10);
-		printf("name in map %s, len 0x%x\n", name,len);
+		pr_msg("name in map %s, len 0x%x\n", name,len);
 		memset(buffer, 0, 4096);
 
 		if( !strncmp("key_burned_flag", name, strlen("key_burned_flag") ))
@@ -418,19 +418,19 @@ static int sunxi_secure_object_list(void)
 			ret = sunxi_secure_object_read(name, (void *)buffer, 4096, &retLen);
 		if(ret < 0)
 		{
-			printf("get secure storage index %d err\n", index);
+			pr_error("get secure storage index %d err\n", index);
 
 			return -1;
 		}
 		else if(ret > 0)
 		{
-			printf("the secure storage index %d is empty\n", index);
+			pr_error("the secure storage index %d is empty\n", index);
 
 			return -1;
 		}
 		else
 		{
-			printf("%d data:\n", index);
+			pr_msg("%d data:\n", index);
 			sunxi_dump(buffer, retLen);
 		}
 		index ++;
@@ -452,12 +452,12 @@ static int cmd_secure_object(cmd_tbl_t *cmdtp, int flag, int argc, char * const 
 	int ret = -1;
 	
 	if(argc >3 || argc <1){
-		printf("wrong argc\n");
+		pr_error("wrong argc\n");
 		return -1 ;
 	}
 
 	if( sunxi_secure_storage_init() < 0  ){
-		printf("secure storage init fail\n");
+		pr_error("secure storage init fail\n");
 		return -1 ;
 	}
 
@@ -486,7 +486,7 @@ static int cmd_secure_object(cmd_tbl_t *cmdtp, int flag, int argc, char * const 
 		ret = cmd_usage(cmdtp);
 
 	if( sunxi_secure_storage_exit() < 0  ){
-		printf("secure storage exit fail\n");
+		pr_error("secure storage exit fail\n");
 		return -1 ;
 	}
 	return ret;
@@ -501,7 +501,7 @@ int sunxi_secure_object_down( const char *name , char *buf, int len, int encrypt
 	sunxi_secure_storage_info_t secdata;
 
 	if (len > 4096) {
-		printf("the input key is too long!\n");
+		pr_error("the input key is too long!\n");
 
 		return -1;
 	}
@@ -513,9 +513,10 @@ int sunxi_secure_object_down( const char *name , char *buf, int len, int encrypt
 		lower_name[i] = tolower(name[i]);
 		i++;
 	}
-	memcpy(secdata.name, lower_name, 64);
+	strcpy(secdata.name, lower_name);
+	secdata.encrypted = encrypt;
 	secdata.write_protect = write_protect;
-
+	secdata.len = len;
 	if(gd->securemode == SUNXI_SECURE_MODE_WITH_SECUREOS)
 	{
 		if(!strcmp("hdcpkey", secdata.name))
@@ -524,24 +525,22 @@ int sunxi_secure_object_down( const char *name , char *buf, int len, int encrypt
 			ret = smc_tee_ssk_encrypt(secdata.key_data, buf, len,&align_len);
 		if (ret)
 		{
-			printf("ssk encrypt failed\n");
+			pr_error("ssk encrypt failed\n");
 			return -1;
 		}
 		secdata.len = align_len;
 		sunxi_dump(secdata.key_data, secdata.len);
-		secdata.encrypted = 1;
 	}
 	else
 	{
 		debug("no secure os, data can't be encrypted\n");
 		memcpy(secdata.key_data,buf,len);
-		secdata.len = len;
 	}
 
 	ret = sunxi_secure_object_write(lower_name, (void*)&secdata,
 		SUNXI_SECURE_STORTAGE_INFO_HEAD_LEN + secdata.len);
 	if (ret) {
-		printf("secure storage write fail\n");
+		pr_error("secure storage write fail\n");
 
 		return -1;
 	}
@@ -559,7 +558,7 @@ int sunxi_secure_object_up(const char *name,char *buf,int len)
 	ret = sunxi_secure_object_read(name, (char *)&secdata, sizeof(secdata), &data_len);
 	if (ret)
 	{
-		printf("secure storage read fail\n");
+		pr_error("secure storage read %s fail\n", name);
 		return -1;
 	}
 	if(buf)
@@ -576,49 +575,3 @@ U_BOOT_CMD(
 	"\t Allwinner secure object storage \n"
 	);
 
-#if defined(CONFIG_SUNXI_SECURE_STORAGE)
-int sunxi_widevine_keybox_install(void)
-{
-	int ret = -1;
-	int workmode;
-	sunxi_secure_storage_info_t secure_object;
-
-	workmode =  get_boot_work_mode();
-	if (workmode != WORK_MODE_BOOT)
-		return 0;
-
-	if (gd->securemode != SUNXI_SECURE_MODE_WITH_SECUREOS)
-		return 0;
-
-	memset(&secure_object, 0, sizeof(secure_object));
-	if (sunxi_secure_storage_init() < 0) {
-		pr_error("secure storage init fail\n");
-		ret = -1;
-		goto out;
-	}
-
-	ret = sunxi_secure_object_up("widevine",
-		(void *)&secure_object, sizeof(secure_object));
-	if (ret) {
-		pr_error("secure storage read fail\n");
-		ret = -1;
-		goto out;
-	}
-
-
-	ret = smc_tee_keybox_store("widevine",
-		(void *)&secure_object, sizeof(secure_object));
-	if (ret) {
-		pr_error("key install fail\n");
-		ret = -1;
-		goto out;
-	}
-
-	pr_msg("key install finish\n");
-	return 0;
-out:
-	pr_error("Widevine key install fail !!!\n");
-	return 0;
-}
-
-#endif

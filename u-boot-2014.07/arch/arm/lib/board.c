@@ -64,24 +64,24 @@ extern void dataflash_print_info(void);
  ************************************************************************
  * May be supplied by boards if desired
  */
-static void  __coloured_LED_init(void) {}
+inline void __coloured_LED_init(void) {}
 void coloured_LED_init(void)
 	__attribute__((weak, alias("__coloured_LED_init")));
-static void  __red_led_on(void) {}
+inline void __red_led_on(void) {}
 void red_led_on(void) __attribute__((weak, alias("__red_led_on")));
-static void  __red_led_off(void) {}
+inline void __red_led_off(void) {}
 void red_led_off(void) __attribute__((weak, alias("__red_led_off")));
-static void  __green_led_on(void) {}
+inline void __green_led_on(void) {}
 void green_led_on(void) __attribute__((weak, alias("__green_led_on")));
-static void  __green_led_off(void) {}
+inline void __green_led_off(void) {}
 void green_led_off(void) __attribute__((weak, alias("__green_led_off")));
-static void  __yellow_led_on(void) {}
+inline void __yellow_led_on(void) {}
 void yellow_led_on(void) __attribute__((weak, alias("__yellow_led_on")));
-static void  __yellow_led_off(void) {}
+inline void __yellow_led_off(void) {}
 void yellow_led_off(void) __attribute__((weak, alias("__yellow_led_off")));
-static void  __blue_led_on(void) {}
+inline void __blue_led_on(void) {}
 void blue_led_on(void) __attribute__((weak, alias("__blue_led_on")));
-static void  __blue_led_off(void) {}
+inline void __blue_led_off(void) {}
 void blue_led_off(void) __attribute__((weak, alias("__blue_led_off")));
 
 /*
@@ -267,10 +267,10 @@ init_fnc_t *init_sequence[] = {
 
 void board_init_f(ulong bootflag)
 {
-	bd_t *bd = NULL;
-	init_fnc_t **init_fnc_ptr = NULL;
-	gd_t *id = NULL;
-	ulong addr = 0, addr_sp = 0;
+	bd_t *bd;
+	init_fnc_t **init_fnc_ptr;
+	gd_t *id;
+	ulong addr, addr_sp;
 #ifdef CONFIG_PRAM
 	ulong reg;
 #endif

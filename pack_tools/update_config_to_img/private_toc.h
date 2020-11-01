@@ -126,7 +126,6 @@ sbrom_toc0_config_t;
 #define ITEM_DTB_NAME         "dtb"
 #define ITEM_SOCCFG_NAME           "soc-cfg"
 #define ITEM_BDCFG_NAME            "board-cfg"
-#define ITEM_BDCFG_FEX_NAME            "board-fex"
 #define ITEM_SHUTDOWNCHARGE_LOGO_NAME   "shutdowncharge"
 #define ITEM_ANDROIDCHARGE_LOGO_NAME    "androidcharge"
 

@@ -150,11 +150,8 @@ extern s32 fb_exit(void);
 #endif
 extern int lcd_init(void);
 extern int Hdmi_init(void);
-
-#if defined(CVBS_MODE_USED_GM7121)
-extern int  gm7121_module_init(void);
-extern void  gm7121_module_exit(void);
-#endif
+//extern int  gm7121_module_init(void);
+//extern void  gm7121_module_exit(void);
 
 s32 disp_set_hdmi_func(disp_hdmi_func * func);
 #if defined(__LINUX_PLAT__)

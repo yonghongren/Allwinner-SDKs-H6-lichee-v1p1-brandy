@@ -37,33 +37,23 @@
 *
 ************************************************************************************************************
 */
-int createcnf_for_package(char *lpCfg, toc_descriptor_t *package, int type)
+int createcnf_for_package(char *lpCfg, toc_descriptor_t *package)
 {
 	char all_package[1024];
 	int  i;
 	char *all_package_line[16];
 	char type_name[32], line_info[256];
 	char bin_name[64];
-	char package_name[20];
 
 	memset(all_package, 0, 1024);
 	memset(all_package_line, 0, 16 * sizeof(char *));
 
-	if( type == 0)
-	{
-		sprintf(package_name, "%s", "toc1");
-	}
-	else if( type == 1)
-	{
-		sprintf(package_name, "%s", "package");
-	}
-
-	if(GetPrivateProfileSection(package_name, all_package, 1024, lpCfg))
+	if(GetPrivateProfileSection("package", all_package, 1024, lpCfg))
 	{
 		printf("dragoncreate_package err in GetPrivateProfileSection\n");
+
 		return -1;
 	}
-
 	if(all_package[0] == '\0')
 	{
 		printf("dragoncreate_package err no content match package\n");

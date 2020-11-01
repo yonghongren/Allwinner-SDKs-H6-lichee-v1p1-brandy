@@ -30,14 +30,15 @@ obj-y	+= sys_partition.o
 endif
 
 obj-y   += sunxi_string.o
+obj-$(CONFIG_SUNXI_MAC)          += sunxi_mac.o
 obj-$(CONFIG_SUNXI_MODULE_AXP)   += power_probe.o power_check.o
 obj-y   += sunxi_debug.o
 obj-y   += check_key_uart.o
 obj-y   += debug_mode.o
 obj-$(CONFIG_SUNXI_KEY_BURN)   += key_burn.o
-obj-$(CONFIG_SUNXI_SERIAL)   += sunxi_serial.o
-obj-$(CONFIG_BOX_STANDBY)	 += box_standby.o
-obj-$(CONFIG_BOOT_PARAMETER) += bootparam.o
+obj-$(CONFIG_SUNXI_SERIAL)     += sunxi_serial.o
+obj-$(CONFIG_BOX_STANDBY)      += box_standby.o
+obj-$(CONFIG_BOOT_PARAMETER)   += bootparam.o
 
 obj-y	  +=de_weak.o
 obj-$(CONFIG_VIDEO_SUNXI_V1)   += de_v1.o
@@ -46,7 +47,6 @@ obj-$(CONFIG_VIDEO_SUNXI_V3)   += de_v3.o
 
 obj-y += grallocator.o
 obj-$(CONFIG_BOOT_GUI)   += bootGUI/
-obj-$(CONFIG_TINYJPEG_DECODER)  += tinyjpegdecoder/
 
 ifdef CONFIG_SUNXI_MULITCORE_BOOT
 obj-y   += secondary_main.o
@@ -54,3 +54,4 @@ endif
 
 obj-y   += board_common.o
 
+subdir-ccflags-$(CONFIG_SUNXI_FINS_FUNC_BOARD_DIR) += -finstrument-functions

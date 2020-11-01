@@ -25,7 +25,7 @@ static  char  *script_mod_buf = NULL;           //指向第一个主键
 static  int    script_main_key_count = 0;       //保存主键的个数
 
 
-//__asm__(".symver memcpy ,memcpy@GLIBC_2.2.5");
+
 static  int   _test_str_length(char *str)
 {
 	int length = 0;

@@ -82,24 +82,24 @@ DECLARE_GLOBAL_DATA_PTR;
  ************************************************************************
  * May be supplied by boards if desired
  */
-static void  __coloured_LED_init(void) {}
+inline void __coloured_LED_init(void) {}
 void coloured_LED_init(void)
 	__attribute__((weak, alias("__coloured_LED_init")));
-static void  __red_led_on(void) {}
+inline void __red_led_on(void) {}
 void red_led_on(void) __attribute__((weak, alias("__red_led_on")));
-static void  __red_led_off(void) {}
+inline void __red_led_off(void) {}
 void red_led_off(void) __attribute__((weak, alias("__red_led_off")));
-static void  __green_led_on(void) {}
+inline void __green_led_on(void) {}
 void green_led_on(void) __attribute__((weak, alias("__green_led_on")));
-static void  __green_led_off(void) {}
+inline void __green_led_off(void) {}
 void green_led_off(void) __attribute__((weak, alias("__green_led_off")));
-static void  __yellow_led_on(void) {}
+inline void __yellow_led_on(void) {}
 void yellow_led_on(void) __attribute__((weak, alias("__yellow_led_on")));
-static void  __yellow_led_off(void) {}
+inline void __yellow_led_off(void) {}
 void yellow_led_off(void) __attribute__((weak, alias("__yellow_led_off")));
-static void  __blue_led_on(void) {}
+inline void __blue_led_on(void) {}
 void blue_led_on(void) __attribute__((weak, alias("__blue_led_on")));
-static void  __blue_led_off(void) {}
+inline void __blue_led_off(void) {}
 void blue_led_off(void) __attribute__((weak, alias("__blue_led_off")));
 
 /*
@@ -155,7 +155,7 @@ static int display_text_info(void)
 
 	bss_start = (ulong)&__bss_start;
 	bss_end = (ulong)&__bss_end;
-	printf("uboot commit : %s \n",uboot_hash_value);
+	pr_msg("uboot commit : %s \n",uboot_hash_value);
 	debug("U-Boot code: %08X -> %08lX  BSS: -> %08lX\n",
 	      CONFIG_SYS_TEXT_BASE, bss_start, bss_end);
 #endif
@@ -171,24 +171,9 @@ static int display_text_info(void)
 	return 0;
 }
 
-#ifdef SUNXI_OTA_TEST
-static int display_ota_test(void)
-{
-	printf("*********************************************\n");
-	printf("*********************************************\n");
-	printf("*********************************************\n");
-	printf("*********************************************\n");
-	printf("********[OTA TEST]:update uboot sucess*******\n");
-	printf("*********************************************\n");
-	printf("*********************************************\n");
-	printf("*********************************************\n");
-	printf("*********************************************\n");
-	return 0;
-}
-#endif
 static int announce_dram_init(void)
 {
-	puts("DRAM:  ");
+	pr_msg("DRAM:  ");
 	return 0;
 }
 
@@ -317,18 +302,18 @@ static int read_fdt_from_file(void)
 		err = fdt_create_empty_tree(blob, 256);
 		if (!err)
 			goto done;
-		printf("Unable to create empty FDT: %s\n", fdt_strerror(err));
+		pr_msg("Unable to create empty FDT: %s\n", fdt_strerror(err));
 		return -EINVAL;
 	}
 
 	size = os_get_filesize(fname);
 	if (size < 0) {
-		printf("Failed to file FDT file '%s'\n", fname);
+		pr_msg("Failed to file FDT file '%s'\n", fname);
 		return -ENOENT;
 	}
 	fd = os_open(fname, OS_O_RDONLY);
 	if (fd < 0) {
-		printf("Failed to open FDT file '%s'\n", fname);
+		pr_msg("Failed to open FDT file '%s'\n", fname);
 		return -EACCES;
 	}
 	if (os_read(fd, blob, size) != size) {
@@ -451,12 +436,12 @@ static int reserve_debugbuffer(void)
 #endif
 
 
-#if defined(CONFIG_LOGBUFFER) && !defined(CONFIG_ALT_LB_ADDR)
+#if defined(CONFIG_SUNXI_LOGBUFFER)
 static int reserve_logbuffer(void)
 {
 	/* reserve kernel log buffer */
-	gd->relocaddr -= LOGBUFF_RESERVE;
-	debug("Reserving %dk for kernel logbuffer at %08lx\n", LOGBUFF_LEN,
+	gd->relocaddr -= SUNXI_DISPLAY_FRAME_BUFFER_SIZE;
+	debug("Reserving %dk for kernel logbuffer at %08lx\n", SUNXI_DISPLAY_FRAME_BUFFER_SIZE,
 		gd->relocaddr);
 	return 0;
 }
@@ -609,6 +594,27 @@ static int reserve_global_data(void)
 	return 0;
 }
 
+static int reserve_parameter(void)
+{
+#ifdef CONFIG_RELOCATE_PARAMETER
+	/*
+	 * reserve memory for parameter
+	 * round down to next 4 kB limit
+	 */
+	ulong parameter_size = BOOT_PARAMETER_SIZE;
+
+
+	gd->start_addr_sp -= parameter_size;
+
+	/*syscfg addr after reloc*/
+	gd->parameter_reloc_buf  = gd->start_addr_sp;
+	gd->parameter_reloc_size = parameter_size;  /*align size*/
+	debug("Reserving %ldk for SYS_CONFIG at: %08lx\n", parameter_size >> 10, gd->relocaddr);
+#endif
+	return 0;
+}
+
+
 static int reserve_sysconfig(void)
 {
 #ifdef CONFIG_RELOCATE_SYSCONIFG
@@ -621,7 +627,7 @@ static int reserve_sysconfig(void)
 	orign_head = (script_head_t *)CONFIG_SOCCFG_STORE_IN_DRAM_BASE;
 	soc_config_size = orign_head->length;
 	soc_config_size = roundup(soc_config_size,4*1024);
-	//soccfg addr after reloc
+	/*soccfg addr after reloc*/
 	gd->start_addr_sp -= soc_config_size;
 	set_script_reloc_buf(SOC_SCRIPT,gd->start_addr_sp);
 	set_script_reloc_size(SOC_SCRIPT,soc_config_size);
@@ -644,25 +650,7 @@ static int reserve_sysconfig(void)
 	return 0;
 }
 
-static int reserve_parameter(void)
-{
-#ifdef CONFIG_RELOCATE_PARAMETER
-	/*
-	 * reserve memory for parameter
-	 * round down to next 4 kB limit
-	 */
-	ulong parameter_size = BOOT_PARAMETER_SIZE;
 
-
-	gd->start_addr_sp -= parameter_size;
-
-	//syscfg addr after reloc
-	gd->parameter_reloc_buf  = gd->start_addr_sp;
-	gd->parameter_reloc_size = parameter_size;  //align size
-	debug("Reserving %ldk for SYS_CONFIG at: %08lx\n", parameter_size >> 10, gd->relocaddr);
-#endif
-	return 0;
-}
 
 static int reserve_fdt(void)
 {
@@ -674,7 +662,7 @@ static int reserve_fdt(void)
 	if (gd->fdt_blob) {
 		if(fdt_check_header(gd->fdt_blob) != 0)
 		{
-			printf("fdt header check error\n");
+			pr_msg("fdt header check error\n");
 			return -1;
 		}
 		//reserve memory for expand dtb ,because cmd_fdt will update the base dtb
@@ -883,7 +871,7 @@ static int reloc_parameter(void)
 	 * copy parameter data to reloc address
 	 */
 	ulong parameter_size = BOOT_PARAMETER_SIZE;
-	memcpy((void*)(gd->parameter_reloc_buf), (void*)(CONFIG_SUNXI_PARAMETER_ADDR), parameter_size);
+	memcpy((void *)(gd->parameter_reloc_buf), (void *)(CONFIG_SUNXI_PARAMETER_ADDR), parameter_size);
 
 #endif
 	return 0;
@@ -895,7 +883,7 @@ static int setup_reloc(void)
 	gd->reloc_off = gd->relocaddr - CONFIG_SYS_TEXT_BASE;
 	memcpy(gd->new_gd, (char *)gd, sizeof(gd_t));
 
-	printf("Relocation Offset is: %08lx\n", gd->reloc_off);
+	pr_msg("Relocation Offset is: %08lx\n", gd->reloc_off);
 	debug("Relocating to %08lx, new gd at %08lx, sp at %08lx\n",
 	      gd->relocaddr, (ulong)map_to_sysmem(gd->new_gd),
 	      gd->start_addr_sp);
@@ -952,7 +940,7 @@ static int init_func_pmubus(void)
 #else
 
 #endif
-	tick_printf("pmbus:   %s\n", ret? "not ready":"ready");
+	pr_msg("pmbus:   %s\n", ret? "not ready":"ready");
 	return (0);
 }
 
@@ -1039,9 +1027,6 @@ static init_fnc_t init_sequence_f[] = {
 #endif
 	display_options,	/* say that we are here */
 	display_text_info,	/* show debugging info if required */
-#ifdef SUNXI_OTA_TEST
-	display_ota_test,
-#endif
 	sunxi_probe_securemode,
 #if defined(CONFIG_MPC8260)
 	prt_8260_rsr,
@@ -1114,11 +1099,12 @@ static init_fnc_t init_sequence_f[] = {
 	 *  - board info struct
 	 */
 	setup_dest_addr,
+
+#if defined(CONFIG_SUNXI_LOGBUFFER)
+	reserve_logbuffer,
+#endif
 #ifdef CONFIG_SUNXI_DEBUG_BUF
 	reserve_debugbuffer,
-#endif
-#if defined(CONFIG_LOGBUFFER) && !defined(CONFIG_ALT_LB_ADDR)
-	reserve_logbuffer,
 #endif
 #ifdef CONFIG_PRAM
 	reserve_pram,

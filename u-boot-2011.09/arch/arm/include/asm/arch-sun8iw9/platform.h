@@ -63,7 +63,7 @@
 #define OHCI2_BASE			(0x01c1c000)
 
 #define TZASC_BASE			(0x01c1e000)
-
+#define SMC_BASE			(0x01c1e000)
 #define CCM_BASE			(0x01c20000)
 
 #define PIO_BASE			(0x01c20800)
@@ -79,6 +79,7 @@
 #define TZPC_BASE			(0x01c23400)
 #define SID_BASE			(0x01c23800)
 #define SJTAG_BASE			(0x01c23c00)
+#define SMTA_BASE			(0x01c23400)
 
 #define GPADC_BASE			(0x01c25000)
 
@@ -125,15 +126,8 @@
 #define ISP_BASE			(0x01cb8000)
 #define ISPMEM_BASE			(0x01cc0000)
 
-#define DEFE0_BASE			(0x01e00000)
-#define DEFE1_BASE			(0x01e20000)
-#define DRC1_BASE			(0x01e50000)
-#define DEBE0_BASE			(0x01e60000)
-#define DRC0_BASE			(0x01e70000)
-#define DEBE1_BASE			(0x01e40000)
-#define SAT0_BASE			(0x01e80000)
-#define DEU1_BASE			(0x01ea0000)
-#define DEU0_BASE			(0x01eb0000)
+#define DE_BASE	        	(0x01000000)
+#define DE_SIZE             (0x00400000)
 
 #define RTC_BASE			(0x01f00000)
 #define R_BREATH_BASE		(0x01f00400)

@@ -160,33 +160,12 @@ _err_out:
 	return 0;
 }
 
-int update_fes_extend_config(char *buf)
-{
-	int value[1] = {0};
-	fes_extend_config *fes_config;
-	fes_config = (fes_extend_config *)buf;
-	
-	if(check_extend_magic((__u32 *)fes_config, EXTEND_CONFIG_MAGIC) != CHECK_IS_CORRECT)
-	{
-		printf("check extend config magic error, maybe not used extend config\n");
-		return -1;
-	}
-
-	//取出if_reduce_power_waste进行修正,用于判断是否降低功耗
-	if(!script_parser_fetch("pmu1_para", "pmu_reduce_power_waste", value))
-	{
-		fes_config->if_reduce_power_waste = value[0];
-	}
-	return 0;
-}
 
 int update_for_fes1(char *fes1_name, int storage_type)
 {
 	FILE *fes1_file = NULL;
 	boot0_file_head_t  *fes1_head;
 	char *fes1_buf = NULL;
-	char *fes_config = NULL;
-
 	int   length = 0;
 	int   i;
 	int   ret = -1;
@@ -216,8 +195,6 @@ int update_for_fes1(char *fes1_name, int storage_type)
 	fread(fes1_buf, length, 1, fes1_file);
 	rewind(fes1_file);
 	fes1_head = (boot0_file_head_t *)fes1_buf;
-	fes_config = (char *)(fes1_buf + sizeof(boot0_file_head_t) + 64);
-
 	//检查fes1的数据结构是否完整
     ret = check_file( (unsigned int *)fes1_buf, fes1_head->boot_head.length, BOOT0_MAGIC );
     if( ret != CHECK_IS_CORRECT )
@@ -225,10 +202,8 @@ int update_for_fes1(char *fes1_name, int storage_type)
     	printf("stage1 check file is error\n");
 		goto _err_fes1_out;
 	}
-	//取出数据进行修正,供电方式
-	if (!script_parser_fetch("target", "power_mode", value))
-	{
-		fes1_head->prvt_head.power_mode = value[0];
+	if (!script_parser_fetch ("target", "power_mode", value)) {
+		fes1_head->prvt_head.prvt_head_vsn[1] = value[0];
 	}
 	//取出数据进行修正,DRAM参数
 	if(script_parser_sunkey_all("dram_para", (void *)fes1_head->prvt_head.dram_para))
@@ -278,8 +253,6 @@ int update_for_fes1(char *fes1_name, int storage_type)
 			fes1_head->prvt_head.jtag_gpio[i].data      = gpio_set[i].data;
 		}
 	}
-	update_fes_extend_config(fes_config);
-
 	//数据修正完毕
 	//重新计算校验和
 	gen_check_sum( (void *)fes1_buf );

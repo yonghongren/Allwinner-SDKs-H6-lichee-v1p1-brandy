@@ -42,8 +42,8 @@ int mmc_send_status(struct mmc *mmc, int timeout)
 
 	do {
 		err = mmc_send_cmd(mmc, &cmd, NULL);
-		if (err){
-			mmcinfo("mmc %d Send status failed\n",mmc->control_num);
+		if (err) {
+			mmcinfo("mmc %u Send status failed\n", mmc->control_num);
 			return err;
 		}
 		else if (cmd.response[0] & MMC_STATUS_RDY_FOR_DATA)
@@ -52,13 +52,13 @@ int mmc_send_status(struct mmc *mmc, int timeout)
 		__msdelay(1);
 
 		if (cmd.response[0] & MMC_STATUS_MASK) {
-			mmcinfo("mmc %d Status Error: 0x%08X\n",mmc->control_num, cmd.response[0]);
+			mmcinfo("mmc %u Status Error: 0x%08X\n", mmc->control_num, cmd.response[0]);
 			return COMM_ERR;
 		}
 	} while (timeout--);
 
 	if (!timeout) {
-		mmcinfo("mmc %d Timeout waiting card ready\n",mmc->control_num);
+		mmcinfo("mmc %u Timeout waiting card ready\n", mmc->control_num);
 		return TIMEOUT;
 	}
 
@@ -312,8 +312,8 @@ int mmc_read_blocks(struct mmc *mmc, void *dst, unsigned long start, unsigned bl
 	data.blocksize = mmc->read_bl_len;
 	data.flags = MMC_DATA_READ;
 
-	if (mmc_send_cmd(mmc, &cmd, &data)){
-		mmcinfo("mmc %d  read blcok failed\n",mmc->control_num);
+	if (mmc_send_cmd(mmc, &cmd, &data)) {
+		mmcinfo("mmc %u  read blcok failed\n", mmc->control_num);
 		return 0;
 	}
 
@@ -323,7 +323,7 @@ int mmc_read_blocks(struct mmc *mmc, void *dst, unsigned long start, unsigned bl
 		cmd.resp_type = MMC_RSP_R1b;
 		cmd.flags = 0;
 		if (mmc_send_cmd(mmc, &cmd, NULL)) {
-			mmcinfo("mmc %d fail to send stop cmd\n",mmc->control_num);
+			mmcinfo("mmc %u fail to send stop cmd\n", mmc->control_num);
 			return 0;
 		}
 
@@ -339,9 +339,8 @@ mmc_bread(int dev_num, unsigned long start, unsigned blkcnt, void *dst)
 {
 	unsigned cur, blocks_todo = blkcnt;
 	struct mmc *mmc = find_mmc_device(dev_num);
-
-	if (blkcnt == 0){
-		mmcinfo("mmc %d blkcnt should not be 0\n",mmc->control_num);
+	if (blkcnt == 0) {
+		mmcinfo("mmc %u blkcnt should not be 0\n", mmc->control_num);
 		return 0;
 	}
 	if (!mmc){
@@ -350,20 +349,19 @@ mmc_bread(int dev_num, unsigned long start, unsigned blkcnt, void *dst)
 	}
 
 	if ((start + blkcnt) > mmc->lba) {
-		mmcinfo("mmc %d: block number 0x%x exceeds max(0x%x)\n",mmc->control_num,
+		mmcinfo("mmc %u: block number 0x%x exceeds max(0x%x)\n", mmc->control_num,
 			(unsigned int)(start + blkcnt), (unsigned int)mmc->lba);
 		return 0;
 	}
-
-	if (mmc_set_blocklen(mmc, mmc->read_bl_len)){
-		mmcinfo("mmc %d Set block len failed\n",mmc->control_num);
+	if (mmc_set_blocklen(mmc, mmc->read_bl_len)) {
+		mmcinfo("mmc %u Set block len failed\n", mmc->control_num);
 		return 0;
 	}
 
 	do {
 		cur = (blocks_todo > mmc->b_max) ?  mmc->b_max : blocks_todo;
-		if(mmc_read_blocks(mmc, dst, start, cur) != cur){
-			mmcinfo("mmc %d block read failed\n",mmc->control_num);
+		if (mmc_read_blocks(mmc, dst, start, cur) != cur) {
+			mmcinfo("mmc %u block read failed\n", mmc->control_num);
 			return 0;
 		}
 		blocks_todo -= cur;
@@ -374,6 +372,85 @@ mmc_bread(int dev_num, unsigned long start, unsigned blkcnt, void *dst)
 
 	return blkcnt;
 }
+
+/**
+ * mmc_read_bootp - read  boot partition data
+ * @dev_num: card number
+ * @start:start sector
+ * @blkcnt:count of sector data to transfer
+ * @part_nu: emmc boot partition number,should be 1 or 2
+ * @dst: data buffer address to be writen from emmc
+ *
+ * return number of sector has been read from emmc,if return 0, it mean failed;
+ */
+
+unsigned long
+mmc_bread_bootp(int dev_num,
+				unsigned long start,
+				unsigned blkcnt,
+				int part_nu,
+				void *dst)
+{
+	lbaint_t blocks_do_boot = 0;
+	ulong start_todo = start;
+	struct mmc *mmc = find_mmc_device(dev_num);
+
+	if (mmc->boot_support) {
+		if ((part_nu != MMC_SWITCH_PART_BOOT_PART_1)
+			&& part_nu != MMC_SWITCH_PART_BOOT_PART_2) {
+			mmcinfo("%s,%d:wrong mmc boot partition numuber %d:\n",
+			__FUNCTION__, __LINE__, part_nu);
+			return 0;
+		}
+
+		if ((start + blkcnt) > (mmc->capacity_boot/512)) {
+			mmcinfo("%s,%d: over emmc boot part size\n",
+			__FUNCTION__, __LINE__);
+			return 0;
+		}
+
+		if (mmc_switch_part(dev_num, part_nu)) {
+			mmcinfo("%s: switch to boot%d part failed\n",
+			__FUNCTION__, part_nu);
+			return 0;
+		}
+
+		blocks_do_boot = mmc_bread(dev_num, start_todo, blkcnt, dst);
+		if (blocks_do_boot != blkcnt) {
+			mmcinfo("%s: get boot0 from boot part err\n",
+			__FUNCTION__);
+			return 0;
+		} else {
+			mmcdbg("%s: get boot0 from boot part ok\n",
+			__FUNCTION__);
+		}
+
+		if (mmc_switch_part(dev_num, 0)) {
+			mmcinfo("%s: switch back to user part failed",
+			__FUNCTION__);
+			return 0;
+		}
+		return blocks_do_boot;
+	} else {
+		mmcinfo("%s,%d: don't support boot partition\n",
+		__FUNCTION__, __LINE__);
+		return 0;
+	}
+}
+
+
+/**
+ * mmc_get_boot_cap - get emmc boot partition capacity
+ * @dev_num: card number
+ *
+ * return number of sector of emmc boot partition capacity;
+ */
+u64 mmc_get_boot_cap(int dev_num)
+{
+	struct mmc *mmc = find_mmc_device(dev_num);
+	return mmc->capacity_boot/512;
+}
+
 
 int mmc_go_idle(struct mmc* mmc)
 {
@@ -388,9 +465,8 @@ int mmc_go_idle(struct mmc* mmc)
 	cmd.flags = 0;
 
 	err = mmc_send_cmd(mmc, &cmd, NULL);
-
-	if (err){
-		mmcinfo("mmc %d go idle failed\n",mmc->control_num);
+	if (err) {
+		mmcinfo("mmc %u go idle failed\n", mmc->control_num);
 		return err;
 	}
 
@@ -413,9 +489,8 @@ sd_send_op_cond(struct mmc *mmc)
 		cmd.flags = 0;
 
 		err = mmc_send_cmd(mmc, &cmd, NULL);
-
-		if (err){
-			mmcinfo("mmc %d send app cmd failed\n",mmc->control_num);
+	if (err) {
+			mmcinfo("mmc %u send app cmd failed\n", mmc->control_num);
 			return err;
 		}
 
@@ -436,17 +511,15 @@ sd_send_op_cond(struct mmc *mmc)
 			cmd.cmdarg |= OCR_HCS;
 
 		err = mmc_send_cmd(mmc, &cmd, NULL);
-
-		if (err){
-			mmcinfo("mmc %d send cmd41 failed\n",mmc->control_num);
+		if (err) {
+			mmcinfo("mmc %u send cmd41 failed\n", mmc->control_num);
 			return err;
 		}
 
 		__msdelay(1);
 	} while ((!(cmd.response[0] & OCR_BUSY)) && timeout--);
-
-	if (timeout <= 0){
-		mmcinfo("mmc %d wait card init failed\n",mmc->control_num);
+	if (timeout <= 0) {
+		mmcinfo("mmc %u wait card init failed\n", mmc->control_num);
 		return UNUSABLE_ERR;
 	}
 
@@ -460,9 +533,8 @@ sd_send_op_cond(struct mmc *mmc)
 		cmd.flags = 0;
 
 		err = mmc_send_cmd(mmc, &cmd, NULL);
-
-		if (err){
-			mmcinfo("mmc %d spi read ocr failed\n",mmc->control_num);
+		if (err) {
+			mmcinfo("mmc %u spi read ocr failed\n", mmc->control_num);
 			return err;
 		}
 	}
@@ -492,9 +564,8 @@ int mmc_send_op_cond(struct mmc *mmc)
 
   //mmcinfo("mmc send op cond arg not zero !!!\n");
 	err = mmc_send_cmd(mmc, &cmd, NULL);
-
-	if (err){
-		mmcinfo("mmc %d send op cond failed\n",mmc->control_num);
+	if (err) {
+		mmcinfo("mmc %u send op cond failed\n", mmc->control_num);
 		return err;
 	}
 
@@ -514,17 +585,15 @@ int mmc_send_op_cond(struct mmc *mmc)
 		cmd.flags = 0;
 
 		err = mmc_send_cmd(mmc, &cmd, NULL);
-
-		if (err){
-			mmcinfo("mmc %d send op cond failed\n",mmc->control_num);
+		if (err) {
+			mmcinfo("mmc %u send op cond failed\n", mmc->control_num);
 			return err;
 		}
 
 		__msdelay(1);
 	} while (!(cmd.response[0] & OCR_BUSY) && timeout--);
-
-	if (timeout <= 0){
-		mmcinfo("mmc %d wait for mmc init failed\n",mmc->control_num);
+	if (timeout <= 0) {
+		mmcinfo("mmc %u wait for mmc init failed\n", mmc->control_num);
 		return UNUSABLE_ERR;
 	}
 
@@ -567,9 +636,8 @@ int mmc_send_ext_csd(struct mmc *mmc, char *ext_csd)
 	data.flags = MMC_DATA_READ;
 
 	err = mmc_send_cmd(mmc, &cmd, &data);
-	if(err)
-		mmcinfo("mmc %d send ext csd failed\n",mmc->control_num);
-
+	if (err)
+		mmcinfo("mmc %u send ext csd failed\n", mmc->control_num);
 	return err;
 }
 
@@ -595,8 +663,8 @@ int mmc_switch(struct mmc *mmc, u8 set, u8 index, u8 value)
 	cmd.flags = 0;
 
 	ret = mmc_send_cmd(mmc, &cmd, NULL);
-	if(ret){
-		mmcinfo("mmc %d switch failed\n",mmc->control_num);
+	if (ret) {
+		mmcinfo("mmc %u switch failed\n", mmc->control_num);
 	}
 
 	/* for re-update sample phase */
@@ -631,9 +699,8 @@ int mmc_change_freq(struct mmc *mmc)
 
 	mmc->card_caps |= MMC_MODE_4BIT|MMC_MODE_8BIT;
 	err = mmc_send_ext_csd(mmc, ext_csd);
-
-	if (err){
-		mmcinfo("mmc %d get ext csd failed\n",mmc->control_num);
+	if (err) {
+		mmcinfo("mmc %u get ext csd failed\n", mmc->control_num);
 		return err;
 	}
 
@@ -647,18 +714,16 @@ int mmc_change_freq(struct mmc *mmc)
 			break;
 		}
 		mmcinfo("retry mmc switch(cmd6)\n");
-	}while(retry--);
-
-	if (err){
-		mmcinfo("mmc %d change to hs failed\n",mmc->control_num);
+	} while (retry--);
+	if (err) {
+		mmcinfo("mmc %u change to hs failed\n", mmc->control_num);
 		return err;
 	}
 
 	/* Now check to see that it worked */
 	err = mmc_send_ext_csd(mmc, ext_csd);
-
-	if (err){
-		mmcinfo("mmc %d send ext csd faild\n",mmc->control_num);
+	if (err) {
+		mmcinfo("mmc %u send ext csd faild\n", mmc->control_num);
 		return err;
 	}
 
@@ -738,9 +803,8 @@ int sd_change_freq(struct mmc *mmc)
 	cmd.flags = 0;
 
 	err = mmc_send_cmd(mmc, &cmd, NULL);
-
-	if (err){
-		mmcinfo("mmc %d Send app cmd failed\n",mmc->control_num);
+	if (err) {
+		mmcinfo("mmc %u Send app cmd failed\n", mmc->control_num);
 		return err;
 	}
 
@@ -762,8 +826,7 @@ retry_scr:
 	if (err) {
 		if (timeout--)
 			goto retry_scr;
-
-		mmcinfo("mmc %d Send scr failed\n",mmc->control_num);
+		mmcinfo("mmc %u Send scr failed\n", mmc->control_num);
 		return err;
 	}
 
@@ -796,9 +859,8 @@ retry_scr:
 	while (timeout--) {
 		err = sd_switch(mmc, SD_SWITCH_CHECK, 0, 1,
 				(u8 *)&switch_status);
-
-		if (err){
-			mmcinfo("mmc %d Check high speed status faild\n",mmc->control_num);
+		if (err) {
+			mmcinfo("mmc %u Check high speed status faild\n", mmc->control_num);
 			return err;
 		}
 
@@ -813,8 +875,8 @@ retry_scr:
 
 	err = sd_switch(mmc, SD_SWITCH_SWITCH, 0, 1, (u8 *)&switch_status);
 
-	if (err){
-		mmcinfo("mmc %d switch to high speed failed\n",mmc->control_num);
+	if (err) {
+		mmcinfo("mmc %u switch to high speed failed\n", mmc->control_num);
 		return err;
 	}
 
@@ -904,6 +966,7 @@ int mmc_startup(struct mmc *mmc)
 	struct mmc_cmd cmd;
 	char ext_csd[512];
 	int timeout = 1000;
+	int i = 0;
 	char *spd_name[] = {"DS26/SDR12", "HSSDR52/SDR25", "HSDDR52/DDR50", "HS200/SDR104", "HS400"};
 
 	/* Put the Card in Identify Mode */
@@ -914,9 +977,8 @@ int mmc_startup(struct mmc *mmc)
 	cmd.flags = 0;
 
 	err = mmc_send_cmd(mmc, &cmd, NULL);
-
-	if (err){
-		mmcinfo("mmc %d Put the Card in Identify Mode failed\n",mmc->control_num);
+	if (err) {
+		mmcinfo("mmc %u Put the Card in Identify Mode failed\n", mmc->control_num);
 		return err;
 	}
 
@@ -934,9 +996,8 @@ int mmc_startup(struct mmc *mmc)
 		cmd.flags = 0;
 
 		err = mmc_send_cmd(mmc, &cmd, NULL);
-
-		if (err){
-			mmcinfo("mmc %d send rca failed\n",mmc->control_num);
+		if (err) {
+			mmcinfo("mmc %u send rca failed\n", mmc->control_num);
 			return err;
 		}
 
@@ -954,9 +1015,8 @@ int mmc_startup(struct mmc *mmc)
 
 	/* Waiting for the ready status */
 	mmc_send_status(mmc, timeout);
-
-	if (err){
-		mmcinfo("mmc %d get csd failed\n",mmc->control_num);
+	if (err) {
+		mmcinfo("mmc %u get csd failed\n", mmc->control_num);
 		return err;
 	}
 
@@ -1107,6 +1167,33 @@ int mmc_startup(struct mmc *mmc)
 		/* store the partition info of emmc */
 		if (ext_csd[160] & PART_SUPPORT)
 			mmc->part_config = ext_csd[179];
+
+
+	/* store the partition info of emmc */
+	if ((ext_csd[EXT_CSD_PARTITIONING_SUPPORT] & PART_SUPPORT) ||
+		ext_csd[EXT_CSD_BOOT_MULT]) {
+		mmc->part_config = ext_csd[EXT_CSD_PART_CONF];
+		mmc->capacity_boot = ext_csd[EXT_CSD_BOOT_MULT] * 128 * 1024;
+		mmc->capacity_rpmb = ext_csd[EXT_CSD_RPMB_MULT] * 128 * 1024;
+
+		if (mmc->capacity_boot) {
+			mmc->boot_support = 1;
+			mmc->boot_bus_cond = ext_csd[EXT_CSD_BOOT_BUS_WIDTH];
+		} else {
+			mmcdbg("not PART_SUPPORT ext_csd[226] = %d\n",
+			ext_csd[226]);
+		}
+
+		for (i = 0; i < 4; i++) {
+			int idx = EXT_CSD_GP_SIZE_MULT + i * 3;
+		mmc->capacity_gp[i] = ((u64)ext_csd[idx + 2] << 16) +
+		((u64)ext_csd[idx + 1] << 8) + (u64)ext_csd[idx];
+		mmc->capacity_gp[i] *= (u64)ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE];
+		mmc->capacity_gp[i] *= (u64)ext_csd[EXT_CSD_HC_WP_GRP_SIZE];
+		mmc->capacity_gp[i] *= 512*1024;/*512k*/
+		}
+	}
+
 	}
 
 	if (IS_SD(mmc))
@@ -1114,8 +1201,8 @@ int mmc_startup(struct mmc *mmc)
 	else
 		err = mmc_change_freq(mmc);
 
-	if (err){
-		mmcinfo("mmc %d Change speed mode failed\n",mmc->control_num);
+	if (err) {
+		mmcinfo("mmc %u Change speed mode failed\n", mmc->control_num);
 		return err;
 	}
 
@@ -1146,8 +1233,8 @@ int mmc_startup(struct mmc *mmc)
 			cmd.flags = 0;
 
 			err = mmc_send_cmd(mmc, &cmd, NULL);
-			if (err){
-				mmcinfo("mmc %d send app cmd failed\n",mmc->control_num);
+			if (err) {
+				mmcinfo("mmc %u send app cmd failed\n", mmc->control_num);
 				return err;
 			}
 
@@ -1156,8 +1243,8 @@ int mmc_startup(struct mmc *mmc)
 			cmd.cmdarg = 2;
 			cmd.flags = 0;
 			err = mmc_send_cmd(mmc, &cmd, NULL);
-			if (err){
-				mmcinfo("mmc %d sd set bus width failed\n",mmc->control_num);
+			if (err) {
+				mmcinfo("mmc %u sd set bus width failed\n", mmc->control_num);
 				return err;
 			}
 
@@ -1179,8 +1266,8 @@ int mmc_startup(struct mmc *mmc)
 				err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL,
 						EXT_CSD_BUS_WIDTH,
 						EXT_CSD_BUS_DDR_8);
-				if (err){
-					mmcinfo("mmc %d switch bus width failed\n", mmc->control_num);
+				if (err) {
+					mmcinfo("mmc %u switch bus width failed\n", mmc->control_num);
 					return err;
 				}
 				//mmc_set_bus_mode(mmc,1);
@@ -1190,9 +1277,8 @@ int mmc_startup(struct mmc *mmc)
 				err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL,
 						EXT_CSD_BUS_WIDTH,
 						EXT_CSD_BUS_WIDTH_8);
-
-				if (err){
-					mmcinfo("mmc %d switch bus width8 failed\n", mmc->control_num);
+			if (err) {
+					mmcinfo("mmc %u switch bus width8 failed\n", mmc->control_num);
 					return err;
 				}
 				mmc_set_bus_width(mmc, 8);
@@ -1204,8 +1290,8 @@ int mmc_startup(struct mmc *mmc)
 				err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL,
 						EXT_CSD_BUS_WIDTH,
 						EXT_CSD_BUS_DDR_4);
-				if (err){
-					mmcinfo("mmc %d switch bus width failed\n", mmc->control_num);
+				if (err) {
+					mmcinfo("mmc %u switch bus width failed\n", mmc->control_num);
 					return err;
 				}
 				//mmc_set_bus_mode(mmc,1);
@@ -1215,8 +1301,8 @@ int mmc_startup(struct mmc *mmc)
 				err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL,
 						EXT_CSD_BUS_WIDTH,
 						EXT_CSD_BUS_WIDTH_4);
-				if (err){
-					mmcinfo("mmc %d switch bus width failed\n", mmc->control_num);
+				if (err) {
+					mmcinfo("mmc %u switch bus width failed\n", mmc->control_num);
 					return err;
 				}
 				mmc_set_bus_width(mmc, 4);
@@ -1234,7 +1320,7 @@ int mmc_startup(struct mmc *mmc)
 			mmc->tran_speed = 26000000;
 		}
 	}
-	mmcdbg("%s: set clock %d\n", __FUNCTION__, mmc->tran_speed);
+	mmcdbg("%s: set clock %u\n", __FUNCTION__, mmc->tran_speed);
 	mmc_set_clock(mmc, mmc->tran_speed);
 
 	/* fill in device description */
@@ -1308,10 +1394,9 @@ int mmc_startup(struct mmc *mmc)
 		}
 	}
 #endif
-
-	mmcinfo("%s %d bit\n", spd_name[mmc->speed_mode], mmc->bus_width);
-	mmcinfo("%d Hz\n", mmc->clock);
-	mmcinfo("%d MB\n", mmc->lba >> 11);
+	mmcinfo("%s %u bit\n", spd_name[mmc->speed_mode], mmc->bus_width);
+	mmcinfo("%u Hz\n", mmc->clock);
+	mmcinfo("%u MB\n", mmc->lba >> 11);
 	return 0;
 }
 
@@ -1327,9 +1412,8 @@ int mmc_send_if_cond(struct mmc *mmc)
 	cmd.flags = 0;
 
 	err = mmc_send_cmd(mmc, &cmd, NULL);
-
-	if (err){
-		mmcinfo("mmc %d send if cond failed\n",mmc->control_num);
+	if (err) {
+		mmcinfo("mmc %u send if cond failed\n", mmc->control_num);
 		return err;
 	}
 
@@ -1346,15 +1430,14 @@ int mmc_init(struct mmc *mmc)
 	int err;
 	struct boot_sdmmc_private_info_t *priv_info =
 		(struct boot_sdmmc_private_info_t *)(mmc_config_addr + SDMMC_PRIV_INFO_ADDR_OFFSET);
-
-	if (mmc->has_init){
-		mmcinfo("mmc %d Has init\n",mmc->control_num);
+	if (mmc->has_init) {
+		mmcinfo("mmc %u Has init\n", mmc->control_num);
 		return 0;
 	}
 
 	err = mmc->init(mmc);
-	if (err){
-		mmcinfo("mmc %d host init failed\n",mmc->control_num);
+	if (err) {
+		mmcinfo("mmc %u host init failed\n", mmc->control_num);
 		return err;
 	}
 
@@ -1363,8 +1446,8 @@ int mmc_init(struct mmc *mmc)
 
 	/* Reset the Card */
 	err = mmc_go_idle(mmc);
-	if (err){
-		mmcinfo("mmc %d reset card failed\n",mmc->control_num);
+	if (err) {
+		mmcinfo("mmc %u reset card failed\n", mmc->control_num);
 		return err;
 	}
 
@@ -1391,38 +1474,29 @@ int mmc_init(struct mmc *mmc)
 		}
 	}
 #else
-	if (priv_info->card_type == CARD_TYPE_SD)
-	{
-		mmcinfo("***Try SD card %d***\n",mmc->control_num);
+	if (priv_info->card_type == CARD_TYPE_SD) {
+		mmcinfo("***Try SD card %u***\n", mmc->control_num);
 		/* Test for SD version 2 */
 		err = mmc_send_if_cond(mmc);
-
 		/* Now try to get the SD card's operating condition */
 		err = sd_send_op_cond(mmc);
-
 		if (err) {
-			mmcinfo("SD card %d Card did not respond to voltage select!\n",mmc->control_num);
-			mmcinfo("***SD/MMC %d init error!!!***\n",mmc->control_num);
+			mmcinfo("SD card %u Card did not respond to voltage select!\n", mmc->control_num);
+			mmcinfo("***SD/MMC %u init error!!!***\n", mmc->control_num);
 			return UNUSABLE_ERR;
 		}
-	}
-	else if (priv_info->card_type == CARD_TYPE_MMC)
-	{
+	} else if (priv_info->card_type == CARD_TYPE_MMC) {
 		/* If the command timed out, we check for an MMC card */
-		mmcinfo("***Try MMC card %d***\n",mmc->control_num);
+		mmcinfo("***Try MMC card %u***\n", mmc->control_num);
 		err = mmc_send_op_cond(mmc);
-
 		if (err) {
-			mmcinfo("MMC card %d Card did not respond to voltage select!\n",mmc->control_num);
-			mmcinfo("***SD/MMC %d init error!!!***\n",mmc->control_num);
+			mmcinfo("MMC card %u Card did not respond to voltage select!\n", mmc->control_num);
+			mmcinfo("***SD/MMC %u init error!!!***\n", mmc->control_num);
 			return UNUSABLE_ERR;
 		}
-	}
-	else
-	{
+	} else {
 		mmcinfo("Wrong media type 0x%x\n", priv_info->card_type);
-
-		mmcinfo("***Try SD card %d***\n",mmc->control_num);
+		mmcinfo("***Try SD card %u***\n", mmc->control_num);
 		/* Test for SD version 2 */
 		err = mmc_send_if_cond(mmc);
 
@@ -1430,26 +1504,25 @@ int mmc_init(struct mmc *mmc)
 		err = sd_send_op_cond(mmc);
 
 		/* If the command timed out, we check for an MMC card */
-		if(err){
-			mmcinfo("***Try MMC card %d***\n",mmc->control_num);
+		if (err) {
+			mmcinfo("***Try MMC card %u***\n", mmc->control_num);
 			err = mmc_send_op_cond(mmc);
 
 			if (err) {
-				mmcinfo("mmc %d Card did not respond to voltage select!\n",mmc->control_num);
-				mmcinfo("***SD/MMC %d init error!!!***\n",mmc->control_num);
+				mmcinfo("mmc %u Card did not respond to voltage select!\n", mmc->control_num);
+				mmcinfo("***SD/MMC %u init error!!!***\n", mmc->control_num);
 				return UNUSABLE_ERR;
 			}
 		}
 	}
 #endif
 	err = mmc_startup(mmc);
-	if (err){
-		mmcinfo("***SD/MMC %d init error!!!***\n",mmc->control_num);
+	if (err) {
+		mmcinfo("***SD/MMC %u init error!!!***\n", mmc->control_num);
 		mmc->has_init = 0;
-	}
-	else{
+	} else {
 		mmc->has_init = 1;
-		mmcinfo("***SD/MMC %d init OK!!!***\n",mmc->control_num);
+		mmcinfo("***SD/MMC %u init OK!!!***\n", mmc->control_num);
 	}
 
 	return err;

@@ -36,6 +36,7 @@
 #define WORK_MODE_SPRITE_RECOVERY 0x13	//update firmware from internal backup part
 #define WORK_MODE_CARD_UPDATE   0x14	//update firmware from sdcard
 #define WORK_MODE_USB_UPDATE    0x20    //usb update mode
+#define WORK_MODE_UDISK_UPDATE    0x15
 #define WORK_MODE_OUTER_UPDATE  0x21
 
 #define WORK_MODE_USB_TOOL_PRODUCT  0x04
@@ -65,6 +66,7 @@
 #define SUNXI_SYS_RECOVERY_FLAG         (0x5D)
 #define SUNXI_USB_RECOVERY_FLAG         (0x5E)
 #define SUNXI_FASTBOOT_FLAG             (0x5F)
+#define SUNXI_UBOOT_FLAG                (0x60)
 
 #define SUNXI_VBUS_UNKNOWN                      (0)
 #define SUNXI_VBUS_EXIST                        (1)
@@ -100,11 +102,12 @@ typedef enum _SUNXI_BOOT_FILE_MODE
 
 
 
-#define   BOOT_FROM_SD0     0
-#define   BOOT_FROM_NFC     1
-#define   BOOT_FROM_SD2     2
+#define   BOOT_FROM_SD0      0
+#define   BOOT_FROM_NFC      1
+#define   BOOT_FROM_SD2      2
 #define   BOOT_FROM_SPI_NOR  3
 #define   BOOT_FROM_SPI_NAND 4
+
 
 //#define	TOC_MAIN_INFO_STATUS_ENCRYP_NOT_USED	0x00
 //#define	TOC_MAIN_INFO_STATUS_ENCRYP_SSK			0x01

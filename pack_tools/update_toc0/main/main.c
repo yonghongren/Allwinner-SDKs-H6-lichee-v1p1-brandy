@@ -108,16 +108,9 @@ int update_for_toc0(char *toc0_name)
 
 	toc0_head = (sbrom_toc0_head_info_t *)toc0_buf;
 	if (toc0_head->items_nr == 3)
-	{
-		printf("use new config offset !!!\n");
 		toc0_config = (sbrom_toc0_config_t *)(toc0_buf + 0xa0);
-	}
 	else
-	{
-		printf("use old config offset !!!\n");
 		toc0_config = (sbrom_toc0_config_t *)(toc0_buf + 0x80);
-	}
-
 
 	//检查toc0的数据结构是否完整
 //    ret = check_file( (unsigned int *)toc0_buf, toc0_head->boot_head.length, TOC0_MAGIC );
@@ -125,18 +118,17 @@ int update_for_toc0(char *toc0_name)
 //    {
 //		goto _err_toc0_out;
 //	}
-
-	//取出数据进行修正,供电方式
-	if(!script_parser_fetch("target", "power_mode", value))
-	{
-		toc0_config->power_mode = value[0];
-		printf("toc0_config->power_mode %d\n",toc0_config->power_mode);
-	}
 	//取出数据进行修正,DRAM参数
 	if(script_parser_sunkey_all("dram_para", (void *)toc0_config->dram_para))
 	{
 		printf("script fetch dram para failed\n");
 		goto _err_toc0_out;
+	}
+	//update power_mode para
+	if(!script_parser_fetch("target", "power_mode", value))
+	{
+		toc0_config->power_mode = value[0];
+		printf("toc0_config->power_mode %d\n",toc0_config->power_mode);
 	}
 	//取出数据进行修正,UART参数
 	if(!script_parser_fetch("uart_para", "uart_debug_port", value))
@@ -270,9 +262,13 @@ int update_for_toc0(char *toc0_name)
                 toc0_config->secure_without_OS = value[0];
         }
         if(!script_parser_fetch("platform","debug_mode",value))
+        {
                 toc0_config->debug_mode = value[0];
+        }
         else
+        {
                 toc0_config->debug_mode = 8;
+        }
 
 	//取 A15 外挂电源使能引脚参数
 	memset(&(toc0_config->a15_power_gpio), 0, sizeof(special_gpio_cfg));
@@ -342,3 +338,4 @@ void *script_file_decode(char *script_file_name)
 
 	return script_buf;
 }
+

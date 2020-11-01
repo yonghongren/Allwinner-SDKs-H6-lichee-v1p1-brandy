@@ -109,9 +109,12 @@ ulong config_usb_pin(char *path, char *prop)
 	printf("config usb pin %s\n",status?"fail":"success");
 	return status ? 0 : pin_handle;
 }
+s32 __attribute__((weak)) axp_usb_vbus_output(void){ return 0;}
 
 int alloc_pin(int index)
 {
+	if (axp_usb_vbus_output())
+		return 0;
 	usb_vbus_handle = config_usb_pin(ehci_cfg[index].node,
 		"usb_drv_vbus_gpio");
         return usb_vbus_handle ? 0:-1;

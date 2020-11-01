@@ -4,7 +4,6 @@
 #include <asm/arch/twi.h>
 #include <asm/arch/ccmu.h>
 #include <asm/arch/gpio.h>
-#include <asm/arch/clock.h>
 
 #define	I2C_WRITE		0
 #define I2C_READ		1
@@ -62,10 +61,9 @@
 /* AXP806 */
 #define   BOOT_POWER806_VERSION         	   			(0x03)
 #define   BOOT_POWER806_DCDOUT_VOL          			(0x15)
-#define   DUMMY_AXP                                     (1)
+
 
 static  struct sunxi_twi_reg *i2c  = NULL;
-static  __maybe_unused int axp_type = 0;
 
 static __s32 i2c_sendbyteaddr(__u32 byteaddr)
 {
@@ -428,6 +426,15 @@ int set_cpus_i2c_clock(unsigned int onoff)
 	int reg_value = 0;
 
 	//opne CPUS PIO
+	volatile unsigned int reg_val;
+	// R_GPIO reset deassert
+	reg_val = readl(SUNXI_RPRCM_BASE+0xb0);
+	reg_val |= 1;
+	writel(reg_val, SUNXI_RPRCM_BASE+0xb0);
+	// R_GPIO GATING open
+	reg_val = readl(SUNXI_RPRCM_BASE+0x28);
+	reg_val |= 1;
+	writel(reg_val, SUNXI_RPRCM_BASE+0x28);
 
 	//R_GPIO: PL0,PL1 cfg 2
 	writel(readl(0x01F02C00)& ~0xff,0x01F02C00);
@@ -523,6 +530,7 @@ void i2c_init_cpus(int speed, int slaveaddr)
 static int axp_probe(void)
 {
 	u8	  pmu_type;
+
 	if(axp_i2c_read(CONFIG_SYS_I2C_SLAVE, BOOT_POWER806_VERSION, &pmu_type))
 	{
 		printf("axp read error\n");
@@ -557,41 +565,21 @@ static int set_dcdcd_voltage(int vol)
 	return ret;
 }
 
+
 int set_ddr_voltage(int vol)
 {
-#if defined(CONFIG_SUNXI_MULTI_POWER_MODE)
-	if( axp_type == DUMMY_AXP)
-	{
-		printf("axp not exist\n");
-		return 0;
-	}
-#endif
+
 	i2c_init_cpus(CONFIG_SYS_I2C_SPEED, CONFIG_SYS_I2C_SLAVE);
+
 	if( !axp_probe())
 	{
 		return set_dcdcd_voltage(vol);
 	}
 	else
 	{
+		printf("axp not exist\n");
 		return 0;
 	}
-
-}
-
-#if defined(CONFIG_SUNXI_MULTI_POWER_MODE)
-
-int pmu_init(u8 power_mode)
-{
-	if( power_mode == DUMMY_AXP)
-	{
-		axp_type = DUMMY_AXP;
-	}
-	else
-	{
-		axp_type = 0;
-	}
-
-	return axp_type;
 }
 #endif
-#endif
+

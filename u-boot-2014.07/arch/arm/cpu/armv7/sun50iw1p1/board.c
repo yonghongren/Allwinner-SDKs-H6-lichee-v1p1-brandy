@@ -27,7 +27,7 @@
 #include <asm/arch/timer.h>
 #include <asm/arch/ccmu.h>
 #include <asm/arch/clock.h>
-#include <efuse_map.h>
+#include <asm/arch/sid.h>
 #include <asm/arch/platform.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/key.h>
@@ -72,7 +72,7 @@ int power_source_init(void)
 	{
 		printf("axp_probe error\n");
 	}
-#if 0
+
 	if(axp_exist)
 	{
 		axp_set_charge_vol_limit();
@@ -81,7 +81,7 @@ int power_source_init(void)
 		axp_set_power_supply_output();
 		power_limit_init();
 	}
-#endif
+
 	//sunxi_clock_set_corepll(uboot_spare_head.boot_data.run_clock);
 
 	pll_cpux = sunxi_clock_get_corepll();
@@ -212,30 +212,27 @@ int sunxi_set_secure_mode(void)
 
 	return 0;
 }
-/*
-************************************************************************************************************
-*
-*                                             function
-*
-*    name          :
-*
-*    parmeters     :
-*
-*    return        :
-*
-*    note          :
-*
-*
-************************************************************************************************************
-*/
-int sunxi_get_securemode(void)
+
+int sunxi_set_bootmode_flag(u8 flag)
 {
-	return gd->securemode;
+	volatile uint reg_val;
+	do {
+		writel(flag, SUNXI_RTC_BASE + 0x100 + 0x0);
+		reg_val = readl(SUNXI_RTC_BASE + 0x100 + 0x0);
+	} while ((reg_val & 0xff) != flag);
+
+	return 0;
 }
 
-int sunxi_probe_secure_monitor(void)
+
+int sunxi_get_bootmode_flag(void)
 {
-	return uboot_spare_head.boot_data.secureos_exist == SUNXI_SECURE_MODE_USE_SEC_MONITOR?1:0;
+	uint boot_flag;
+
+	/* operation should be same with kernel write rtc */
+	boot_flag = readl(SUNXI_RTC_BASE + 0x100 + 0x0);
+
+	return boot_flag;
 }
 
 

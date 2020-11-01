@@ -1,3 +1,8 @@
+/*
+ * (C) Copyright 2016
+ *
+ * SPDX-License-Identifier:	GPL-2.0
+ */
 
 #include <common.h>
 #include <sys_config.h>
@@ -53,7 +58,7 @@ sunxi_flash_nand_flush(void)
 }
 
 static int
-sunxi_flash_nand_force_erase(void)
+sunxi_flash_nand_force_erase(int erase, void *mbr_buffer)
 {
     return NAND_Uboot_Force_Erase();
 }
@@ -62,7 +67,7 @@ sunxi_flash_nand_force_erase(void)
 int  nand_init_for_boot(int workmode)
 {
 	int bootmode=0;
-	
+
 	tick_printf("NAND: ");
 	bootmode = workmode == WORK_MODE_SPRITE_RECOVERY? 0:1;
 	if(nand_uboot_init(bootmode))
@@ -78,7 +83,7 @@ int  nand_init_for_boot(int workmode)
 
 	sunxi_secstorage_read_pt  = nand_secure_storage_read;
 	sunxi_secstorage_write_pt = nand_secure_storage_write;
-	
+
 	sunxi_sprite_read_pt  = sunxi_flash_read_pt;
 	sunxi_sprite_write_pt = sunxi_flash_write_pt;
 
@@ -91,7 +96,7 @@ int nand_init_for_sprite(int workmode)
 	{
 		return -1;
 	}
-	printf("nand found\n");
+	pr_msg("nand found\n");
 	sunxi_sprite_init_pt  = sunxi_flash_nand_init;
 	sunxi_sprite_exit_pt  = sunxi_flash_nand_exit;
 	sunxi_sprite_read_pt  = sunxi_flash_nand_read;
@@ -104,17 +109,15 @@ int nand_init_for_sprite(int workmode)
 	sunxi_secstorage_read_pt  = nand_secure_storage_read;
 	sunxi_secstorage_write_pt = nand_secure_storage_write;
 
-	debug("sunxi sprite has installed nand function\n");
-	uboot_spare_head.boot_data.storage_type = 0;
 	if(workmode == 0x30)
 	{
 		if(sunxi_sprite_init(1))
 		{
-			printf("nand init fail\n");
+			pr_msg("nand init fail\n");
 			return -1;
 		}
 	}
-	uboot_spare_head.boot_data.storage_type = 0;
+	set_boot_storage_type(STORAGE_NAND);
 	return 0;
 }
 

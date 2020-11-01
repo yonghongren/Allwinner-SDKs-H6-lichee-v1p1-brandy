@@ -177,14 +177,7 @@ int sunxi_clock_get_apb1(void)
 		return 0;
 	}
 
-	if(factor_m ==0 || factor_n == 0)
-	{
-		return src_clock;
-	}
-	else
-	{
-		return src_clock / factor_m / factor_n;
-	}
+	return src_clock / factor_m / factor_n;
 }
 
 int sunxi_clock_get_apb2(void)

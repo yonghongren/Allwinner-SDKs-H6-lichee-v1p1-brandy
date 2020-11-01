@@ -28,14 +28,39 @@
 #include <bmp_layout.h>
 #include <fdt_support.h>
 
+#include <sunxi_board.h>
+#include <../drivers/video/sunxi/disp2/disp/de/include.h>
+
 DECLARE_GLOBAL_DATA_PTR;
 
 static __u32 screen_id = 0;
 static __u32 disp_para = 0;
+static __u32 disp_para1;
+static __u32 disp_para2;
 static __u32 fb_base_addr = SUNXI_DISPLAY_FRAME_BUFFER_ADDR;
 extern __s32 disp_delay_ms(__u32 ms);
 extern long disp_ioctl(void *hd, unsigned int cmd, void *arg);
-extern int aw_fat_fsload(char *part_name, char *file_name, char* load_addr, ulong length);
+
+static inline void *malloc_aligned(u32 size, u32 alignment)
+{
+	void *ptr = (void *)malloc(size + alignment);
+	if (ptr) {
+		void *aligned = (void *)(((long)ptr + alignment) & (~(alignment-1)));
+
+		/* Store the original pointer just before aligned pointer*/
+		((void **) aligned)[-1]  = ptr;
+		return aligned;
+	}
+
+	return NULL;
+}
+
+static inline void free_aligned(void *aligned_ptr)
+{
+	if (aligned_ptr)
+		free(((void **) aligned_ptr)[-1]);
+}
+
 
 static int board_display_update_para_for_kernel(char *name, int value)
 {
@@ -214,7 +239,7 @@ int board_display_set_exit_mode(int lcd_off_only)
 
 	if(lcd_off_only)
 	{
-		arg[0] = DISP_EXIT_MODE_CLEAN_PARTLY;
+		arg[1] = DISP_EXIT_MODE_CLEAN_PARTLY;
 		disp_ioctl(NULL, cmd, (void *)arg);
 	}
 	else
@@ -226,6 +251,91 @@ int board_display_set_exit_mode(int lcd_off_only)
 
 	return 0;
 }
+/*
+******************************************************************************
+*
+*    function
+*
+*    name          :
+*
+*    parmeters     :
+*
+*    return        :
+*
+*    note          :
+*
+*
+******************************************************************************
+*/
+
+static struct eink_8bpp_image cimage;
+int board_display_eink_update(char *name, __u32 update_mode)
+
+{
+	uint arg[4] = { 0 };
+	uint cmd = 0;
+	int ret;
+
+	u32 width = 800;
+	u32 height = 600;
+
+	char *bmp_buffer = NULL;
+	u32 buf_size = 0;
+
+	char primary_key[25];
+	s32 value = 0;
+	u32 disp = 0;
+	sprintf(primary_key, "lcd%d", disp);
+
+	ret = disp_sys_script_get_item(primary_key, "eink_width", &value, 1);
+	if (ret == 1)
+		width = value;
+
+	ret = disp_sys_script_get_item(primary_key, "eink_height", &value, 1);
+	if (ret == 1)
+		height = value;
+
+	buf_size = (width * height) << 2;
+
+	bmp_buffer = (char *)malloc_aligned(buf_size, ARCH_DMA_MINALIGN);
+	if (NULL == bmp_buffer)
+		printf("fail to alloc memory for display bmp.\n");
+
+	sunxi_Eink_Get_bmp_buffer(name, bmp_buffer);
+
+	cimage.update_mode = update_mode;
+	cimage.flash_mode = GLOBAL;
+	cimage.state = USED;
+	cimage.window_calc_enable = false;
+	cimage.size.height = height;
+	cimage.size.width = width;
+	cimage.size.align = 4;
+	cimage.paddr = bmp_buffer;
+	cimage.vaddr = bmp_buffer;
+	cimage.update_area.x_top = 0;
+	cimage.update_area.y_top = 0;
+	cimage.update_area.x_bottom = width - 1;
+	cimage.update_area.y_bottom = height - 1;
+
+	arg[0] = (uint)&cimage;
+	arg[1] = 0;
+	arg[2] = 0;
+	arg[3] = 0;
+
+	cmd = DISP_EINK_UPDATE;
+	ret = disp_ioctl(NULL, cmd, (void *)arg);
+	if (ret != 0) {
+		printf("update eink image fail\n");
+		return -1;
+	}
+	if (bmp_buffer) {
+		free_aligned(bmp_buffer);
+		bmp_buffer = NULL;
+	}
+
+	return 0;
+}
+
 /*
 *******************************************************************************
 *                     board_display_layer_open
@@ -451,22 +561,26 @@ int board_display_framebuffer_set(int width, int height, int bitcount, void *buf
 	layer_para->info.mode     = LAYER_MODE_BUFFER;
 	layer_para->info.alpha_mode    = 1;
 	layer_para->info.alpha_value   = 0xff;
-	if(full) {
-		layer_para->info.screen_win.x	= 0;
-		layer_para->info.screen_win.y	= 0;
-		layer_para->info.screen_win.width	= screen_width;
-		layer_para->info.screen_win.height	= screen_height;
+	if (full || (screen_width < width || screen_height < height)) {
+		layer_para->info.screen_win.x = 0;
+		layer_para->info.screen_win.y = 0;
+		layer_para->info.screen_win.width = screen_width;
+		layer_para->info.screen_win.height = screen_height;
+		if (!full)
+			pr_error("\nBMP file is to large!!!!!!!!!!!!!!\n");
 	} else {
-		layer_para->info.screen_win.x	= (screen_width - width) / 2;
-		layer_para->info.screen_win.y	= (screen_height - height) / 2;
-		layer_para->info.screen_win.width	= width;
-		layer_para->info.screen_win.height	= height;
+		layer_para->info.screen_win.x = (screen_width - width) / 2;
+		layer_para->info.screen_win.y = (screen_height - height) / 2;
+		layer_para->info.screen_win.width = width;
+		layer_para->info.screen_win.height = height;
 	}
 	layer_para->info.b_trd_out		= 0;
 	layer_para->info.out_trd_mode 	= 0;
 	gd->layer_para = (uint)layer_para;
 	fb_base_addr=(uint)buffer - sizeof(bmp_header_t);
+#ifndef CONFIG_SUNXI_MULITCORE_BOOT
 	board_display_update_para_for_kernel("fb_base", (uint)buffer - sizeof(bmp_header_t));
+#endif
 	return 0;
 }
 
@@ -488,413 +602,182 @@ int board_display_framebuffer_change(void *buffer)
 	return 0;
 }
 
-#if (defined CONFIG_ARCH_HOMELET)
-int get_display_resolution(int type)
-{
-	int read_bytes = 0;
-	int temp_value = 0;
-	char buf[512] = {0};
-	char *p = buf;
-	char *pstr;
-
-	read_bytes = aw_fat_fsload("Reserve0", "disp_rsl.fex", buf, 512);
-	while (read_bytes > 0) {
-		pstr = p;
-		while (*p!='\n' && *p!='\0')
-			p++;
-
-		*p++ = '\0';
-		temp_value = simple_strtoul(pstr, NULL, 16);
-		if (((temp_value>>8) & 0xff) == type) {
-			printf("display resolution %d, type %d\n", temp_value&0xff, type);
-			return temp_value & 0xff;
-		}
-		read_bytes = read_bytes - (p - pstr);
-	}
-	return 0;
-}
-
-static int get_saved_hdmi_vendor_id(void)
-{
-	char data_buf[512] = {0};
-	char *pvendor_id, *pdata, *pdata_end;
-	int vendor_id = 0;
-	int i = 0;
-	int ret = 0;
-
-	ret = aw_fat_fsload("Reserve0", "tv_vdid.fex", data_buf, 512);
-	if (0 >= ret)
-		return 0;
-
-	pvendor_id = data_buf;
-	pdata = data_buf;
-	pdata_end = pdata + ret;
-	for (; (i < 4) && (pdata != pdata_end); pdata++) {
-		if('\n' == *pdata) {
-			*pdata = '\0';
-			ret = (int)simple_strtoul(pvendor_id, NULL, 16);
-			vendor_id |= ((ret & 0xFF) << (8 * (3 - i)));
-			pvendor_id = pdata + 1;
-			i++;
-		}
-	}
-
-	printf("last television vendor id: 0x%08x\n", vendor_id);
-	return vendor_id;
-}
-
-static int get_hdmi_edid(int sel, unsigned char **edid_buf, int length)
-{
-	unsigned long arg[4] = {0};
-	arg[0] = sel;
-	arg[1] = (unsigned long)edid_buf;
-	arg[2] = length;
-	disp_ioctl(NULL, DISP_HDMI_GET_EDID, (void*)arg);
-	return 0;
-}
-
-static int get_hdmi_vendor_id(int sel)
-{
-#define ID_VENDOR 0x08
-	int vendor_id = 0;
-	unsigned char *pVendor = NULL;
-	unsigned char *edid_buf = NULL;
-
-	get_hdmi_edid(sel, &edid_buf, 1024);
-	if (edid_buf == NULL) {
-		printf("read hdmi edid failed\n");
-		return 0;
-	}
-	pVendor = edid_buf + ID_VENDOR;
-	vendor_id = (pVendor[0] << 24);
-	vendor_id |= (pVendor[1] << 16);
-	vendor_id |= (pVendor[2] << 8);
-	vendor_id |= pVendor[3];
-	printf("current vendor id=0x%08x\n", vendor_id);
-	return vendor_id;
-}
-
-static int verify_hdmi_mode(int channel, int mode, int *vid, int check)
-{
-	unsigned long arg[4] = {0};
-	const int HDMI_MODES[] = { // self-define hdmi mode list
-		DISP_TV_MOD_720P_60HZ,
-		DISP_TV_MOD_720P_50HZ,
-		DISP_TV_MOD_1080P_60HZ,
-		DISP_TV_MOD_1080P_50HZ,
-	};
-	int i = 0;
-	int actual_vendor_id = get_hdmi_vendor_id(channel);
-	int saved_vendor_id = get_saved_hdmi_vendor_id();
-
-	*vid = actual_vendor_id?actual_vendor_id:saved_vendor_id;
-	if(2 == check){
-		/* if vendor id change , check mode: check = 1 */
-		if (actual_vendor_id && (actual_vendor_id != saved_vendor_id)) {
-			check = 1;
-			*vid = actual_vendor_id;
-			printf("vendor:0x%x, saved_vendor:0x%x\n",
-				actual_vendor_id, saved_vendor_id);
-		}
-	}
-
-	/* check if support the output_mode by television,
-	 * return 0 is not support */
-	if (1 == check) {
-		arg[0] = channel;
-		arg[1] = mode;
-		if (1 == disp_ioctl(NULL, DISP_HDMI_SUPPORT_MODE, (void*)arg)) {
-			return mode;
-		}
-		for(i = 0; i < sizeof(HDMI_MODES) / sizeof(HDMI_MODES[0]); i++) {
-			arg[1] = HDMI_MODES[i];
-			if (1 == disp_ioctl(NULL, DISP_HDMI_SUPPORT_MODE, (void*)arg)) {
-				printf("not support mode[%d], find mode[%d] in HDMI_MODES\n", mode, HDMI_MODES[i]);
-				return HDMI_MODES[i];
-			}
-		}
-		mode = HDMI_MODES[0]; // any mode of HDMI_MODES is not supported.  fixme:  use HDMI_MODES[0] ???
-		printf("not find suitable mode in HDMI_MODES either, use mode[%d]\n", mode);
-	}
-
-	return mode;
-}
-
-static int init_display_out_attr(int type, __u32 *used, __u32 *channel, __u32 *mode)
-{
-	const char *channel_prop[] = {
-		[DISP_OUTPUT_TYPE_TV]   = "cvbs_channel",
-		[DISP_OUTPUT_TYPE_HDMI] = "hdmi_channel",
-	};
-	const char *mode_prop[] = {
-		[DISP_OUTPUT_TYPE_TV]   = "cvbs_mode",
-		[DISP_OUTPUT_TYPE_HDMI] = "hdmi_mode",
-	};
-
-	int node;
-	int output_mode;
-	const char *cprop = channel_prop[type];
-	const char *mprop = mode_prop[type];
-
-	node = fdt_path_offset(working_fdt, "boot_disp");
-	if (node < 0) {
-		printf("fdt could not find path 'boot_disp'\n");
-		return -1;
-	}
-
-	if (fdt_getprop_u32(working_fdt, node, cprop, (uint32_t *)channel) < 0) {
-		printf("fdt get prop '%s' failed\n", cprop);
-		*used = 0;
-	} else {
-		*used = 1;
-		*mode = 0;
-		output_mode = get_display_resolution(type);
-		if (output_mode <= 0) {
-			printf("could not get output resolution for '%s'\n", cprop);
-			if (fdt_getprop_u32(working_fdt, node, mprop, (uint32_t *)&output_mode) < 0) {
-				printf("fdt get prop '%s' failed\n", mprop);
-			}
-		}
-		*mode = (__u32)output_mode;
-	}
-
-	printf("display output attr: type %d, used %d, channel %d, mode %d\n",
-		type, *used, *channel, *mode);
-	return 0;
-}
-
-static void disp_getprop_by_name(int node, const char *name, uint32_t *value, uint32_t defval)
-{
-	if (fdt_getprop_u32(working_fdt, node, name, value) < 0) {
-		printf("fetch script data boot_disp.%s fail\n", name);
-		*value = defval;
-	 } else {
-		printf("boot_disp.%s=%d\n", name, *value);
-	}
-}
-
-static int output_type_verify(int type)
-{
-	const int _define_type[] = {
-		[0] = DISP_OUTPUT_TYPE_NONE,
-		[1] = DISP_OUTPUT_TYPE_LCD,
-		[2] = DISP_OUTPUT_TYPE_TV,
-		[3] = DISP_OUTPUT_TYPE_HDMI,
-		[4] = DISP_OUTPUT_TYPE_VGA,
-	};
-
-	if (type<0 || type>(sizeof(_define_type)/sizeof(_define_type[0])-1))
-		return DISP_OUTPUT_TYPE_NONE;
-	return _define_type[type];
-}
-
 int board_display_device_open(void)
 {
-	int i;
-	int node;
-	unsigned long arg[4] = {0};
-	__u32 auto_hpd;
-	__u32 hdmi_used = 0;
-	__u32 hdmi_channel, hdmi_mode;
-	__u32 cvbs_used = 0;
-	__u32 cvbs_channel, cvbs_mode;
-	__u32 lcd_channel;
-	int hdmi_connect = 0;
-	int cvbs_connect = 0;
-	int output_type = 0;
-	int output_mode = 0;
-	int boot_disp = 0;
-	int init_disp = 0;
-	int hdmi_mode_check = 0;
-	int hdmi_vendor_id = 0;
-
-	init_display_out_attr(DISP_OUTPUT_TYPE_HDMI, &hdmi_used, &hdmi_channel, &hdmi_mode);
-	init_display_out_attr(DISP_OUTPUT_TYPE_TV, &cvbs_used, &cvbs_channel, &cvbs_mode);
-
-	node = fdt_path_offset(working_fdt, "boot_disp");
-	if (node < 0) {
-		printf("fdt could not find path 'boot_disp'\n");
-		return -1;
-	}
-
-	/* getproc auto_hpd, indicate output device decided by the hot plug status of device */
-	disp_getprop_by_name(node, "auto_hpd", (uint32_t*)&auto_hpd, 0);
-	disp_getprop_by_name(node, "hdmi_mode_check", (uint32_t*)&hdmi_mode_check, 1);
-	disp_getprop_by_name(node, "output_type", (uint32_t*)&output_type, 0);
-	output_type = output_type_verify(output_type);
-
-	if (auto_hpd && (hdmi_used || cvbs_used)) {
-		/* auto detect hdmi and cvbs */
-		arg[0] = hdmi_channel;
-		arg[1] = 0;
-		hdmi_connect = disp_ioctl(NULL, DISP_HDMI_GET_HPD_STATUS, (void*)arg);
-		for(i=0; (i<100)&&(hdmi_connect==0) && ((0==cvbs_used)||(i<50)||(cvbs_connect==0)); i++){
-			disp_delay_ms(10);
-			arg[0] = hdmi_channel;
-			hdmi_connect = disp_ioctl(NULL, DISP_HDMI_GET_HPD_STATUS, (void*)arg);
-		    if(cvbs_connect == 0){
-				arg[0] = cvbs_channel;
-				cvbs_connect = disp_ioctl(NULL, DISP_TV_GET_HPD_STATUS, (void*)arg);
-		    }
-		}
-		printf("auto hpd result: hdmi_connect=%d, cvbs_connect=%d!\n", hdmi_connect, cvbs_connect);
-
-		/* init output_type */
-		if(hdmi_connect != 0){
-			output_type = DISP_OUTPUT_TYPE_HDMI;
-		} else if(cvbs_connect != 0) {
-			output_type = DISP_OUTPUT_TYPE_TV;
-		}
-	} else {
-		printf("auto hpd disable, use default output_type=%d\n", output_type);
-	}
-
-    switch(output_type) {
-    case DISP_OUTPUT_TYPE_HDMI:
-        screen_id = hdmi_channel;
-		output_mode = verify_hdmi_mode(hdmi_channel, hdmi_mode,
-						&hdmi_vendor_id, hdmi_mode_check);
-        break;
-    case DISP_OUTPUT_TYPE_TV:
-        screen_id = cvbs_channel;
-		output_mode = cvbs_mode;
-        break;
-    case DISP_OUTPUT_TYPE_LCD:
-		disp_getprop_by_name(node, "lcd_channel", (uint32_t*)&lcd_channel, -1);
-		if (lcd_channel<0)
-			goto _error;
-		screen_id = lcd_channel;
-		break;
-    default:
-		printf("check what the output_type=%d\n", output_type);
-		return -1;
-    }
-
-	/* open output display */
-	if (((output_type==DISP_OUTPUT_TYPE_HDMI) && hdmi_connect) ||
-		((output_type==DISP_OUTPUT_TYPE_TV) && cvbs_connect) ||
-		output_type == DISP_OUTPUT_TYPE_LCD ) {
-		printf("disp%d device type(%d) enable\n", screen_id, output_type);
-		arg[0] = screen_id;
-		arg[1] = output_type;
-		arg[2] = output_mode;
-		disp_ioctl(NULL, DISP_DEVICE_SWITCH, (void *)arg);
-
-		/* update dts for kernel driver */
-		boot_disp = ((output_type << 8) | (output_mode)) << (screen_id*16);
-	}
-
-	if (hdmi_used)
-		init_disp |= (((DISP_OUTPUT_TYPE_HDMI & 0xff) << 8) | (hdmi_mode & 0xff)) << (hdmi_channel << 4);
-	if(cvbs_used)
-		init_disp |= (((DISP_OUTPUT_TYPE_TV & 0xff) << 8) | (cvbs_mode & 0xff)) << (cvbs_channel << 4);
-
-	board_display_update_para_for_kernel("boot_disp", boot_disp);
-	board_display_update_para_for_kernel("init_disp", init_disp);
-	board_display_update_para_for_kernel("tv_vdid", hdmi_vendor_id);
-	return 0;
-
-_error:
-	printf("skip display device open, check sys_config and hardward!\n");
-	return -1;
-}
-#else
-int board_display_device_open(void)
-{
-
 	int  value = 1;
 	int  ret = 0;
-	__u32 output_type = 0;
-	__u32 output_mode = 0;
+	struct disp_device_config config;
+
 	__u32 auto_hpd = 0;
 	__u32 err_count = 0;
+	__u32 using_device_config = 0;
 	unsigned long arg[4] = {0};
 	int node;
 
 	debug("De_OpenDevice\n");
 
+	memset(&config, 0, sizeof(struct disp_device_config));
+
 	node = fdt_path_offset(working_fdt,"boot_disp");
 	if (node >= 0) {
-		/* getproc output_disp, indicate which disp channel will be using */
-		if (fdt_getprop_u32(working_fdt, node, "output_disp", (uint32_t*)&screen_id) < 0) {
-			pr_error("fetch script data boot_disp.output_disp fail\n");
+		/* getproc output_disp,
+		 * indicate which disp channel will be using
+		 */
+		if (fdt_getprop_u32(working_fdt, node, "output_disp",
+						(uint32_t *)&screen_id) < 0) {
+			pr_error("fetch script boot_disp.output_disp fail\n");
 			err_count ++;
 		} else
 			pr_msg("boot_disp.output_disp=%d\n", screen_id);
 
-		/* getproc output_type, indicate which kind of device will be using */
-		if (fdt_getprop_u32(working_fdt, node, "output_type", (uint32_t*)&value) < 0) {
-			pr_error("fetch script data boot_disp.output_type fail\n");
+		/* getproc output_type,
+		 * indicate which kind of device will be using
+		 */
+		if (fdt_getprop_u32(working_fdt, node, "output_type",
+						(uint32_t *)&value) < 0) {
+			pr_error("fetch script boot_disp.output_type fail\n");
 			err_count ++;
 		} else
 			pr_msg("boot_disp.output_type=%d\n", value);
 
 		if(value == 0)
 		{
-			output_type = DISP_OUTPUT_TYPE_NONE;
+			config.type = DISP_OUTPUT_TYPE_NONE;
 		}
 		else if(value == 1)
 		{
-			output_type = DISP_OUTPUT_TYPE_LCD;
+			config.type = DISP_OUTPUT_TYPE_LCD;
 		}
 		else if(value == 2)
 		{
-			output_type = DISP_OUTPUT_TYPE_TV;
+			config.type = DISP_OUTPUT_TYPE_TV;
 		}
 		else if(value == 3)
 		{
-			output_type = DISP_OUTPUT_TYPE_HDMI;
+			config.type = DISP_OUTPUT_TYPE_HDMI;
 		}
 		else if(value == 4)
 		{
-			output_type = DISP_OUTPUT_TYPE_VGA;
-		}
-		else
-		{
+			config.type = DISP_OUTPUT_TYPE_VGA;
+		} else if (value == 6) {
+			config.type = DISP_OUTPUT_TYPE_EDP;
+		} else {
 			pr_error("invalid output_type %d\n", value);
 			return -1;
 		}
 
-		/* getproc output_mode, indicate which kind of mode will be output */
-		if (fdt_getprop_u32(working_fdt, node, "output_mode", (uint32_t*)&output_mode) < 0) {
-			pr_error("fetch script data boot_disp.output_mode fail\n");
+		/* getproc output_mode,
+		 * indicate which kind of mode will be output
+		 */
+		if (fdt_getprop_u32(working_fdt, node, "output_mode",
+					(uint32_t *)&config.mode) < 0) {
+			pr_error("fetch script boot_disp.output_mode fail\n");
 			err_count ++;
 		} else
-			printf("boot_disp.output_mode=%d\n", output_mode);
+			pr_msg("boot_disp.output_mode=%d\n", config.mode);
 
-		/* getproc auto_hpd, indicate output device decided by the hot plug status of device */
-		if (fdt_getprop_u32(working_fdt, node, "auto_hpd", (uint32_t*)&auto_hpd) < 0) {
+		/* getproc auto_hpd,
+		 * indicate output device decided by the hot plug status
+		 * of device
+		 */
+		if (fdt_getprop_u32(working_fdt, node, "auto_hpd",
+						(uint32_t *)&auto_hpd) < 0) {
 			pr_error("fetch script data boot_disp.auto_hpd fail\n");
 			err_count ++;
-		 } else
+		} else
 			pr_msg("boot_disp.auto_hpd=%d\n", auto_hpd);
+
+		if (config.type == DISP_OUTPUT_TYPE_HDMI) {
+			/* getproc output_format, indicate output YUV or RGB */
+			if (fdt_getprop_u32(working_fdt, node, "output_format",
+					    (uint32_t *)&config.format) < 0) {
+				pr_error("fetch script boot_disp.output_format "
+					 "fail\n");
+			} else {
+				using_device_config = 1;
+				pr_msg("boot_disp.output_format=%d\n",
+				       config.format);
+			}
+			/* getproc output_bits, indicate output color deep */
+			if (fdt_getprop_u32(working_fdt, node, "output_bits",
+					    (uint32_t *)&config.bits) < 0) {
+				pr_error("fetch script boot_disp.output_bits "
+					 "fail\n");
+			} else {
+				using_device_config = 1;
+				pr_msg("boot_disp.output_bits=%d\n",
+				       config.bits);
+			}
+			/* getproc eotf, indicate output range */
+			if (fdt_getprop_u32(working_fdt, node, "output_eotf",
+					    (uint32_t *)&config.eotf) < 0) {
+				pr_msg("fetch script boot_disp.output_eotf "
+				       "fail\n");
+			} else {
+				using_device_config = 1;
+				pr_msg("boot_disp.output_eotf=%d\n",
+				       config.eotf);
+			}
+
+			/* getproc eotf, indicate output range */
+			if (fdt_getprop_u32(working_fdt, node, "output_cs",
+					    (uint32_t *)&config.cs) < 0) {
+				pr_error(
+				    "fetch script boot_disp.output_cs fail\n");
+			} else {
+				using_device_config = 1;
+				pr_msg("boot_disp.output_cs=%d\n", config.cs);
+			}
+		}
+
 	} else
 		err_count = 4;
 
 	if(err_count >= 4)//no boot_disp config
 	{
-		output_type = DISP_OUTPUT_TYPE_LCD;
+		config.type = DISP_OUTPUT_TYPE_LCD;
 	}
 	else//has boot_disp config
 	{
 
 	}
-	pr_notice("disp%d device type(%d) enable\n", screen_id, output_type);
+
+	int hdmi_work_mode = DISP_HDMI_SEMI_AUTO;
+
+	if (config.type == DISP_OUTPUT_TYPE_HDMI) {
+		arg[0] = screen_id;
+		arg[1] = config.mode;
+		hdmi_work_mode = disp_ioctl(NULL, DISP_HDMI_GET_WORK_MODE, (void *)arg);
+		if (hdmi_work_mode == DISP_HDMI_FULL_AUTO)
+			config.mode = disp_ioctl(NULL, DISP_HDMI_GET_SUPPORT_MODE, (void *)arg);
+	}
+
+	pr_notice("disp%d device type(%d) enable\n", screen_id, config.type);
 
 	arg[0] = screen_id;
-	arg[1] = output_type;
-	arg[2] = output_mode;
+	arg[1] = config.type;
+	arg[2] = config.mode;
+
 	disp_ioctl(NULL, DISP_DEVICE_SWITCH, (void *)arg);
 
-
-
-	disp_para = ((output_type << 8) | (output_mode)) << (screen_id*16);
-
+	disp_para = ((config.type << 8) | (config.mode)) << (screen_id*16);
 	board_display_update_para_for_kernel("boot_disp", disp_para);
+	if (using_device_config == 1) {
+		arg[0] = screen_id;
+		arg[1] = (unsigned long)&config;
+
+		disp_ioctl(NULL, DISP_DEVICE_SET_CONFIG, (void *)arg);
+
+		disp_para1 = (config.cs << 16) | (config.bits << 8) |
+								(config.format);
+		disp_para2 = config.eotf;
+
+		board_display_update_para_for_kernel("boot_disp1", disp_para1);
+		board_display_update_para_for_kernel("boot_disp2", disp_para2);
+	}
 
 	return ret;
 }
-#endif
 
 void board_display_setenv(char *data)
 {
@@ -921,4 +804,3 @@ int borad_display_get_screen_height(void)
 	return disp_ioctl(NULL, DISP_GET_SCN_HEIGHT, (void*)arg);
 
 }
-

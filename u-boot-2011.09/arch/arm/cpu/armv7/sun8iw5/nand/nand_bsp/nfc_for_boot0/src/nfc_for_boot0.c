@@ -1483,7 +1483,11 @@ __s32 _read_otp_info_hynix(__u32 chip, __u8 *otp_chip)
 			abuf[0] = 0x00;
 			abuf[1] = 0x00;
 			abuf[2] = 0x00;
-			abuf[3] = 0x02;
+			if(read_retry_mode == 0x4)
+				abuf[3] = 0x02;
+			else if(read_retry_mode == 0x5)
+				abuf[3] = 0x01;
+			
 			_set_addr(&abuf[0], 4);
 			cfg = (NFC_SEND_ADR|(0x3<<16));
 			_wait_cmdfifo_free();
@@ -1712,7 +1716,7 @@ __s32 NFC_ReadRetry(__u32 chip, __u32 retry_count, __u32 read_retry_type)
 //        }
 
 		}
-		else if(read_retry_mode == 4)
+		else if((read_retry_mode == 4)||(read_retry_mode == 5))
 		{
 			for(i=0; i<read_retry_reg_num; i++)
 				param[i] = hynix16nm_read_retry_otp_value[chip][retry_count][i];
@@ -1821,7 +1825,7 @@ __s32 NFC_ReadRetryInit(__u32 read_retry_type)
 		read_retry_reg_adr[6] = 0xB6;
 		read_retry_reg_adr[7] = 0xB7;
 	}
-	else if(read_retry_mode ==4) //mode3  H27UCG8T2ETR
+	else if((read_retry_mode ==4)||(read_retry_mode ==5)) //mode3  H27UCG8T2ETR
 	{
 		read_retry_reg_adr[0] = 0x38;
 		read_retry_reg_adr[1] = 0x39;
@@ -1871,7 +1875,7 @@ void NFC_GetOTPValue(__u32 chip, __u8* otp_value, __u32 read_retry_type)
         for(i=0; i<64; i++)
             pdata[i] = otp_value[i];
     }
-	else if(read_retry_mode == 0x4)
+	else if((read_retry_mode == 0x4)||(read_retry_mode == 0x5))
     {
 		pdata = (__u8 *)(&hynix16nm_read_retry_otp_value[0][0][0]);
 		for(i = 0;i<32; i++)
@@ -1921,7 +1925,7 @@ __s32 NFC_GetDefaultParam(__u32 chip,__u8* default_value, __u32 read_retry_type)
 
     		}
         }
-		else if(read_retry_mode == 0x4)
+		else if((read_retry_mode == 0x4)||(read_retry_mode == 0x5))
         {
         	Count = 0;
 			flag = 0;
@@ -1966,7 +1970,7 @@ __s32 NFC_SetDefaultParam(__u32 chip,__u8* default_value,__u32 read_retry_type)
                 default_value[i] = read_retry_default_val[chip][i];
             else if((read_retry_mode == 0x2) ||(read_retry_mode == 0x3))
                 default_value[i] = hynix_read_retry_otp_value[chip][0][i];
-			else if(read_retry_mode == 0x4)
+			else if((read_retry_mode == 0x4)||(read_retry_mode == 0x5))
                 default_value[i] = hynix16nm_read_retry_otp_value[chip][0][i];
         }
         ret =_vender_set_param(default_value, &read_retry_reg_adr[0], read_retry_reg_num);

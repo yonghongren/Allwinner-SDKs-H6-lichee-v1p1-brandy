@@ -28,6 +28,7 @@
 #define	TOC0PATH_CONST		"toc0"
 #define	KEY_ITEM_BIN_PATH_CONST	"key_item_bin"
 #define	KEY_LADDER_CONST	"toc0_key_ladder"
+#define	ROOT_ROLLBACK_USED_CONST	"ROOT_ROLLBACK_USED"
 
 #define  CNF_BASE_FILE   "cnf_base.cnf"
 #define  TOC1_CONST_NAME "toc1.fex"
@@ -41,9 +42,6 @@
 #define  ROOTKEY_TYPE      1
 #define  ONLYKEY_TYPE      2
 #define  LOGO_TYPE         3
-
-#define CONFIG_ROOTKEY_TYPE  0
-#define CONFIG_DER_TYPE      2
 
 #define  ITEM_TYPE_ROOTKEY   0
 #define  ITEM_TYPE_KEYCERT   1

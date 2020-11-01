@@ -150,7 +150,6 @@ static int sunxi_arisc_parse_cfg(void)
 
 	dts_cfg.msgbox.base = (phys_addr_t)value[1];
 	dts_cfg.msgbox.size = (size_t)value[3];
-
 	dts_cfg.msgbox.status = fdtdec_get_is_enabled(working_fdt, nodeoffset);
 
 	ARISC_INF("msgbox base:0x%p, size:0x%zx, status:%u\n",
@@ -171,7 +170,6 @@ static int sunxi_arisc_parse_cfg(void)
 
 	dts_cfg.hwspinlock.base = (phys_addr_t)value[1];
 	dts_cfg.hwspinlock.size = (size_t)value[3];
-
 	dts_cfg.hwspinlock.status = fdtdec_get_is_enabled(working_fdt, nodeoffset);
 
 	ARISC_INF("hwspinlock base:0x%p, size:0x%zx, status:%u\n",

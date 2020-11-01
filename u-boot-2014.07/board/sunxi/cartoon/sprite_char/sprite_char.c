@@ -251,23 +251,5 @@ void sprite_uichar_printf(const char * str, ...)
 	uichar_putstr(string, field_width);
 }
 
-/*
- * display string at (row,column)
- */
-void sprite_uichar_printf_ex(char *content,int row,int column)
-{
-	int i=0;
-	char content_tmp[256];
-	memset(content_tmp,0x00,sizeof(content_tmp));
-
-	for(i=0;i<row;i++)
-		strcat(content_tmp,"\n");
-	for(i=0;i<column;i++)
-		strcat(content_tmp,"  ");
-	strcat(content_tmp,content);
-
-	sprite_uichar_printf(content_tmp);
-	return;
-}
 
 

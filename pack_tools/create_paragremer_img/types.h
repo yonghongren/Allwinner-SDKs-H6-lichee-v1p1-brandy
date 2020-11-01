@@ -22,7 +22,7 @@
 #define __TYPES_H_	1
 
 
-//#define NULL            0                   /* 指针空                                                  */
+/* #define NULL            0                    指针空   */
 
 /*
 **********************************************************************************************************************
@@ -30,7 +30,7 @@
 **********************************************************************************************************************
 */
 
-//normal typedef
+/* normal typedef */
 typedef long long __int64;
 
 typedef unsigned long long    __u64;
@@ -71,7 +71,7 @@ typedef double              __fp64;                 /* Double precision floating
 typedef unsigned int        __hdle;
 
 typedef unsigned int        __size;
-//typedef unsigned int        __size_t;
+/* typedef unsigned int        __size_t; */
 
 typedef unsigned int        __sector_t;
 
@@ -94,53 +94,53 @@ typedef		__u32		uint32_t;
 #define eGON2_FAIL          (-1)
 
 #undef  _set_bit
-#define _set_bit( value, bit )      		( (x) |=  ( 1U << (y) ) )
+#define _set_bit(value, bit)      		((x) |=  (1U << (y)))
 
 #undef  set_bit
-#define set_bit( value, bit )      		    ( (x) |=  ( 1U << (y) ) )
+#define set_bit(value, bit)      		    ((x) |=  (1U << (y)))
 
 #undef  _clear_bit
-#define _clear_bit( value, bit )    		( (x) &= ~( 1U << (y) ) )
+#define _clear_bit(value, bit)    		((x) &= ~(1U << (y)))
 
 #undef  clear_bit
-#define clear_bit( value, bit )    		    ( (x) &= ~( 1U << (y) ) )
+#define clear_bit(value, bit)    		    ((x) &= ~(1U << (y)))
 
 #undef  _set_bit
-#define _set_bit( value, bit )      		( (value) |=  ( 1U << (bit) ) )
+#define _set_bit(value, bit)      		((value) |=  (1U << (bit)))
 
 #undef  set_bit
-#define set_bit( value, bit )      		    ( (value) |=  ( 1U << (bit) ) )
+#define set_bit(value, bit)      		    ((value) |=  (1U << (bit)))
 
 #undef  _clear_bit
-#define _clear_bit( value, bit )    		( (value) &= ~( 1U << (bit) ) )
+#define _clear_bit(value, bit)    		((value) &= ~(1U << (bit)))
 
 #undef  clear_bit
-#define clear_bit( value, bit )    		    ( (value) &= ~( 1U << (bit) ) )
+#define clear_bit(value, bit)    		    ((value) &= ~(1U << (bit)))
 
 #undef  _reverse_bit
-#define _reverse_bit( value, bit )  		( (value) ^=  ( 1U << (bit) ) )
+#define _reverse_bit(value, bit)  		((value) ^=  (1U << (bit)))
 
 #undef  reverse_bit
-#define reverse_bit( value, bit )  		    ( (value) ^=  ( 1U << (bit) ) )
+#define reverse_bit(value, bit)  		    ((value) ^=  (1U << (bit)))
 
 #undef  _test_bit
-#define _test_bit( value, bit )     		( (value)  &  ( 1U << (bit) ) )
+#define _test_bit(value, bit)     		((value)  &  (1U << (bit)))
 
 #undef  test_bit
-#define test_bit( value, bit )     		    ( (value)  &  ( 1U << (bit) ) )
+#define test_bit(value, bit)     		    ((value)  &  (1U << (bit)))
 
 
 #undef  _min
-#define _min( x, y )          			( (x) < (y) ? (x) : (y) )
+#define _min(x, y)          			((x) < (y) ? (x) : (y))
 
 #undef  min
-#define min( x, y )          			( (x) < (y) ? (x) : (y) )
+#define min(x, y)          			((x) < (y) ? (x) : (y))
 
 #undef  _max
-#define _max( x, y )          			( (x) > (y) ? (x) : (y) )
+#define _max(x, y)          			((x) > (y) ? (x) : (y))
 
 #undef  max
-#define max( x, y )          			( (x) > (y) ? (x) : (y) )
+#define max(x, y)          			((x) > (y) ? (x) : (y))
 
 /* 取绝对值 */
 #undef  _absolute
@@ -183,5 +183,6 @@ typedef		__u32		uint32_t;
 
 
 #endif  /*#ifndef __TYPES_H_*/
+
 
 

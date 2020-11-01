@@ -275,7 +275,6 @@ void	main_loop	(void);
 int run_command(const char *cmd, int flag);
 int run_command_repeatable(const char *cmd, int flag);
 
-int check_env_in_cmdline(char * cmdline, char * env_name);
 /**
  * Run a list of commands separated by ; or even \0
  *
@@ -350,9 +349,6 @@ int do_tftpb(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
 
 /* common/cmd_fat.c */
 int do_fat_fsload(cmd_tbl_t *, int, int, char * const []);
-
-int aw_fat_fsload(char *part_name, char *file_name, char *load_addr, ulong length);
-int do_aw_fat_fsload(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
 
 /* common/cmd_ext2.c */
 int do_ext2load(cmd_tbl_t *, int, int, char * const []);

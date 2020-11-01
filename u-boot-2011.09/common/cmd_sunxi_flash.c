@@ -52,11 +52,7 @@ static int sunxi_flash_read_all(u32 start, ulong buf, const char *part_name)
 	}
 	else
 	{
-#ifdef CONFIG_SUNXI_SPINOR_PLATFORM
-		rbytes = sunxi_partition_get_size_byname(part_name) * 512 + 511;
-#else
 		rbytes = fb_hdr->kernel_size + fb_hdr->ramdisk_size + fb_hdr->second_size + 1024 * 1024 + 511;
-#endif
 	}
 	rblock = rbytes/512 - SUNXI_FLASH_READ_FIRST_SIZE/512;
 	debug("rblock=%d, start=%d\n", rblock, start_block);

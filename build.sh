@@ -4,6 +4,9 @@ set -e
 PLATFORM="sun8iw3p1"
 MODE=""
 
+localpath=$(cd $(dirname $0) && pwd)
+argnum=$#
+
 show_help()
 {
 	printf "\nbuild.sh - Top level build scritps\n"
@@ -38,28 +41,59 @@ prepare_toolchain()
         fi
 }
 
-build_uboot()
+select_uboot()
 {
 	if [ "x${PLATFORM}" = "xsun50iw1p1" ] || \
 	[ "x${PLATFORM}" = "xsun50iw2p1" ] || \
 	[ "x${PLATFORM}" = "xsun50iw6p1" ] || \
 	[ "x${PLATFORM}" = "xsun50iw3p1" ] || \
+	[ "x${PLATFORM}" = "xsun3iw1p1"  ] || \
 	[ "x${PLATFORM}" = "xsun8iw12p1" ] || \
-	[ "x${PLATFORM}" = "xsun8iw12p1_nor" ] || \
 	[ "x${PLATFORM}" = "xsun8iw10p1" ] || \
 	[ "x${PLATFORM}" = "xsun8iw11p1" ] || \
-	[ "x${PLATFORM}" = "xsun8iw11p1_nor" ]; then
-        cd u-boot-2014.07/
+	[ "x${PLATFORM}" = "xsun8iw12p1" ] || \
+	[ "x${PLATFORM}" = "xsun8iw6p1" ] || \
+	[ "x${PLATFORM}" = "xsun8iw15p1" ] || \
+	[ "x${PLATFORM}" = "xsun8iw15p1_axp2231" ] || \
+	[ "x${PLATFORM}" = "xsun8iw17p1" ];then
+		echo "u-boot-2014.07"
 	else
-		cd u-boot-2011.09/
+		echo "u-boot-2011.09"
 	fi
+}
+
+get_platform()
+{
+	if [ $argnum -eq 0 ] && [ -f $localpath/../.buildconfig ]; then
+		local LICHEE_CHIP=$(grep LICHEE_CHIP $localpath/../.buildconfig | sed 's/[^=]*= *//g')
+		local LICHEE_BUSSINESS=$(grep LICHEE_BUSSINESS $localpath/../.buildconfig | sed 's/[^=]*= *//g')
+		if [ -n "$LICHEE_CHIP" ]; then
+			PLATFORM=$LICHEE_CHIP
+			if [ -n "$LICHEE_BUSSINESS" ]; then
+				local boardcfg=$localpath/$(select_uboot)/boards.cfg
+				local parten=1
+				[ $(select_uboot) == "u-boot-2014.07" ] && parten=7
+				[ -n "$(sed -e '/^#/d' $boardcfg | awk '{print $'"$parten"'}' | \
+					grep ${PLATFORM}_${LICHEE_BUSSINESS})" ] && \
+				PLATFORM=${PLATFORM}_${LICHEE_BUSSINESS}
+			fi
+		fi
+		echo "Get PLATFORM from lichee buildconfig: $PLATFORM"
+	fi
+}
+
+build_uboot()
+{
+	get_platform
+
+	cd $(select_uboot)
 
 	make distclean
 	if [ "x$MODE" = "xota_test" ] ; then
 		export "SUNXI_MODE=ota_test"
 	fi
 	make ${PLATFORM}_config
-	make -j16 && make spl
+	make -j16
 
 	cd - 1>/dev/null
 }

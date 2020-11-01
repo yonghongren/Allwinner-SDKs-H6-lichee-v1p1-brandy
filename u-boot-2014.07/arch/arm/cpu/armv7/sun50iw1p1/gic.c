@@ -41,6 +41,7 @@ struct _irq_handler sunxi_int_handlers[GIC_IRQ_NUM];
 
 extern int  interrupts_is_open(void);
 
+static void gic_spi_set_target(int irq_no, int cpu_id);
 /*
 ************************************************************************************************************
 *
@@ -93,6 +94,7 @@ int irq_enable(int irq_no)
 		*(volatile unsigned int *)(0x01f00c00 + 0x10) |= 1;
 		*(volatile unsigned int *)(0x01f00c00 + 0x40) |= 1;
 	}
+	gic_spi_set_target(irq_no, get_core_pos());
 
 	offset   = irq_no >> 5; // 除32
 	reg_val  = readl(GIC_SET_EN(offset));
@@ -132,6 +134,7 @@ int irq_disable(int irq_no)
 		*(volatile unsigned int *)(0x01f00c00 + 0x10) |= 1;
 		*(volatile unsigned int *)(0x01f00c00 + 0x40) &= ~1;
 	}
+	gic_spi_set_target(irq_no, 0);
 
 	offset   = irq_no >> 5; // 除32
 	reg_val  = (1 << (irq_no & 0x1f));
@@ -249,7 +252,7 @@ static void gic_clear_pending(uint irq_no)
 void irq_install_handler (int irq, interrupt_handler_t handle_irq, void *data)
 {
 	int flag = interrupts_is_open();
-	//when irq_handler call this function , irq enable bit has already disabled in irq_mode,so don't need to enable I bit 
+	//when irq_handler call this function , irq enable bit has already disabled in irq_mode,so don't need to enable I bit
 	if(flag)
 	{
 		disable_interrupts();
@@ -496,7 +499,7 @@ static void gic_cpuif_init(void)
 *
 ************************************************************************************************************
 */
-void gic_spi_set_target(int irq_no, int cpu_id)
+static void gic_spi_set_target(int irq_no, int cpu_id)
 {
 	uint reg_val, addr, offset;
 
@@ -577,11 +580,6 @@ int arch_interrupt_exit(void)
 
 int sunxi_gic_cpu_interface_init(int cpu)
 {
-	gic_spi_set_target(AW_IRQ_TIMER0, cpu);
-	gic_spi_set_target(AW_IRQ_TIMER1, cpu);
-	gic_spi_set_target(AW_IRQ_DE, cpu);
-	gic_spi_set_target(AW_IRQ_TCON0, cpu);
-
 	gic_cpuif_init();
 
 	return 0;

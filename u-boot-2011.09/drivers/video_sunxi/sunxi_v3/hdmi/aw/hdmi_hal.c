@@ -200,7 +200,6 @@ __s32 Hdmi_hal_init(void)
     loop_count = 3;
     while((loop_count--) && (!Hpd_Check()))
     {
-        printf("**************hdmi_hpd wait********************\n");
         hdmi_main_task_loop();
     }
 }
@@ -222,11 +221,6 @@ __s32 Hdmi_hal_exit(void)
 	hdmi_core_exit();
 
     return 0;
-}
-
-__s32 Hdmi_hal_get_edid(void)
-{
-	return GetEdidInfo();
 }
 
 

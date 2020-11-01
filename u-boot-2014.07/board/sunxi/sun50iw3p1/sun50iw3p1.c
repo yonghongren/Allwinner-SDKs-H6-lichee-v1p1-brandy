@@ -28,6 +28,7 @@
 #include <power/sunxi/axp.h>
 #include <asm/io.h>
 #include <power/sunxi/pmu.h>
+#include <sunxi_board.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -186,6 +187,7 @@ ulong get_spare_head_size(void)
 }
 
 extern int axp81_probe(void);
+extern int axp1506_probe(void);
 
 /**
  * platform_axp_probe -detect the pmu on  board
@@ -197,22 +199,48 @@ extern int axp81_probe(void);
 
 int platform_axp_probe(sunxi_axp_dev_t  *sunxi_axp_dev_pt[], int max_dev)
 {
+	__maybe_unused int pmu_id = 0;
 
 #ifdef CONFIG_SUNXI_MODULE_AXP
-	if(axp81_probe())
-	{
-		printf("probe axp81X failed\n");
-		sunxi_axp_dev_pt[0] = &sunxi_axp_null;
-		return 0;
-	}
 
-	/* pmu type AXP81X */
-	tick_printf("PMU: AXP81X found\n");
+	#ifdef  CONFIG_SUNXI_AXP81X
+		//axp has been probe by boot0
+		pmu_id = get_pmu_byte_from_boot0();
+		if(pmu_id > 0)
+		{
+			pr_notice("PMU: AXP803 found by boot0\n");
+			sunxi_axp_dev_pt[0] = &sunxi_axp_81;
+			return 1;
+		}
+		if(!axp81_probe())
+		{
+			/* pmu type AXP803*/
+			pr_notice("PMU: AXP803 found\n");
+			sunxi_axp_dev_pt[0] = &sunxi_axp_81;
+			return 1;
+		}
+	#endif
 
-	sunxi_axp_dev_pt[0] = &sunxi_axp_81;
+	#ifdef  CONFIG_SUNXI_AXP1506
+		pmu_id = get_pmu_byte_from_boot0();
+		if(pmu_id > 0)
+		{
+			pr_notice("PMU: AXP1506 found by boot0\n");
+			sunxi_axp_dev_pt[0] = &sunxi_axp_1506;
+			return 1;
+		}
+		if(!axp1506_probe())
+		{
+			/* pmu type AXP1506*/
+			pr_notice("PMU: AXP1506 found\n");
+			sunxi_axp_dev_pt[0] = &sunxi_axp_1506;
+			return 1;
+		}
+
+	#endif
 #endif
-	sunxi_axp_dev_pt[PMU_TYPE_81X] = &sunxi_axp_null;
-	//find one axp
+	printf("probe axp failed\n");
+	sunxi_axp_dev_pt[0] = &sunxi_axp_null;
 	return 0;
 
 }

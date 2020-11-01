@@ -57,6 +57,80 @@ int mmc_send_status(struct mmc *mmc, int timeout)
 	return 0;
 }
 
+int mmc_send_manual_stop(struct mmc *mmc)
+{
+	struct mmc_cmd cmd;
+	int ret = 0;
+	cmd.cmdidx = MMC_CMD_STOP_TRANSMISSION;
+	cmd.cmdarg = 0;
+	cmd.resp_type = MMC_RSP_R1b;
+	cmd.flags = 0; //MMC_CMD_MANUAL;//let bsp send cmd12
+	ret = mmc_send_cmd(mmc, &cmd, NULL);
+	if (ret) {
+		mmcinfo("mmc fail to send manual stop cmd\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+#define MAX_RETRY_CNT 18
+static int mmc_retry_request(struct mmc *mmc, struct mmc_cmd *cmd, struct mmc_data *data)
+{
+	char sunxi_phase[9][2]={{1,1},{0,0},{1,0},{0,1},{1,2},{0,2}};
+	//char sunxi_phase[9][2]={{0,1},  {1,1},{0,0},{1,0},   {1,2},{0,2}};
+	int retry_cnt;
+	int ret, err = 0;
+	u32 timeout = 1000;
+
+	if (!mmc->set_phase) {
+		return -1;
+	}
+
+	/* send manual stop */
+	mmc_send_manual_stop(mmc);
+	mmc_send_status(mmc, timeout);
+
+	retry_cnt = 0;
+	do
+	{
+		/* set phase */
+		ret = mmc->set_phase(mmc, sunxi_phase[retry_cnt/3][0], sunxi_phase[retry_cnt/3][1]);
+		if (ret) {
+			mmcinfo("set phase fail, retry fail\n");
+			err = -1;
+			break;
+		}
+
+		/* retry */
+		err = mmc->send_cmd(mmc, cmd, data);
+		if (!err) {
+			/* if retry ok, keep current phase and exit. */
+			mmcinfo("retry ok! retry cnt %d\n", retry_cnt);
+			break;
+		} else {
+			/* send manual stop */
+			mmc_send_manual_stop(mmc);
+			/* Waiting for the ready status */
+			mmc_send_status(mmc, timeout);
+		}
+
+		retry_cnt++;
+	} while (retry_cnt < MAX_RETRY_CNT);
+
+	/* reset to default phase if retry fail */
+	if (err)
+	{
+		mmc->set_phase(mmc, sunxi_phase[0][0], sunxi_phase[0][1]);
+		if (ret) {
+			mmcinfo("retry fail, set phase to default fail\n");
+		}
+	}
+
+	return err;
+}
+
+
 int mmc_set_blocklen(struct mmc *mmc, int len)
 {
 	struct mmc_cmd cmd;
@@ -214,7 +288,15 @@ mmc_write_blocks(struct mmc *mmc, unsigned long start, unsigned blkcnt, const vo
 
 	if (mmc_send_cmd(mmc, &cmd, &data)) {
 		mmcinfo("mmc %d mmc write failed\n",mmc->control_num);
-		return 0;
+
+		mmcinfo("mmc write: start retry....\n");
+		if (mmc_retry_request(mmc, &cmd, &data)) {
+			mmcinfo("mmc write: retry fail\n");
+			return 0;
+		} else {
+			mmcinfo("mmc write: retry ok\n");
+		}
+
 	}
 
 	/* SPI multiblock writes terminate using a special
@@ -306,7 +388,15 @@ int mmc_read_blocks(struct mmc *mmc, void *dst, unsigned long start, unsigned bl
 
 	if (mmc_send_cmd(mmc, &cmd, &data)){
 		mmcinfo("mmc %d  read blcok failed\n",mmc->control_num);
-		return 0;
+
+		mmcinfo("mmc read: start retry....\n");
+		if (mmc_retry_request(mmc, &cmd, &data)) {
+			mmcinfo("mmc read: retry fail\n");
+			return 0;
+		} else {
+			mmcinfo("mmc read: retry ok\n");
+		}
+
 	}
 
 	if (blkcnt > 1) {

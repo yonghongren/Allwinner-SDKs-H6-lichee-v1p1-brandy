@@ -25,7 +25,6 @@
 #ifndef __BASE_PMU_H_
 #define __BASE_PMU_H_
 
-
 void i2c_init_cpus(int speed, int slaveaddr);
 
 int axp_i2c_read(unsigned char chip, unsigned char addr, unsigned char *buffer);

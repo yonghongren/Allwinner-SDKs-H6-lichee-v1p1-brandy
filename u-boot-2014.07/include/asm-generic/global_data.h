@@ -92,8 +92,8 @@ typedef struct global_data {
 	unsigned long timebase_l;
 #ifdef CONFIG_SUNXI
 	long           securemode;
-	void          *parameter_mod_buf;
 	long           boot_card_num;
+	void          *parameter_mod_buf;
 	ulong          lockflag;
 	ulong          chargemode;
 
@@ -113,16 +113,17 @@ typedef struct global_data {
 	long           limit_pccur;
 	ulong          force_download_uboot;
 	ulong          vbus_status;//0: unknow 1:exist 2:not exist
-	ulong          debug_mode;
+        ulong          debug_mode;
 	long           force_shell;
 	long           user_debug_mode;
 	ulong          layer_para;
 	ulong          layer_hd;
 	ulong          bootfile_mode;
 	int            pmu_saved_status;
-	int			   need_shutdown;
+	int 		   need_shutdown;
 	int            ir_detect_status;
 	int            logo_status_multiboot;
+
 #endif
 	struct arch_global_data arch;	/* architecture-specific data */
 } gd_t;

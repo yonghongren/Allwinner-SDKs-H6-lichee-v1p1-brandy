@@ -30,9 +30,8 @@
 #include <asm/arch/timer.h>
 #include <smc.h>
 #include <securestorage.h>
-
-#ifdef CONFIG_SUNXI_SECURE_SYSTEM
-#include <sunxi_efuse.h>
+#ifdef CONFIG_AES_TEST
+#include <asm/arch/ss.h>
 #endif
 
 struct timer_list timer0_t;
@@ -462,8 +461,7 @@ int do_efuse_read(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	efuse_name = argv[1];
 	printf("try to read %s\n", efuse_name);
 	memset(buffer, 0, 32);
-
-	ret = sunxi_efuse_read(efuse_name, buffer);
+	ret = smc_efuse_readl(efuse_name, buffer);
 	if(ret)
 	{
 		printf("read efuse key [%s] failed\n", efuse_name);
@@ -564,15 +562,27 @@ U_BOOT_CMD(
 #endif
 
 
-#if 0
-int do_hdcp_rssk_test(void *data_addr, uint data_len)
+#ifdef CONFIG_AES_TEST
+
+#define AES_RSSK_TEST_SOURCE_DATA_LEN  (512)
+int do_hdcp_rssk_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	u8  *source, i;
-	u8  md5_buf_keysram[16], md5_buf_source[16];
-	u8  *de_addr;
+	u8  source[AES_RSSK_TEST_SOURCE_DATA_LEN];
+	u8  dest[AES_RSSK_TEST_SOURCE_DATA_LEN];
+	u8  cmp[AES_RSSK_TEST_SOURCE_DATA_LEN];
+	u8  md5_buf_keysram[16], md5_buf_dram[16];
+	u32 data_len = 288, i;
 	int ret;
 
-	source = (u8 *)data_addr;
+	for(i=0;i<AES_RSSK_TEST_SOURCE_DATA_LEN;i++)
+	{
+		source[i] = (i&0xff) + 0x80;
+	}
+	memset(dest, 0, AES_RSSK_TEST_SOURCE_DATA_LEN);
+	memset(cmp, 0, AES_RSSK_TEST_SOURCE_DATA_LEN);
+
+	printf("aes rssk test: source data:\n");
+	sunxi_dump(source, data_len);
 	ret = sunxi_aes_decrypt_rssk_hdcp_to_keysram(source, data_len);
 	if(ret)
 	{
@@ -580,14 +590,6 @@ int do_hdcp_rssk_test(void *data_addr, uint data_len)
 
 		return -1;
 	}
-
-	de_addr=(u8*)malloc(512);
-	if(de_addr == NULL)
-	{
-		printf("%s:fail to malloc\n",__func__);
-		return -1;
-	}
-	memset(de_addr, 0, 512);
 	ret = sunxi_md5_keysram_calcute((void *)md5_buf_keysram, 16);
 	if(ret)
 	{
@@ -595,36 +597,50 @@ int do_hdcp_rssk_test(void *data_addr, uint data_len)
 
 		return -1;
 	}
-	ret = sunxi_aes_decrypt_rssk_hdcp_to_dram(source, data_len, de_addr);
+	printf("aes rssk test: keysram buf md5:\n");
+	sunxi_dump(md5_buf_keysram, 16);
+	ret = sunxi_aes_decrypt_rssk_hdcp_to_dram(source, data_len, dest);
 	if(ret)
 	{
 		printf("%s: fail to calculate hdcp key for source data\n",__func__ );
 
-		free(de_addr);
 		return -1;
 	}
-	ret = sunxi_md5_dram_calcute((void *)de_addr, data_len, (void *)md5_buf_source, 16);
+	printf("aes rssk test: decrypt data:\n");
+	sunxi_dump(dest, data_len);
+
+	ret = sunxi_md5_dram_calcute((void *)dest, data_len, (void *)md5_buf_dram, 16);
 	if(ret)
 	{
 		printf("%s: fail to calculate md5 for source data\n",__func__ );
 
-		free(de_addr);
 		return -1;
 	}
+	printf("aes rssk test: dram buf md5:\n");
+	sunxi_dump(md5_buf_dram, 16);
+
+	ret = sunxi_aes_encrypt_rssk_hdcp_to_dram(cmp, dest, data_len);
+	if(ret)
+	{
+		printf("%s: fail to encrypt hdcp rssk for source data\n",__func__ );
+
+		return -1;
+	}
+	printf("aes rssk test: encrypt data:\n");
+	sunxi_dump(cmp, data_len);
+
 	for(i=0;i<16;i++)
 	{
-		if(md5_buf_keysram[i] != md5_buf_source[i])
+		if(md5_buf_keysram[i] != md5_buf_dram[i])
 		{
 			printf("%s: compare the md5 between keysram and source data failed\n", __func__);
-			ret = -1;
 
 			printf("md5_buf_keysram:\n");
 			sunxi_dump(md5_buf_keysram, 16);
 
 			printf("md5_buf_source:\n");
-			sunxi_dump(md5_buf_source, 16);
+			sunxi_dump(md5_buf_dram, 16);
 
-			free(de_addr);
 			return -1;
 		}
 		else
@@ -632,8 +648,419 @@ int do_hdcp_rssk_test(void *data_addr, uint data_len)
 			printf("%s: compare the md5 between keysram and source data successed\n", __func__);
 		}
 	}
-	free(de_addr);
 
 	return 0;
 }
+U_BOOT_CMD(
+	hdcp_rssk_test, CONFIG_SYS_MAXARGS,1, do_hdcp_rssk_test,
+	"test the aes rssk to keysram method",
+	"usage: hdcp_rssk_test\n"
+	"now there is no any parameters\n"
+);
+
+
+#define AES_TEST_SOURCE_DATA_LEN   (512)
+#define AES_TEST_BLOCK_DATA_LEN    (512)
+int do_aes_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	u8  source[AES_TEST_SOURCE_DATA_LEN];
+	u8  dest[AES_TEST_SOURCE_DATA_LEN];
+	u8  cmp[AES_TEST_SOURCE_DATA_LEN];
+	u8  key_buf[256], iv_buf[128];
+	u32 key_type=2, aes_mode=0;
+	int ret, i;
+
+	if(argc == 1)
+	{
+		;
+	}
+	else if(argc == 2)
+	{
+		key_type = simple_strtol(argv[1], NULL, 10);
+	}
+	else if(argc == 3)
+	{
+		key_type = simple_strtol(argv[1], NULL, 10);
+		aes_mode = simple_strtol(argv[2], NULL, 10);
+	}
+	else
+	{
+		printf("Too much parameters\n");
+
+		goto return_err;
+	}
+
+	if(key_type == 0)
+	{
+		printf("AES KEY: 128bit\n");
+	}
+	else if(key_type == 1)
+	{
+		printf("AES KEY: 192bit\n");
+	}
+	else if(key_type == 2)
+	{
+		printf("AES KEY: 256bit\n");
+	}
+	else
+	{
+		printf("the AES KEY TYPE is invalid\n");
+
+		goto return_err;
+	}
+
+	if(aes_mode == 0)
+	{
+		printf("AES MODE: ECB\n");
+	}
+	else if(aes_mode == 1)
+	{
+		printf("AES MODE: CBC\n");
+	}
+	else
+	{
+		printf("the AES MODE is invalid\n");
+
+		goto return_err;
+	}
+
+	for(i=0;i<AES_TEST_SOURCE_DATA_LEN;i++)
+	{
+		source[i] = (i&0xff) + 0x80;
+	}
+	for(i=0;i<256;i++)
+	{
+		key_buf[i] = (i&0xff) + 0x5A;
+	}
+
+	printf("aes test: source data:\n");
+	sunxi_dump(source, AES_TEST_SOURCE_DATA_LEN);
+
+	printf("try to encrypt\n");
+	memset(dest , 0, AES_TEST_SOURCE_DATA_LEN);
+
+	if(aes_mode == SS_AES_MODE_ECB)
+	{
+		ret = TNHALCryptoAESEcb(source, AES_TEST_SOURCE_DATA_LEN, dest, key_buf, key_type, SS_DIR_ENCRYPT);
+	}
+	else
+	{
+		memset(iv_buf, 0x5A, 128);
+		ret = TNHALCryptoAESCbc(source, AES_TEST_SOURCE_DATA_LEN, dest, key_buf, key_type, iv_buf, SS_DIR_ENCRYPT);
+	}
+	if(ret)
+	{
+		printf("%s:fail to encrypt\n",__func__);
+
+		goto return_err;
+	}
+	printf("the encrypt value:\n");
+	sunxi_dump(dest, AES_TEST_SOURCE_DATA_LEN);
+
+	printf("try to decrypt\n");
+	memset(cmp , 0, AES_TEST_SOURCE_DATA_LEN);
+
+	if(aes_mode == SS_AES_MODE_ECB)
+	{
+		ret = TNHALCryptoAESEcb(dest, AES_TEST_SOURCE_DATA_LEN, cmp, key_buf, key_type, SS_DIR_DECRYPT);
+	}
+	else
+	{
+		memset(iv_buf, 0x5A, 128);
+		ret = TNHALCryptoAESCbc(dest, AES_TEST_SOURCE_DATA_LEN, cmp, key_buf, key_type, iv_buf, SS_DIR_DECRYPT);
+	}
+
+	if(ret)
+	{
+		printf("%s:fail to decrypt\n",__func__);
+
+		goto return_err;
+	}
+	printf("the decrypt value:\n");
+	sunxi_dump(cmp, AES_TEST_SOURCE_DATA_LEN);
+
+	for(i=0;i<AES_TEST_SOURCE_DATA_LEN;i++)
+	{
+		if(source[i] != cmp[i])
+		{
+			printf("the aes fail: source[%d]:%02x is not equal to cmp[%d]:%02x\n", i, source[i], i, cmp[i]);
+
+			goto return_err;
+		}
+	}
+
+	printf("aes successed\n");
+
+	return 0;
+
+return_err:
+	return cmd_usage(cmdtp);
+}
+
+U_BOOT_CMD(
+	aes_test, CONFIG_SYS_MAXARGS,1, do_aes_test,
+	"test the aes encrypt and decrypt",
+	"usage: aes_test [key_type] [aes_mode]\n"
+	"key type: 0        , 128BIT\n"
+	"          1        , 192BIT\n"
+	"          2 default, 256BIT\n"
+	"aes mode: 0 default, ECB\n"
+	"        : 1        , CBC\n"
+);
+
+#define SHAX_TEST_BLOCK_DATA_LEN    (512)
+static u8 *__shax_prepare(int argc, char * const argv[], u32 *len)
+{
+	u8 *data_buf;
+	u32 data_len;
+
+	if(argc == 1)
+	{
+		data_len = 2048;
+	}
+	else if(argc == 2)
+	{
+		data_len = simple_strtol(argv[1], NULL, 10);
+	}
+	else
+	{
+		printf("Too much parameters\n");
+
+		return NULL;
+	}
+	data_buf = (u8 *)malloc(data_len + 1);
+	if(data_buf == NULL)
+	{
+		printf("the input data length is invalid\n");
+
+		return NULL;
+	}
+	memset(data_buf, 'A', data_len);
+
+	printf("the data bytes: %d\n", data_len);
+	data_buf[data_len] = '\0';
+	//printf("the source data:\n");
+	//sunxi_dump(data_buf, data_len);
+	*len = data_len;
+
+	return data_buf;
+
+}
+int do_md5_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	u8  *source, *tmp_src;
+	u8  md5_buf[64];
+	u32 data_len, tmp_data_len;
+	int ret;
+
+	source = __shax_prepare(argc, argv, &data_len);
+	if(source == NULL)
+	{
+		printf("The source addr is invalid\n");
+
+		return cmd_usage(cmdtp);
+	}
+	tmp_src = source;
+	tmp_data_len = data_len;
+	while(tmp_data_len > SHAX_TEST_BLOCK_DATA_LEN)
+	{
+		ret = TNHALCryptoMD5(tmp_src, SHAX_TEST_BLOCK_DATA_LEN, 0, md5_buf);
+		if(ret)
+		{
+			printf("%s: fail to calculate md5 for source data\n",__func__ );
+
+			goto __md5_test_err;
+		}
+		tmp_src  += SHAX_TEST_BLOCK_DATA_LEN;
+		tmp_data_len -= SHAX_TEST_BLOCK_DATA_LEN;
+	}
+	ret = TNHALCryptoMD5(tmp_src, tmp_data_len, 1, md5_buf);
+	if(ret)
+	{
+		printf("%s: fail to calculate md5 for source data\n",__func__ );
+
+		goto __md5_test_err;
+	}
+
+	printf("md5 test: dram buf md5:\n");
+	sunxi_dump(md5_buf, 16);
+
+	free(source);
+
+	return 0;
+__md5_test_err:
+	free(source);
+
+	return cmd_usage(cmdtp);
+
+}
+
+U_BOOT_CMD(
+	md5, CONFIG_SYS_MAXARGS,1, do_md5_test,
+	"test the md5",
+	"usage: md [data_len]\n"
+	"if null, default value is 512 "
+);
+
+int do_sha1_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	u8  *source, *tmp_src;
+	u8  sha1_buf[64];
+	u32 data_len, tmp_data_len;
+	int ret;
+
+	source = __shax_prepare(argc, argv, &data_len);
+	if(source == NULL)
+	{
+		printf("The source addr is invalid\n");
+
+		return cmd_usage(cmdtp);
+	}
+	tmp_src = source;
+	tmp_data_len = data_len;
+	while(tmp_data_len > SHAX_TEST_BLOCK_DATA_LEN)
+	{
+		ret = TNHALCryptoSHA1(tmp_src, SHAX_TEST_BLOCK_DATA_LEN, 0, sha1_buf);
+		if(ret)
+		{
+			printf("%s: fail to calculate sha1 for source data\n",__func__ );
+
+			goto __sha1_test_err;
+		}
+		tmp_src  += SHAX_TEST_BLOCK_DATA_LEN;
+		tmp_data_len -= SHAX_TEST_BLOCK_DATA_LEN;
+	}
+	ret = TNHALCryptoSHA1(tmp_src, tmp_data_len, 1, sha1_buf);
+	if(ret)
+	{
+		printf("%s: fail to calculate sha1 for source data\n",__func__ );
+
+		goto __sha1_test_err;
+	}
+
+	printf("sha1 test: dram buf sha1:\n");
+	sunxi_dump(sha1_buf, 20);
+	free(source);
+
+	return 0;
+__sha1_test_err:
+	free(source);
+
+	return cmd_usage(cmdtp);
+}
+
+U_BOOT_CMD(
+	sha1, CONFIG_SYS_MAXARGS,1, do_sha1_test,
+	"test the sha1",
+	"usage: sha1 [data_len]\n"
+	"if null, default value is 512 "
+);
+
+int do_sha256_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	u8  *source, *tmp_src;
+	u8  sha256_buf[64];
+	u32 data_len, tmp_data_len;
+	int ret;
+
+	source = __shax_prepare(argc, argv, &data_len);
+	if(source == NULL)
+	{
+		printf("The source addr is invalid\n");
+
+		return cmd_usage(cmdtp);
+	}
+	tmp_src = source;
+	tmp_data_len = data_len;
+	while(tmp_data_len > SHAX_TEST_BLOCK_DATA_LEN)
+	{
+		ret = TNHALCryptoSHA256(tmp_src, SHAX_TEST_BLOCK_DATA_LEN, 0, sha256_buf);
+		if(ret)
+		{
+			printf("%s: fail to calculate sha256 for source data\n",__func__ );
+
+			goto __sha256_test_err;
+		}
+		tmp_src  += SHAX_TEST_BLOCK_DATA_LEN;
+		tmp_data_len -= SHAX_TEST_BLOCK_DATA_LEN;
+	}
+	ret = TNHALCryptoSHA256(tmp_src, tmp_data_len, 1, sha256_buf);
+	if(ret)
+	{
+		printf("%s: fail to calculate sha256 for source data\n",__func__ );
+
+		goto __sha256_test_err;
+	}
+	printf("sha256 test: dram buf sha256:\n");
+	sunxi_dump(sha256_buf, 32);
+	free(source);
+
+	return 0;
+__sha256_test_err:
+	free(source);
+
+	return cmd_usage(cmdtp);
+}
+
+U_BOOT_CMD(
+	sha256, CONFIG_SYS_MAXARGS,1, do_sha256_test,
+	"test the sha256",
+	"usage: sha256 [data_len]\n"
+	"if null, default value is 512 "
+);
+
+int do_sha512_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	u8  *source, *tmp_src;
+	u8  sha512_buf[64];
+	u32 data_len, tmp_data_len;
+	int ret;
+
+	source = __shax_prepare(argc, argv, &data_len);
+	if(source == NULL)
+	{
+		printf("The source addr is invalid\n");
+
+		return cmd_usage(cmdtp);
+	}
+	tmp_src = source;
+	tmp_data_len = data_len;
+	while(tmp_data_len > SHAX_TEST_BLOCK_DATA_LEN)
+	{
+		ret = TNHALCryptoSHA512(tmp_src, SHAX_TEST_BLOCK_DATA_LEN, 0, sha512_buf);
+		if(ret)
+		{
+			printf("%s: fail to calculate sha512 for source data\n",__func__ );
+
+			goto __sha512_test_err;
+		}
+		tmp_src      += SHAX_TEST_BLOCK_DATA_LEN;
+		tmp_data_len -= SHAX_TEST_BLOCK_DATA_LEN;
+	}
+	ret = TNHALCryptoSHA512(tmp_src, tmp_data_len, 1, sha512_buf);
+	if(ret)
+	{
+		printf("%s: fail to calculate sha512 for source data\n",__func__ );
+
+		goto __sha512_test_err;
+	}
+
+	printf("sha512 test: dram buf sha512:\n");
+	sunxi_dump(sha512_buf, 64);
+	free(source);
+
+	return 0;
+__sha512_test_err:
+	free(source);
+
+	return cmd_usage(cmdtp);
+}
+
+U_BOOT_CMD(
+	sha512, CONFIG_SYS_MAXARGS,1, do_sha512_test,
+	"test the sha512",
+	"usage: sha512 [data_len]\n"
+	"if null, default value is 512 "
+);
 #endif
+

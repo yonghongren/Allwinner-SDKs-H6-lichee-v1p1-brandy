@@ -53,18 +53,28 @@ int axp22_probe(void)
     axp_i2c_config(SUNXI_AXP_22X, AXP22_ADDR);
 	if(axp_i2c_read(AXP22_ADDR, BOOT_POWER22_VERSION, &pmu_type))
 	{
-		printf("axp22x read error\n");
+		pr_msg("axp22x read error\n");
 
 		return -1;
 	}
+
+#ifdef CONFIG_SUNXI_AXP22
+	pmu_type &= 0xcf;
+	if (pmu_type == 0x06 || pmu_type == 0x07) {
+		/* pmu type AXP223 */
+		tick_printf("PMU: AXP223\n");
+
+		return 0;
+	}
+#else
 	pmu_type &= 0x0f;
-	if(pmu_type & 0x06)
-	{
+	if (pmu_type & 0x06) {
 		/* pmu type AXP221 */
 		tick_printf("PMU: AXP221\n");
 
 		return 0;
 	}
+#endif
 
 	return -1;
 }
@@ -609,17 +619,17 @@ int axp22_probe_vbus_cur_limit(void)
     reg_value &= 0x03;
     if(reg_value == 0x01)
     {
-        printf("limit to 500mA \n");
+        pr_msg("limit to 500mA \n");
         return 500;
     }
     else if(reg_value == 0x00)
     {
-        printf("limit to 900 \n");
+        pr_msg("limit to 900 \n");
         return 900;
     }
     else
     {
-        printf("do not limit current \n");
+        pr_msg("do not limit current \n");
         return 0;
     }
 }
@@ -782,15 +792,44 @@ s32 axp22_usb_vbus_output(int hight)
 		return 0;
 
 	if (axp_i2c_read(AXP22_ADDR,BOOT_POWER22_IPS_SET,&tmp)) {
-			printf("axp22x read ips set error\n");
+			pr_msg("axp22x read ips set error\n");
 			return -1;
 	}
 	tmp |= 0x04;
 	if(axp_i2c_write(AXP22_ADDR, BOOT_POWER22_IPS_SET, tmp)) {
-		printf("axp22x write ips set error\n");
+		pr_msg("axp22x write ips set error\n");
 		return -1;
 	}
 	return 1;
+}
+
+int axp22_set_power_reset(void)
+{
+	u8 reg_value;
+	if (axp_i2c_read(AXP22_ADDR, BOOT_POWER22_VOFF_SET, &reg_value)) {
+		pr_msg("axp22_set_power_reset: axp_i2c_read error!\n");
+		return -1;
+	}
+	reg_value |= (1 << 6);
+	pr_msg("axp will reset the system....\n");
+	if (axp_i2c_write(AXP22_ADDR, BOOT_POWER22_VOFF_SET, reg_value)) {
+		pr_msg("axp22_set_power_reset: axp_i2c_write error!\n");
+		return -1;
+	}
+	return 0;
+}
+
+
+void sunxi_pmu_reset(void)
+{
+	if (uboot_spare_head.boot_data.work_mode == WORK_MODE_BOOT) {
+		pr_msg("restart system by pmu\n");
+		mdelay(1000);
+		axp22_set_power_reset();
+		while (1) {
+			;
+		}
+	}
 }
 
 

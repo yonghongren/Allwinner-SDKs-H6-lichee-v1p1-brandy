@@ -62,7 +62,7 @@ int de_dcsc_apply(unsigned int sel, struct disp_csc_config *config)
 	      sel, config->in_fmt, config->in_mode, config->out_fmt,
 	      config->out_mode, config->out_color_range);
 
-	memcpy((void *)&g_dcsc_config[sel], config, sizeof(struct disp_csc_config));
+	memcpy(&g_dcsc_config[sel], config, sizeof(struct disp_csc_config));
 	de_csc_coeff_calc(config->in_fmt, config->in_mode, config->out_fmt,
 			  config->out_mode, config->brightness,
 			  config->contrast, config->saturation, config->hue,

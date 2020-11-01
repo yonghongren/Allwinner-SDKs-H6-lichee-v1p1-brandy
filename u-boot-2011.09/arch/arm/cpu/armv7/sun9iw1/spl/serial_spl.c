@@ -57,11 +57,7 @@ void sunxi_serial_init(int uart_port, void *gpio_cfg, int gpio_max)
 	serial_ctrl_base = (serial_hw_t *)(SUNXI_UART0_BASE + uart_port * CCM_UART_ADDR_OFFSET);
 
 	serial_ctrl_base->mcr = 0x3;
-#if defined(CONFIG_ARCH_HOMELET)
-	uart_clk = (64000000 + 8 * UART_BAUD)/(16 * UART_BAUD);
-#else
 	uart_clk = (24000000 + 8 * UART_BAUD)/(16 * UART_BAUD);
-#endif
 	serial_ctrl_base->lcr |= 0x80;
 	serial_ctrl_base->dlh = uart_clk>>8;
 	serial_ctrl_base->dll = uart_clk&0xff;

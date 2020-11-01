@@ -18,8 +18,8 @@
 * Descript:
 **********************************************************************************************************************
 */
-#ifndef  _SCRIPT_H_
-#define  _SCRIPT_H_
+#ifndef _SCRIPT_H_
+#define _SCRIPT_H_
 
 #define   DATA_TYPE_SINGLE_WORD  (1)
 #define   DATA_TYPE_STRING       (2)
@@ -32,31 +32,27 @@
 #define   SCRIPT_PARSER_DATA_VALUE_NULL	(-3)
 #define   SCRIPT_PARSER_KEY_NOT_FIND    (-4)
 
-typedef struct
-{
+typedef struct {
 	int  main_key_count;
 	int  version[3];
 }
 script_head_t;
 
-typedef struct
-{
+typedef struct {
 	char main_name[32];
 	int  lenth;
 	int  offset;
 }
 script_main_key_t;
 
-typedef struct
-{
+typedef struct {
 	char sub_name[32];
 	int  offset;
 	int  pattern;
 }
 script_sub_key_t;
 
-typedef struct
-{
+typedef struct {
 	int port;
 	int port_num;
 	int mul_sel;

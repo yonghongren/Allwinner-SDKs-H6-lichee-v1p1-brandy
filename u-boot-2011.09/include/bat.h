@@ -40,17 +40,7 @@ typedef struct
 }
 sunxi_bmp_store_t;
 
-typedef struct
-{
-	int x;
-	int y;
-	int bit;
-	void *buffer;
-}
-sunxi_rgb_store_t;
-
 extern int sunxi_bmp_decode(unsigned long addr, sunxi_bmp_store_t *bmp_info);
-extern int sunxi_rgb_decode(unsigned long addr, sunxi_rgb_store_t *rgb_info);
 
 #endif  /* __SUNXI_BAT_H__ */
 

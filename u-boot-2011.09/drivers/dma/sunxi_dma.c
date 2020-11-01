@@ -599,7 +599,7 @@ int sunxi_dma_disable_int(uint hdma)
 	{
 	    if(!(dma_status->irq_en0 & (DMA_PKG_END_INT << channal_count*4)))
 	    {
-	    	//printf("dma 0x%x int is not used yet\n", hdma);
+	    	printf("dma 0x%x int is not used yet\n", hdma);
 
 			return 0;
 		}
@@ -609,7 +609,7 @@ int sunxi_dma_disable_int(uint hdma)
 	{
 		if(!(dma_status->irq_en1 & (DMA_PKG_END_INT << (channal_count - 8)*4)))
 	    {
-	    //	printf("dma 0x%x int is not used yet\n", hdma);
+	    	printf("dma 0x%x int is not used yet\n", hdma);
 
 			return 0;
 		}
@@ -671,7 +671,7 @@ int sunxi_dma_free_int(uint hdma)
 	}
 	else
 	{
-		//printf("dma 0x%x int is free, you do not need to free it again\n", hdma);
+		printf("dma 0x%x int is free, you do not need to free it again\n", hdma);
 
 		return -1;
 	}

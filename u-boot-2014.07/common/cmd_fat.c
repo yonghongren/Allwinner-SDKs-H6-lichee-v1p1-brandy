@@ -17,7 +17,6 @@
 #include <part.h>
 #include <fat.h>
 #include <fs.h>
-#include <sys_partition.h>
 
 int do_fat_fsload (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
@@ -39,66 +38,6 @@ U_BOOT_CMD(
 	"      ARCH_DMA_MINALIGN then a misaligned buffer warning will\n"
 	"      be printed and performance will suffer for the load."
 );
-
-int do_aw_fat_fsload(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
-{
-	return do_aw_load(cmdtp, flag, argc, argv, FS_TYPE_FAT);
-}
-
-U_BOOT_CMD(
-	aw_fatload,	7,	0,	do_aw_fat_fsload,
-	"load binary file from a dos filesystem",
-	"<interface> [<dev[:part]>]  <addr> <filename> [bytes [pos]]\n"
-	"    - Load binary file 'filename' from 'dev' on 'interface'\n"
-	"      to address 'addr' from dos filesystem.\n"
-	"      'pos' gives the file position to start loading from.\n"
-	"      If 'pos' is omitted, 0 is used. 'pos' requires 'bytes'.\n"
-	"      'bytes' gives the size to load. If 'bytes' is 0 or omitted,\n"
-	"      the load stops on end of file.\n"
-	"      If either 'pos' or 'bytes' are not aligned to\n"
-	"      ARCH_DMA_MINALIGN then a misaligned buffer warning will\n"
-	"      be printed and performance will suffer for the load."
-);
-
-int aw_fat_fsload(char *part_name, char *file_name, char* load_addr, ulong length)
-{
-	int part_no;
-	char part_num[16] = {0};
-	char filename[32] = {0};
-	char read_addr[32] = {0};
-	char len[16] = {0};
-	unsigned int read_bytes = 0;
-
-	part_no = sunxi_partition_get_partno_byname(part_name);
-	if(part_no < 0)
-	{
-		printf("no the part:%s\n", part_name);
-		return -1;
-	}
-
-	char * temp_argv[6] = { "fatload", "sunxi_flash", part_num, "00000000", filename, len};
-
-	sprintf(part_num, "%x:0", part_no);
-	temp_argv[2] = part_num;
-
-	sprintf(read_addr, "%lx", (ulong)load_addr);
-	temp_argv[3] = read_addr;
-
-	memset(filename, 0, 32);
-	strcpy(filename, file_name);
-
-	sprintf(len, "%ld", length);
-	temp_argv[5] = len;
-
-	read_bytes = do_aw_fat_fsload(0, 0, 5, temp_argv);
-	if(read_bytes <= 0)
-	{
-		printf("do_aw_fat_fsload: unable to open file %s\n", temp_argv[4]);
-		return -1;
-	}
-
-	return read_bytes;
-}
 
 static int do_fat_ls(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
@@ -195,4 +134,27 @@ U_BOOT_CMD(
 	"    - write file 'filename' from the address 'addr' in RAM\n"
 	"      to 'dev' on 'interface'"
 );
+
+
+#ifdef CONFIG_SUNXI_FINS_FUNC
+int __attribute__((__no_instrument_function__))
+	ff_write_fun_trace_data2flash(void *data_buffer, unsigned int data_size)
+{
+	char addrstr[32] = {0};
+	char lenstr[32] = {0};
+
+	sprintf(addrstr, "%lx", (ulong)data_buffer);
+	sprintf(lenstr, "%x", data_size);
+	char *file_argv[6] = { "fatdown", "sunxi_flash", "1:0",
+		addrstr, "aw_uboot_fun_trace_data.bin", lenstr};
+
+	if (do_fat_fswrite(0, 0, 6, file_argv)) {
+		printf("Warining: Write performance data error, %s:%s\n",
+			addrstr, lenstr);
+		return -1;
+	}
+	return 0;
+}
+#endif
+
 #endif

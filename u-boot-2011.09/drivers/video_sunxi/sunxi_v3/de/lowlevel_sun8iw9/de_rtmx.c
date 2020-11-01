@@ -37,6 +37,7 @@ static de_reg_blocks bld_attr_block[DEVICE_NUM];//0x00~0x40
 static de_reg_blocks bld_ctl_block[DEVICE_NUM]; //0x80~0x9c
 static de_reg_blocks bld_ck_block[DEVICE_NUM];  //0xb0~0xec
 static de_reg_blocks bld_out_block[DEVICE_NUM]; //0xfc
+static u32 de_base = 0;
 
 extern int de_calc_ovl_coord(unsigned int frame_coord, unsigned int scale_step, int vsu_sel);
 int de_rtmx_trimcoord(de_rect *frame, de_rect *crop, unsigned int outw, unsigned int outh, int xratio, int yratio);
@@ -143,6 +144,7 @@ int de_rtmx_init(unsigned int sel, unsigned int reg_base)
 	int ch_index = 0;
 
 	__inf("sel %d, reg_base=0x%x\n", sel, reg_base);
+	de_base = reg_base;
 
 	if(sel > de_feat_get_num_devices())
 		__wrn("sel %d out of range\n", sel);
@@ -373,15 +375,27 @@ int de_rtmx_query_irq(unsigned int sel)
 	int base = glb_ctl_block[sel].off;
 	unsigned int irq_flag;
 
-	irq_flag = readl((void *)(base + 0x04));
+	irq_flag = disp_readl((void *)(base + 0x04));
 	if(irq_flag & 0x1) {
-		writel(irq_flag, (void *)(base + 0x04));
+		disp_writel(irq_flag, (void *)(base + 0x04));
 		return 1;
 	}
 
 	return 0;
 }
 
+int de_rtmx_enable_irq(unsigned int sel, unsigned int en)
+{
+	int base = glb_ctl_block[sel].off;
+	unsigned int irq_flag;
+
+	irq_flag = disp_readl((void *)(base + 0x0)) ;
+	irq_flag &= (~(0x1<<4));
+	irq_flag |= (en&0x1) << 4;
+	disp_writel(irq_flag, (void *)(base + 0x0));
+
+	return 0;
+}
 
 //*********************************************************************************************************************
 // function       : de_rtmx_set_lay_cfg(unsigned int sel, unsigned int chno, unsigned int layno, __lay_para_t *cfg)
@@ -1462,5 +1476,21 @@ int de_rtmx_get_premul_ctl(int laynum, unsigned char *premul)
 	}
 
 	return pipe_mode;
+}
+
+int de_rtmx_mux(unsigned int sel, unsigned int tcon_index)
+{
+	u32 reg_val;
+	if(sel == tcon_index) {
+		reg_val = disp_readl(de_base + 0x10);
+		reg_val &= ~0x1;
+		disp_writel(reg_val, de_base + 0x10);
+	} else {
+		reg_val = disp_readl(de_base + 0x10);
+		reg_val |= 0x1;
+		disp_writel(reg_val, de_base + 0x10);
+	}
+
+	return 0;
 }
 

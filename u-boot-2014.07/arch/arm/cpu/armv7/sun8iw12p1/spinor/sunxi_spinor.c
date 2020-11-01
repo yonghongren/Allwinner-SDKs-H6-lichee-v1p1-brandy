@@ -1,21 +1,21 @@
 /*
  * sunxi_spinor.c
- *
+ * 
  * Copyright (C) 2017-2020 Allwinnertech Co., Ltd
- *
+ * 
  * Author        : zhouhuacai
- *
+ * 
  * Description   : Driver for sunxi spinor
- *
+ * 
  * SPDX-License-Identifier:	GPL-2.0+
- *
- *
+ * 
+ * 
  * History       :
  *  1.Date        : 2017/4/12
  *    Author      : zhouhuacai
  *    Modification: Created file
  */
-
+ 
 #include <common.h>
 #include <asm/arch/spinor.h>
 #include "spi_hal.h"
@@ -106,3 +106,4 @@ int spinor_read(uint start, uint sector_cnt, void *buffer)
 
 	return ret;
 }
+

@@ -792,6 +792,7 @@ s32 tcon1_hdmi_color_remap(u32 sel,u32 onoff)
 		lcd_dev[sel]->tcon_ceu_ctl.bits.ceu_en = 1;
 	else
 		lcd_dev[sel]->tcon_ceu_ctl.bits.ceu_en = 0;
+
 	return 0;
 }
 

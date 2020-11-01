@@ -250,6 +250,10 @@ static disp_fdt_node_map_t g_disp_fdt_node_map[] ={
 	{FDT_TV0_PATH, -1},
 	{FDT_TV1_PATH, -1},
 #endif
+#if defined(SUPPORT_EDP) && defined(CONFIG_EDP_DISP2_SUNXI)
+	{FDT_EDP0_PATH, -1},
+	{FDT_EDP1_PATH, -1},
+#endif
 	{"",-1}
 };
 
@@ -294,27 +298,27 @@ int disp_sys_script_get_item(char *main_name, char *sub_name, int value[], int t
 	node = disp_fdt_nodeoffset(main_name);
 	if(node < 0 )
 	{
-		printf("fdt get node offset faill: %s\n", main_name);
+		pr_msg("fdt get node offset faill: %s\n", main_name);
 		return ret;
 	}
 
 	if (1 == type) {
 		if (fdt_getprop_u32(working_fdt, node, sub_name, (uint32_t*)value) < 0)
-			printf("fdt_getprop_u32 %s.%s fail\n", main_name, sub_name);
+			pr_msg("fdt_getprop_u32 %s.%s fail\n", main_name, sub_name);
 		else
 			ret = type;
 	} else if (2 == type) {
 		const char *str;
 
 		if (fdt_getprop_string(working_fdt, node, sub_name, (char **)&str) < 0)
-			printf("fdt_getprop_string %s.%s fail\n", main_name, sub_name);
+			pr_msg("fdt_getprop_string %s.%s fail\n", main_name, sub_name);
 		else {
 			ret = type;
 			memcpy((void*)value, str, strlen(str)+1);
 		}
 	} else if (3 == type) {
 		if(fdt_get_one_gpio_by_offset(node, sub_name, &gpio_info) < 0)
-			printf("fdt_get_one_gpio %s.%s fail\n", main_name, sub_name);
+			pr_msg("fdt_get_one_gpio %s.%s fail\n", main_name, sub_name);
 		else {
 			gpio_list = (disp_gpio_set_t  *)value;
 			gpio_list->port = gpio_info.port;
@@ -325,7 +329,7 @@ int disp_sys_script_get_item(char *main_name, char *sub_name, int value[], int t
 			gpio_list->data = gpio_info.data;
 
 			memcpy(gpio_info.gpio_name, sub_name, strlen(sub_name)+1);
-			printf("%s.%s gpio=%d,mul_sel=%d,data:%d\n",main_name, sub_name, gpio_list->gpio, gpio_list->mul_sel, gpio_list->data);
+			pr_msg("%s.%s gpio=%d,mul_sel=%d,data:%d\n",main_name, sub_name, gpio_list->gpio, gpio_list->mul_sel, gpio_list->data);
 			ret = type;
 		}
 	}
@@ -446,7 +450,7 @@ int disp_sys_pin_set_state(char *dev_name, char *name)
 	nodeoffset = disp_fdt_nodeoffset(compat);
 	if(nodeoffset < 0)
 	{
-		printf("nodeoffset is wrong!\n");
+		pr_msg("nodeoffset is wrong!\n");
 		return ret;
 	}
 	ret = fdt_set_all_pin_by_offset(nodeoffset, (1 == state)?"pinctrl-0":"pinctrl-1");

@@ -1,7 +1,6 @@
 #include "disp_display.h"
 
 disp_dev_t gdisp;
-
 s32 bsp_disp_init(disp_bsp_init_para * para)
 {
 	u32 num_screens, disp;
@@ -26,11 +25,18 @@ s32 bsp_disp_init(disp_bsp_init_para * para)
 #if defined(SUPPORT_TV)
 	disp_init_tv_para(para);
 #endif
+
+#if defined(SUPPORT_EDP) && defined(CONFIG_EDP_DISP2_SUNXI)
+	disp_init_edp(para);
+#endif /*endif SUPPORT_EDP */
 	disp_init_mgr(para);
 	disp_init_enhance(para);
 	disp_init_smbl(para);
 	disp_init_capture(para);
 
+#if defined SUPPORT_EINK
+	disp_init_eink(para);
+#endif
 	disp_init_connections(para);
 
 	return DIS_SUCCESS;
@@ -224,7 +230,7 @@ s32 bsp_disp_device_switch(int disp, enum disp_output_type output_type, enum dis
 			DISP_CSC_TYPE_RGB : DISP_CSC_TYPE_YUV444;
 	config.bits = DISP_DATA_8BITS;
 	config.eotf = DISP_EOTF_GAMMA22;
-	config.cs = DISP_BT709;
+	config.cs = DISP_UNDEF;
 
 	ret = disp_device_attached_and_enable(disp, disp, &config);
 	if (0 != ret) {
@@ -258,6 +264,18 @@ s32 bsp_disp_device_set_config(int disp, struct disp_device_config *config)
 				break;
 		}
 	}
+
+	return ret;
+}
+
+s32 bsp_disp_eink_update(struct disp_eink_manager *manager, struct eink_8bpp_image *cimage)
+{
+	int ret = -1;
+	struct eink_8bpp_image current_image;
+
+	memcpy(&current_image, cimage, sizeof(struct eink_8bpp_image));
+	if (manager)
+		ret = manager->eink_update(manager, &current_image);
 
 	return ret;
 }
@@ -724,6 +742,7 @@ s32 bsp_disp_get_screen_height(u32 disp)
 s32 bsp_disp_get_screen_width_from_output_type(u32 disp, u32 output_type, u32 output_mode)
 {
 	u32 width = 800, height = 480;
+	struct disp_device *dispdev;
 
 	if (DISP_OUTPUT_TYPE_LCD == output_type) {
 		struct disp_manager *mgr;
@@ -732,6 +751,10 @@ s32 bsp_disp_get_screen_width_from_output_type(u32 disp, u32 output_type, u32 ou
 		if (mgr && mgr->device && mgr->device->get_resolution) {
 			mgr->device->get_resolution(mgr->device, &width, &height);
 		}
+	} else if (output_type == DISP_OUTPUT_TYPE_EDP) {
+		dispdev = disp_device_get(disp, DISP_OUTPUT_TYPE_EDP);
+		if (dispdev)
+			dispdev->get_resolution(dispdev, &width, &height);
 	} else if ((DISP_OUTPUT_TYPE_HDMI == output_type)
 			|| (DISP_OUTPUT_TYPE_TV == output_type)
 			|| (DISP_OUTPUT_TYPE_VGA == output_type)) {
@@ -763,9 +786,6 @@ s32 bsp_disp_get_screen_width_from_output_type(u32 disp, u32 output_type, u32 ou
 			width = 1920;
 			height = 1080;
 			break;
-		case DISP_TV_MOD_1080_1920P_60HZ:
-			width = 1080;
-			height = 1920;
 		case DISP_TV_MOD_3840_2160P_30HZ:
 		case DISP_TV_MOD_3840_2160P_25HZ:
 		case DISP_TV_MOD_3840_2160P_24HZ:
@@ -773,11 +793,6 @@ s32 bsp_disp_get_screen_width_from_output_type(u32 disp, u32 output_type, u32 ou
 			height = 2160;
 			break;
 		case DISP_TV_MOD_4096_2160P_24HZ:
-		case DISP_TV_MOD_4096_2160P_25HZ:
-		case DISP_TV_MOD_4096_2160P_30HZ:
-		case DISP_TV_MOD_4096_2160P_50HZ:
-		case DISP_TV_MOD_4096_2160P_60HZ:
-
 			width = 4096;
 			height = 2160;
 			break;
@@ -805,10 +820,6 @@ s32 bsp_disp_get_screen_width_from_output_type(u32 disp, u32 output_type, u32 ou
 			width = 1440;
 			height = 900;
 			break;
-		case DISP_TV_MOD_1440_2560P_70HZ:
-			width = 1440;
-			height = 2560;
-			break;
 		case DISP_VGA_MOD_1920_1080P_60:
 			width = 1920;
 			height = 1080;
@@ -821,9 +832,17 @@ s32 bsp_disp_get_screen_width_from_output_type(u32 disp, u32 output_type, u32 ou
 			width = 1280;
 			height = 720;
 			break;
-		case DISP_TV_MOD_2560_1440P_60HZ:
-			width = 2560;
-			height = 1440;
+		case DISP_TV_MOD_1280_1024P_60HZ:
+			width = 1280;
+			height = 1024;
+			break;
+		case DISP_TV_MOD_1024_768P_60HZ:
+			width = 1024;
+			height = 768;
+			break;
+		case DISP_TV_MOD_900_540P_60HZ:
+			width = 900;
+			height = 540;
 			break;
 		}
 	}
@@ -835,6 +854,7 @@ s32 bsp_disp_get_screen_width_from_output_type(u32 disp, u32 output_type, u32 ou
 s32 bsp_disp_get_screen_height_from_output_type(u32 disp, u32 output_type, u32 output_mode)
 {
 	u32 width = 800, height = 480;
+	struct disp_device *dispdev;
 
 	if (DISP_OUTPUT_TYPE_LCD == output_type) {
 		struct disp_manager *mgr;
@@ -842,6 +862,10 @@ s32 bsp_disp_get_screen_height_from_output_type(u32 disp, u32 output_type, u32 o
 		if (mgr && mgr->device && mgr->device->get_resolution) {
 			mgr->device->get_resolution(mgr->device, &width, &height);
 		}
+	} else if (output_type == DISP_OUTPUT_TYPE_EDP) {
+		dispdev = disp_device_get(disp, DISP_OUTPUT_TYPE_EDP);
+		if (dispdev)
+			dispdev->get_resolution(dispdev, &width, &height);
 	} else if ((DISP_OUTPUT_TYPE_HDMI == output_type)
 			|| (DISP_OUTPUT_TYPE_TV == output_type)
 			|| (DISP_OUTPUT_TYPE_VGA == output_type)) {
@@ -873,20 +897,13 @@ s32 bsp_disp_get_screen_height_from_output_type(u32 disp, u32 output_type, u32 o
 			width = 1920;
 			height = 1080;
 			break;
-		case DISP_TV_MOD_1080_1920P_60HZ:
-			width = 1080;
-			height = 1920;
 		case DISP_TV_MOD_3840_2160P_30HZ:
 		case DISP_TV_MOD_3840_2160P_25HZ:
 		case DISP_TV_MOD_3840_2160P_24HZ:
 			width = 3840;
 			height = 2160;
 			break;
- 		case DISP_TV_MOD_4096_2160P_24HZ:
-		case DISP_TV_MOD_4096_2160P_25HZ:
-		case DISP_TV_MOD_4096_2160P_30HZ:
-		case DISP_TV_MOD_4096_2160P_50HZ:
-		case DISP_TV_MOD_4096_2160P_60HZ:
+		case DISP_TV_MOD_4096_2160P_24HZ:
 			width = 4096;
 			height = 2160;
 			break;
@@ -914,10 +931,6 @@ s32 bsp_disp_get_screen_height_from_output_type(u32 disp, u32 output_type, u32 o
 			width = 1440;
 			height = 900;
 			break;
-		case DISP_TV_MOD_1440_2560P_70HZ:
-			width = 1440;
-			height = 2560;
-			break;
 		case DISP_VGA_MOD_1920_1080P_60:
 			width = 1920;
 			height = 1080;
@@ -930,9 +943,17 @@ s32 bsp_disp_get_screen_height_from_output_type(u32 disp, u32 output_type, u32 o
 			width = 1280;
 			height = 720;
 			break;
-		case DISP_TV_MOD_2560_1440P_60HZ:
-			width = 2560;
-			height = 1440;
+		case DISP_TV_MOD_1280_1024P_60HZ:
+			width = 1280;
+			height = 1024;
+			break;
+		case DISP_TV_MOD_1024_768P_60HZ:
+			width = 1024;
+			height = 768;
+			break;
+		case DISP_TV_MOD_900_540P_60HZ:
+			width = 900;
+			height = 540;
 			break;
 		}
 	}
@@ -970,6 +991,73 @@ s32 bsp_disp_set_hdmi_func(struct disp_device_func * func)
 	return -1;
 }
 
+s32 bsp_disp_set_edp_func(struct disp_tv_func *func)
+{
+	u32 disp = 0;
+	u32 num_screens = 0;
+	s32 ret = 0, registered_cnt = 0;
+
+	num_screens = bsp_disp_feat_get_num_screens();
+	for (disp = 0; disp < num_screens; disp++) {
+		struct disp_device *edp;
+
+		edp = disp_device_find(disp, DISP_OUTPUT_TYPE_EDP);
+		if (edp) {
+			if (edp->set_tv_func)
+				ret = edp->set_tv_func(edp, func);
+			if (ret == 0)
+				registered_cnt++;
+		}
+	}
+
+	if (registered_cnt != 0) {
+		DE_INF("edp registered!!\n");
+		gdisp.edp_registered = 1;
+		if (gdisp.init_para.start_process)
+			gdisp.init_para.start_process();
+
+		return 0;
+	}
+
+	return -1;
+}
+
+s32 bsp_disp_hdmi_get_support_mode(u32 disp, u32 init_mode)
+{
+	u32 num_screens = 0;
+	s32 ret = -1;
+
+	num_screens = bsp_disp_feat_get_num_screens();
+	for (disp = 0; disp < num_screens; disp++) {
+		struct disp_device *hdmi;
+		hdmi = disp_device_find(disp, DISP_OUTPUT_TYPE_HDMI);
+		if (hdmi && hdmi->get_support_mode) {
+			ret = hdmi->get_support_mode(hdmi, init_mode);
+			break;
+		}
+	}
+
+	return ret;
+}
+
+s32 bsp_disp_hdmi_get_work_mode(u32 disp)
+{
+	u32 num_screens = 0;
+	s32 ret = -1;
+
+	num_screens = bsp_disp_feat_get_num_screens();
+	for (disp = 0; disp < num_screens; disp++) {
+		struct disp_device *hdmi;
+		hdmi = disp_device_find(disp, DISP_OUTPUT_TYPE_HDMI);
+		if (hdmi && hdmi->get_work_mode) {
+			ret = hdmi->get_work_mode(hdmi);
+			break;
+		}
+	}
+
+	return ret;
+}
+
 s32 bsp_disp_hdmi_check_support_mode(u32 disp, enum disp_output_type mode)
 {
 	u32 num_screens = 0;
@@ -999,24 +1087,6 @@ s32 bsp_disp_hdmi_get_hpd_status(u32 disp)
 		hdmi = disp_device_find(disp, DISP_OUTPUT_TYPE_HDMI);
 		if (hdmi && hdmi->detect) {
 			ret = hdmi->detect(hdmi);
-			break;
-		}
-	}
-
-	return ret;
-}
-
-s32 bsp_disp_hdmi_get_edid(u32 disp, uintptr_t *edid_addr)
-{
-	u32 num_screens = 0;
-	s32 ret = 0;
-
-	num_screens = bsp_disp_feat_get_num_screens();
-	for (disp = 0; disp < num_screens; disp++) {
-		struct disp_device *hdmi;
-		hdmi = disp_device_find(disp, DISP_OUTPUT_TYPE_HDMI);
-		if (hdmi && hdmi->get_edid) {
-			ret = hdmi->get_edid(hdmi, edid_addr);
 			break;
 		}
 	}
@@ -1485,17 +1555,18 @@ int bsp_disp_get_display_size(u32 disp, unsigned int *width, unsigned int *heigh
 }
 
 #if defined(SUPPORT_DSI)
-__weak __s32 dsi_mode_switch(__u32 sel, __u32 en)
-{
-	return 0;
-}
-
-extern __s32 dsi_mode_switch(__u32 sel, __u32 en);
-s32 bsp_disp_lcd_dsi_open(u32 disp)
+/**
+ * @name       :bsp_disp_lcd_dsi_mode_switch
+ * @brief      :dsi module mode switch
+ * @param[IN]  :cmd_en: command mode enable
+ * @param[IN]  :lp_en: lower power mode enable
+ * @return     :0 if success
+ */
+s32 bsp_disp_lcd_dsi_mode_switch(u32 disp, u32 cmd_en, u32 lp_en)
 {
 	s32 ret = -1;
-	disp_panel_para *panel_info = kmalloc(sizeof(disp_panel_para),
-					      GFP_KERNEL | __GFP_ZERO);
+	disp_panel_para *panel_info =
+	    kmalloc(sizeof(disp_panel_para), GFP_KERNEL | __GFP_ZERO);
 
 	ret = bsp_disp_get_panel_info(disp, panel_info);
 	if (ret == DIS_FAIL) {
@@ -1506,41 +1577,14 @@ s32 bsp_disp_lcd_dsi_open(u32 disp)
 	if (panel_info->lcd_tcon_mode == DISP_TCON_SLAVE_MODE)
 		goto OUT;
 
-	ret = dsi_mode_switch(disp, 1);
+	ret = dsi_mode_switch(disp, cmd_en, lp_en);
 	if (panel_info->lcd_tcon_mode == DISP_TCON_DUAL_DSI &&
 	    disp + 1 < DEVICE_DSI_NUM)
-		ret = dsi_mode_switch(disp + 1, 1);
+		ret = dsi_mode_switch(disp + 1, cmd_en, lp_en);
 	else if (panel_info->lcd_tcon_mode != DISP_TCON_NORMAL_MODE &&
 		 panel_info->lcd_tcon_mode != DISP_TCON_DUAL_DSI)
-		ret = dsi_mode_switch(panel_info->lcd_slave_tcon_num, 1);
-
-OUT:
-	kfree(panel_info);
-	return ret;
-}
-
-s32 bsp_disp_lcd_dsi_close(u32 disp)
-{
-	s32 ret = -1;
-	disp_panel_para *panel_info = kmalloc(sizeof(disp_panel_para),
-					      GFP_KERNEL | __GFP_ZERO);
-
-	ret = bsp_disp_get_panel_info(disp, panel_info);
-	if (ret == DIS_FAIL) {
-		DE_WRN("%s:Get panel info failed\n", __func__);
-		goto OUT;
-	}
-
-	if (panel_info->lcd_tcon_mode == DISP_TCON_SLAVE_MODE)
-		goto OUT;
-
-	ret = dsi_mode_switch(disp, 0);
-	if (panel_info->lcd_tcon_mode == DISP_TCON_DUAL_DSI &&
-	    disp + 1 < DEVICE_DSI_NUM)
-		ret = dsi_mode_switch(disp + 1, 0);
-	else if (panel_info->lcd_tcon_mode != DISP_TCON_NORMAL_MODE &&
-		 panel_info->lcd_tcon_mode != DISP_TCON_DUAL_DSI)
-		ret = dsi_mode_switch(panel_info->lcd_slave_tcon_num, 0);
+		ret = dsi_mode_switch(panel_info->lcd_slave_tcon_num, cmd_en,
+				      lp_en);
 OUT:
 	kfree(panel_info);
 	return ret;
@@ -1629,5 +1673,36 @@ s32 bsp_disp_lcd_dsi_gen_wr(u32 disp, u8 command, u8 *para, u32 para_num)
 OUT:
 	kfree(panel_info);
 	return ret;
+}
+s32 bsp_disp_lcd_dsi_gen_short_read(u32 sel, u8 *para_p, u8 para_num,
+				    u8 *result)
+{
+	s32 ret = -1;
+
+	if (!result || !para_p || para_num > 2) {
+		DE_WRN("Wrong para!\n");
+		goto OUT;
+	}
+	ret = dsi_gen_short_rd(sel, para_p, para_num, result);
+OUT:
+	return ret;
+}
+
+s32 bsp_disp_lcd_dsi_dcs_read(u32 sel, u8 cmd, u8 *result, u32 *num_p)
+{
+	s32 ret = -1;
+
+	if (!result || !num_p) {
+		DE_WRN("Wrong para!\n");
+		goto OUT;
+	}
+	ret = dsi_dcs_rd(sel, cmd, result, num_p);
+OUT:
+	return ret;
+}
+
+s32 bsp_disp_lcd_set_max_ret_size(u32 sel, u32 size)
+{
+	return dsi_set_max_ret_size(sel, size);
 }
 #endif /*endif SUPPORT_DSI */

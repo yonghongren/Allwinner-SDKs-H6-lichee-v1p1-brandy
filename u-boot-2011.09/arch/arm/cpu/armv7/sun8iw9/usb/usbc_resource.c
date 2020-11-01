@@ -62,13 +62,12 @@ int usb_open_clock(void)
     //delay to wati SIE stable
 	__msdelay(10);
 
-    /* AHB reset */
     reg_value = readl(SUNXI_CCM_BASE + 0x2C0);
     reg_value |= (1 << 24);
     writel(reg_value, (SUNXI_CCM_BASE + 0x2C0));
     __msdelay(10);
 
-	return 0;
+    return 0;
 }
 /*
 *******************************************************************************

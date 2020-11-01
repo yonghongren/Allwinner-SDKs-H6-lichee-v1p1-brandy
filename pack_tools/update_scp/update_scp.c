@@ -9,7 +9,7 @@
 
 #define  MAX_PATH             (260)
 #define HEADER_OFFSET     (0x4000)
-#define ARISC_INF  //     printf
+#define ARISC_INF  /*     printf */
 
 static void usage(void)
 {
@@ -21,33 +21,27 @@ static void usage(void)
 
 int IsFullName(const char *FilePath)
 {
-    if (isalpha(FilePath[0]) && ':' == FilePath[1])
-    {
-        return 1;
-    }
-    else
-    {
-        return 0;
-    }
+	if (isalpha(FilePath[0]) && ':' == FilePath[1])
+		return 1;
+	else
+		return 0;
 }
 
 void GetFullPath(char *dName, const char *sName)
 {
     char Buffer[256];
 
-	if(IsFullName(sName))
-	{
+	if (IsFullName(sName)) {
 	    strcpy(dName, sName);
 		return ;
 	}
 
    /* Get the current working directory: */
-   if(getcwd(Buffer, 256 ) == NULL)
-   {
-        perror( "getcwd error" );
-        return ;
-   }
-   sprintf(dName, "%s/%s", Buffer, sName);
+	if (getcwd(Buffer, 256) == NULL) {
+		perror("getcwd error");
+		 return ;
+	}
+	sprintf(dName, "%s/%s", Buffer, sName);
 }
 
 char *probe_file_data(char *file_name, int *file_len)
@@ -90,10 +84,8 @@ int parse_arisc_space_node(const void*working_fdt,arisc_dts_para_t *arisc_para)
 	uint value[4] = {0, 0, 0};
 
 	nodeoffset = fdt_path_offset(working_fdt,"/soc/arisc_space");
-	if(nodeoffset < 0)
-	{
+	if (nodeoffset < 0)
 		return -1;
-	}
 
 	fdt_getprop_u32(working_fdt, nodeoffset, "space4", value);
 	arisc_para->basic_para.message_pool_phys = value[0];
@@ -109,10 +101,8 @@ int parse_standby_space_node(const void*working_fdt,arisc_dts_para_t *arisc_para
 	uint value[4] = {0, 0, 0};
 
 	nodeoffset = fdt_path_offset(working_fdt,"/soc/standby_space");
-	if(nodeoffset < 0)
-	{
+	if (nodeoffset < 0)
 		return -1;
-	}
 
 	fdt_getprop_u32(working_fdt, nodeoffset, "space1", value);
 	arisc_para->basic_para.standby_base = value[0];
@@ -126,10 +116,8 @@ int parse_s_uart_node(const void*working_fdt,arisc_dts_para_t *arisc_para)
 	int nodeoffset;
 
 	nodeoffset = fdt_path_offset(working_fdt, "/soc/s_uart");
-	if(nodeoffset < 0)
-	{
+	if (nodeoffset < 0)
 		return -1;
-	}
 
 	arisc_para->basic_para.suart_status = fdtdec_get_is_enabled(working_fdt, nodeoffset);
 
@@ -141,10 +129,8 @@ int parse_pmu0_node(const void*working_fdt,arisc_dts_para_t *arisc_para)
 	int nodeoffset;
 
 	nodeoffset = fdt_path_offset(working_fdt, "/soc/pmu0");
-	if(nodeoffset < 0)
-	{
+	if (nodeoffset < 0)
 		return -1;
-	}
 
 	fdt_getprop_u32(working_fdt, nodeoffset, "pmu_bat_shutdown_ltf", &arisc_para->basic_para.pmu_bat_shutdown_ltf);
 	fdt_getprop_u32(working_fdt, nodeoffset, "pmu_bat_shutdown_htf", &arisc_para->basic_para.pmu_bat_shutdown_htf);
@@ -159,10 +145,8 @@ int parse_arisc_node(const void*working_fdt,arisc_dts_para_t *arisc_para)
 	int nodeoffset;
 
 	nodeoffset = fdt_path_offset(working_fdt, "/soc/arisc");
-	if(nodeoffset < 0)
-	{
+	if (nodeoffset < 0)
 		return -1;
-	}
 
 	fdt_getprop_u32(working_fdt, nodeoffset, "powchk_used", &arisc_para->basic_para.powchk_used);
 	fdt_getprop_u32(working_fdt, nodeoffset, "power_reg", &arisc_para->basic_para.power_reg );
@@ -179,21 +163,17 @@ int parse_s_cir_node(const void*working_fdt,arisc_dts_para_t *arisc_para)
 	char subkey[64];
 
 	nodeoffset = fdt_path_offset(working_fdt, "/soc/s_cir");
-	if(nodeoffset < 0)
-	{
+	if (nodeoffset < 0)
 		return -1;
-	}
-
+/*
+ *default to support NEC without configuring the node of "ir_protocol_used".
+ */
 	if (fdt_getprop_u32(working_fdt, nodeoffset, "ir_protocol_used", &rc5_used) < 0)
-	{
-		rc5_used = 0;  //default to support NEC without configuring the node of "ir_protocol_used".
-	}
+		rc5_used = 0;
 
 	printf("rc5_used = %d\n",rc5_used);
-	if (fdt_getprop_u32(working_fdt, nodeoffset, "ir_power_key_code", &arisc_para->ir_key.ir_code_depot[0].key_code)>0)
-	{
-		if (fdt_getprop_u32(working_fdt, nodeoffset, "ir_addr_code", &arisc_para->ir_key.ir_code_depot[0].addr_code)>0)
-		{
+	if (fdt_getprop_u32(working_fdt, nodeoffset, "ir_power_key_code", &arisc_para->ir_key.ir_code_depot[0].key_code) > 0) {
+		if (fdt_getprop_u32(working_fdt, nodeoffset, "ir_addr_code", &arisc_para->ir_key.ir_code_depot[0].addr_code) > 0) {
 			arisc_para->ir_key.num = 1;
 			goto print_ir_paras;
 		}
@@ -201,22 +181,21 @@ int parse_s_cir_node(const void*working_fdt,arisc_dts_para_t *arisc_para)
 
 	arisc_para->ir_key.num = 0;
 
-	if(rc5_used == 1) //RC5
-	{
+	if (rc5_used == 1) {
 		for (i = 0; i < IR_NUM_KEY_SUP; i++) {
 			sprintf(subkey, "%s%d", "rc5_ir_power_key_code", i);
-			if (fdt_getprop_u32(working_fdt, nodeoffset, subkey, &arisc_para->ir_key.ir_code_depot[i].key_code)>0) {
+			if (fdt_getprop_u32(working_fdt, nodeoffset, subkey, &arisc_para->ir_key.ir_code_depot[i].key_code) > 0) {
 				sprintf(subkey, "%s%d", "rc5_ir_addr_code", i);
-				if (fdt_getprop_u32(working_fdt, nodeoffset, subkey, &arisc_para->ir_key.ir_code_depot[i].addr_code)>0) {
+				if (fdt_getprop_u32(working_fdt, nodeoffset, subkey, &arisc_para->ir_key.ir_code_depot[i].addr_code) > 0) {
 					arisc_para->ir_key.num++;
 				}
 		}	}
-	}else {     //NEC
+	} else {
 		for (i = 0; i < IR_NUM_KEY_SUP; i++) {
 			sprintf(subkey, "%s%d", "ir_power_key_code", i);
-			if (fdt_getprop_u32(working_fdt, nodeoffset, subkey, &arisc_para->ir_key.ir_code_depot[i].key_code)>0) {
+			if (fdt_getprop_u32(working_fdt, nodeoffset, subkey, &arisc_para->ir_key.ir_code_depot[i].key_code) > 0) {
 				sprintf(subkey, "%s%d", "ir_addr_code", i);
-				if (fdt_getprop_u32(working_fdt, nodeoffset, subkey, &arisc_para->ir_key.ir_code_depot[i].addr_code)>0) {
+				if (fdt_getprop_u32(working_fdt, nodeoffset, subkey, &arisc_para->ir_key.ir_code_depot[i].addr_code) > 0) {
 					arisc_para->ir_key.num++;
 					printf("addr[%d] = 0x%x\n",i,arisc_para->ir_key.ir_code_depot[i].addr_code);
 				}
@@ -225,16 +204,13 @@ int parse_s_cir_node(const void*working_fdt,arisc_dts_para_t *arisc_para)
 	}
 
 print_ir_paras:
-	for (i = 0; i < arisc_para->ir_key.num; i++)
-	{
+	for (i = 0; i < arisc_para->ir_key.num; i++) {
 		ARISC_INF(" ir_code[%u].key_code:0x%x, ir_code[%u].addr_code:0x%x\n",
 			i, arisc_para->ir_key.ir_code_depot[i].key_code, i,  arisc_para->ir_key.ir_code_depot[i].addr_code);
 	}
 
-	if(rc5_used == 1)
-	{
+	if (rc5_used == 1)
 		arisc_para->ir_key.num |= 0x10000000;
-	}
 
 	return 0;
 }
@@ -244,10 +220,8 @@ int parse_dram_node(const void*working_fdt,arisc_dts_para_t *arisc_para)
 	int nodeoffset;
 
 	nodeoffset = fdt_path_offset(working_fdt, "/dram");
-	if(nodeoffset < 0)
-	{
+	if (nodeoffset < 0)
 		return -1;
-	}
 #if 0
 	fdt_getprop_u32(working_fdt, nodeoffset, "dram_clk",   		&arisc_para->dram_para->dram_clk);
 	fdt_getprop_u32(working_fdt, nodeoffset,  "dram_type",  	&arisc_para->dram_para->dram_type);
@@ -290,19 +264,15 @@ int parse_dvfs_table_node(const void*working_fdt,arisc_dts_para_t *arisc_para)
 
 	nodeoffset = fdt_path_offset(working_fdt, "/dvfs_table");
 	if (nodeoffset < 0)
-	{
 		return -1;
-	}
 
-	if (fdt_getprop_u32(working_fdt, nodeoffset, "vf_table_count", &vf_table_count)<0)
-	{
+	if (fdt_getprop_u32(working_fdt, nodeoffset, "vf_table_count", &vf_table_count) < 0) {
 		ARISC_INF("%s: support only one vf_table\n", __func__);
 		sprintf(vf_table_main_key, "%s", "/dvfs_table");
 	}
 	else
-	{
 		sprintf(vf_table_main_key, "%s%d", "/vf_table", vf_table_type);
-	}
+
 	ARISC_INF("%s: vf table type [%d=%s]\n", __func__, vf_table_type, vf_table_main_key);
 
 	nodeoffset = fdt_path_offset(working_fdt, vf_table_main_key);
@@ -310,24 +280,16 @@ int parse_dvfs_table_node(const void*working_fdt,arisc_dts_para_t *arisc_para)
 	/* parse system config v-f table information */
 	fdt_getprop_u32(working_fdt, nodeoffset, "lv_count", &vf_table_size);
 
-//	struct freq_voltage vf_[DVFS_VF_TABLE_MAX];
-//	struct freq_voltage *vf__ = &vf_;
-//	vf__ = arisc_para->vf;
-	for (i = 0; i < vf_table_size; i++)
-	{
+	for (i = 0; i < vf_table_size; i++) {
 		sprintf(vf_table_sub_key, "lv%d_freq", i + 1);
-		if (fdt_getprop_u32(working_fdt, nodeoffset, vf_table_sub_key, &val)>0)
-		{
+		if (fdt_getprop_u32(working_fdt, nodeoffset, vf_table_sub_key, &val) > 0)
 			arisc_para->vf[i].freq = val;
-//			vf_[i].freq = val;
-		}
+
 		ARISC_INF("%s: freq [%s-%d=%d]\n", __func__, vf_table_sub_key, i, val);
 		sprintf(vf_table_sub_key, "lv%d_volt", i + 1);
 		if (fdt_getprop_u32(working_fdt, nodeoffset, vf_table_sub_key, &val))
-		{
 			arisc_para->vf[i].voltage = val;
-//			vf_[i].voltage = val;
-		}
+
 		ARISC_INF("%s: volt [%s-%d=%d]\n", __func__, vf_table_sub_key, i, val);
 	}
 
@@ -343,18 +305,17 @@ static int parse_gpio_power_key_node(arisc_dts_para_t *arisc_para)
 	memset(gp_key_node_str, 0, 32);
 	strcpy(gp_key_node_str, "gpio_power_key");
 
-	if(!script_parser_fetch(gp_key_node_str, "gpio_power_key_used", (int *)&gp_key_used))
-	{
+	if (!script_parser_fetch(gp_key_node_str, "gpio_power_key_used", (int *)&gp_key_used)) {
 		if (gp_key_used == 1) {
 			memset(&gp_key_set, 0, sizeof(script_gpio_set_t));
-			if(!script_parser_fetch(gp_key_node_str, "key_io", (int *)&gp_key_set)) {
+			if (!script_parser_fetch(gp_key_node_str, "key_io", (int *)&gp_key_set)) {
 				if (gp_key_set.port == 12) {
 					key_group  = 0;
 				} else if (gp_key_set.port == 13) {
 					key_group  = 1;
 				}
 				key_index = gp_key_set.port_num;
-				if(script_parser_fetch(gp_key_node_str, "trigger_mode", (int *)&trigger_mode))
+				if (script_parser_fetch(gp_key_node_str, "trigger_mode", (int *)&trigger_mode))
 					trigger_mode = 1;
 			}
 			arisc_para->start_os.pmukey_used |= key_index << 11 | key_group << 10  | trigger_mode << 8;
@@ -377,16 +338,14 @@ static int parse_bt_wakeup_pin(arisc_dts_para_t *arisc_para)
 
 	memset(bt_node_str, 0, 32);
 	strcpy(bt_node_str, "btlpm");
-	if(script_parser_fetch(bt_node_str, "bt_hostwake_enable", (int *)&bt_hostwake_enable))
-	{
+	if (script_parser_fetch(bt_node_str, "bt_hostwake_enable", (int *)&bt_hostwake_enable)) {
 		/*some platform didn't have bt_hostwake_enable, default to support it*/
 		bt_hostwake_enable = 1;
 	}
 
 	if (bt_hostwake_enable == 1) {
 		memset(&bt_gpio_set, 0, sizeof(script_gpio_set_t));
-		if(!script_parser_fetch(bt_node_str, "bt_hostwake", (int *)&bt_gpio_set))
-		{
+		if (!script_parser_fetch(bt_node_str, "bt_hostwake", (int *)&bt_gpio_set)) {
 			bt_gpio_port = bt_gpio_set.port - 11;
 			bt_gpio_num  = bt_gpio_set.port_num;
 			arisc_para->start_os.pmukey_used |= \
@@ -411,10 +370,8 @@ int parse_box_start_os0_node(const void*working_fdt,arisc_dts_para_t *arisc_para
 	int 	nodeoffset;
 
 	nodeoffset = fdt_path_offset(working_fdt, "/soc/box_start_os0");
-	if(nodeoffset < 0)
-	{
+	if (nodeoffset < 0)
 		return -1;
-	}
 
 	arisc_para->start_os.used = fdtdec_get_is_enabled(working_fdt, nodeoffset);
 	fdt_getprop_u32(working_fdt, nodeoffset, "start_type", &arisc_para->start_os.start_type);
@@ -429,10 +386,8 @@ int parse_power_mode(const void*working_fdt,arisc_dts_para_t *arisc_para)
 	int 	nodeoffset;
 
 	nodeoffset = fdt_path_offset(working_fdt, "/soc/target");
-	if(nodeoffset < 0)
-	{
+	if (nodeoffset < 0)
 		return -1;
-	}
 
 	fdt_getprop_u32(working_fdt, nodeoffset, "power_mode", &arisc_para->basic_para.power_mode);
 }
@@ -444,7 +399,7 @@ arisc_dts_para_t *arisc_set_paras(struct arisc_dts_para *dts_, void *arisc_para,
 	struct arisc_dts_para *dts;
 
 	dts = dts_;
-	if(type == 1) {
+	if (type == 1) {
 		new = (struct arisc_para_new *)arisc_para;
 		new->message_pool_phys		= dts->basic_para.message_pool_phys;
 		new->message_pool_size		= dts->basic_para.message_pool_size;
@@ -460,13 +415,12 @@ arisc_dts_para_t *arisc_set_paras(struct arisc_dts_para *dts_, void *arisc_para,
 		new->power_reg			= dts->basic_para.power_reg;
 		new->system_power		= dts->basic_para.system_power;
 
-		memcpy(&new->dram_para,&dts->dram_para_32,sizeof(struct dram_para_32));
-		memcpy(new->power_regu_tree,dts->power_regu_tree,sizeof(u32) * DM_MAX);
-		memcpy(&new->start_os,&dts->start_os,sizeof(struct box_start_os_cfg));
-		memcpy(&new->ir_key,&dts->ir_key,sizeof(struct ir_key));
-		memcpy(new->vf,dts->vf,sizeof(struct freq_voltage) * DVFS_VF_TABLE_MAX);
-	}
-	else if(type == 0) {
+		memcpy(&new->dram_para, &dts->dram_para_32, sizeof(struct dram_para_32));
+		memcpy(new->power_regu_tree, dts->power_regu_tree, sizeof(u32) * DM_MAX);
+		memcpy(&new->start_os, &dts->start_os, sizeof(struct box_start_os_cfg));
+		memcpy(&new->ir_key, &dts->ir_key, sizeof(struct ir_key));
+		memcpy(new->vf, dts->vf, sizeof(struct freq_voltage) * DVFS_VF_TABLE_MAX);
+	} else if (type == 0) {
 		old = (struct arisc_para_old *)arisc_para;
 		old->message_pool_phys		= dts->basic_para.message_pool_phys;
 		old->message_pool_size		= dts->basic_para.message_pool_size;
@@ -482,11 +436,11 @@ arisc_dts_para_t *arisc_set_paras(struct arisc_dts_para *dts_, void *arisc_para,
 		old->power_reg			= dts->basic_para.power_reg;
 		old->system_power		= dts->basic_para.system_power;
 
-		memcpy(&old->dram_para,&dts->dram_para_24,sizeof(struct dram_para_24));
-		memcpy(old->power_regu_tree,dts->power_regu_tree,sizeof(u32) * DM_MAX);
-		memcpy(&old->start_os,&dts->start_os,sizeof(struct box_start_os_cfg));
-		memcpy(&old->ir_key,&dts->ir_key,sizeof(struct ir_key));
-		memcpy(old->vf,dts->vf,sizeof(struct freq_voltage) * DVFS_VF_TABLE_MAX);
+		memcpy(&old->dram_para, &dts->dram_para_24, sizeof(struct dram_para_24));
+		memcpy(old->power_regu_tree, dts->power_regu_tree, sizeof(u32) * DM_MAX);
+		memcpy(&old->start_os, &dts->start_os, sizeof(struct box_start_os_cfg));
+		memcpy(&old->ir_key, &dts->ir_key, sizeof(struct ir_key));
+		memcpy(old->vf, dts->vf, sizeof(struct freq_voltage) * DVFS_VF_TABLE_MAX);
 
 	}
 	return dts;
@@ -506,16 +460,21 @@ int magic_invoke(arisc_para_new_t *arisc_para)
 	magic_char[2] = (magic >> 16) & 0xff;
 	magic_char[3] = (magic >> 24) & 0xff;
 
-	printf("arisc_para  version : %x\n",info);
-	printf("arisc_para  magic : %s\n",magic_char);
+	printf("arisc_para  version : %x\n", info);
+	printf("arisc_para  magic : %s\n", magic_char);
 
-	result = memcmp(magic_char,"CPUs",4);
+	result = memcmp(magic_char, "CPUs", 4);
 
-	if(result == 0) {
-		len = sizeof(struct arisc_para_new);
-		arisc_para->para_info |= (len << 16);
-		printf("arisc_para size : %d\n",len);
-		return 0;
+	if (result == 0) {
+		if ((info & 0xf) == 2) {
+			len = sizeof(struct arisc_para_new);
+			arisc_para->para_info |= (len << 16);
+			printf("arisc_para size : %d\n", len);
+			return 0;
+		} else if ((info & 0xf) == 3) {
+			printf("no need to copy paras\n");
+			return 1;
+		}
 	}
 	else {
 		printf("old arisc para type\n");
@@ -533,16 +492,16 @@ int main(int argc, char *argv[])
 	char *working_fdt;
 	char *working_scp;
 	int  dtb_len,scp_len,i;
-	char   *script_buf = NULL;
-	char   script_file_name[MAX_PATH];
+	char *script_buf = NULL;
+	char script_file_name[MAX_PATH];
 	arisc_para_new_t *arisc_para_new;
 	arisc_para_old_t *arisc_para_old;
 	arisc_dts_para_t *arisc_dts_para;
+	u32 ret;
 
 	arisc_dts_para = malloc(sizeof(struct arisc_dts_para));
 
-	if(argc != 3)
-	{
+	if (argc != 3) {
 		printf("parameters invalid\n");
 		usage();
 		free(arisc_dts_para);
@@ -560,8 +519,7 @@ int main(int argc, char *argv[])
 	/*add_begin: to get gpio_para by script*/
 	GetFullPath(script_file_name, "sys_config.bin");
 	script_buf = (char *)script_file_decode(script_file_name);
-	if(!script_buf)
-	{
+	if (!script_buf) {
 		printf("update_scp err: unable to get script data\n");
 		free(script_buf);
 		free(arisc_dts_para);
@@ -570,8 +528,7 @@ int main(int argc, char *argv[])
 	script_parser_init(script_buf);
 	/*add_end*/
 
-	if ((working_fdt == NULL) ||(working_scp == NULL))
-	{
+	if ((working_fdt == NULL) || (working_scp == NULL)) {
 		printf("file invalid\n");
 		free(script_buf);
 		free(arisc_dts_para);
@@ -579,8 +536,7 @@ int main(int argc, char *argv[])
 	}
 
 	scp_file = fopen(scppath, "wb");
-	if (scp_file == NULL)
-	{
+	if (scp_file == NULL) {
 		printf("file %s cant be opened\n",scppath);
 		free(script_buf);
 		free(arisc_dts_para);
@@ -602,13 +558,16 @@ int main(int argc, char *argv[])
 
 	arisc_para_new = (arisc_para_new_t *)(working_scp+HEADER_OFFSET);
 
-	if (!magic_invoke(arisc_para_new)) {
+	ret = magic_invoke(arisc_para_new);
+	if (ret == 0) {
 		arisc_set_paras(arisc_dts_para, (void *)arisc_para_new, 1);
-	}
-	else {
+	} else if (ret == -1) {
 		arisc_para_old = (arisc_para_old_t *)(working_scp+HEADER_OFFSET);
 		arisc_set_paras(arisc_dts_para, (void *)arisc_para_old, 0);
-	}
+	} else if (ret == 1)
+		;
+
+	free(arisc_dts_para);
 
 	fwrite(working_scp, scp_len, 1, scp_file);
 	fclose(scp_file);
@@ -617,7 +576,7 @@ int main(int argc, char *argv[])
 		free(working_fdt);
 	if (working_scp)
 		free(working_scp);
-	if(script_buf)
+	if (script_buf)
 		free(script_buf);
 	printf("update scp finish!\n");
 

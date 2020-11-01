@@ -36,8 +36,10 @@ obj-$(CONFIG_SUNXI_AXP809) += sunxi/axp809.o
 obj-$(CONFIG_SUNXI_AXP809) += sunxi/axp809_supply.o
 obj-$(CONFIG_SUNXI_AXP259) += sunxi/axp259.o
 obj-$(CONFIG_SUNXI_AXP259) += sunxi/axp259_supply.o
-obj-$(CONFIG_SUNXI_AXP1506) += sunxi/axp1506.o
-obj-$(CONFIG_SUNXI_AXP1506) += sunxi/axp1506_supply.o
+obj-$(CONFIG_SUNXI_AXP858) += sunxi/axp858.o
+obj-$(CONFIG_SUNXI_AXP858) += sunxi/axp858_supply.o
 obj-$(CONFIG_SUNXI_AXP2585) += sunxi/axp2585.o
 obj-$(CONFIG_SUNXI_AXP2585) += sunxi/axp2585_supply.o
 endif
+
+subdir-ccflags-$(CONFIG_SUNXI_FINS_FUNC_DRIVER_POWER_DIR) += -finstrument-functions

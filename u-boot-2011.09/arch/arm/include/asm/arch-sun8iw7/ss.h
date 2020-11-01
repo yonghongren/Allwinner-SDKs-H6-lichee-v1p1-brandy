@@ -72,7 +72,7 @@
 #define SS_METHOD_SHA1			17
 #define SS_METHOD_SHA224		18
 #define SS_METHOD_SHA256		19
-#define SS_METHOD_SHA38 		20
+#define SS_METHOD_SHA328 		20
 #define SS_METHOD_SHA512		21
 #define SS_METHOD_HMAC  		22
 #define SS_METHOD_RSA			32
@@ -188,11 +188,44 @@ s32 sunxi_rsa_calc(u8 * n_addr,   u32 n_len,
 				   u8 * dst_addr, u32 dst_len,
 				   u8 * src_addr, u32 src_len);
 
-int sunxi_aes_encrypt_rssk_hdcp_to_dram(u8 *dst_addr, u32 dst_len, u8 *src_addr);
+int sunxi_aes_encrypt_rssk_hdcp_to_dram(u8 *src_addr, u8 *dst_addr, u32 dst_len);
 int sunxi_aes_decrypt_rssk_hdcp_to_keysram(u8 *src_addr, u32 src_len);
 int sunxi_aes_decrypt_rssk_hdcp_to_dram(u8 *src_addr, u32 src_len, u8 *dst_addr);
 
 int sunxi_md5_keysram_calcute(void *md5_buf, int md5_buf_len);
 int sunxi_md5_dram_calcute(void *src_buf, int src_len, void *md5_buf, int md5_buf_len);
+
+int sunxi_aes_encrypt(u8 *src_addr, u8 *dst_addr, u32 data_bytes, u8 *key_buf, u32 aes_key_mode, u32 aes_mode);
+int sunxi_aes_decrypt(u8 *src_addr, u8 *dst_addr, u32 data_bytes, u8 *key_buf, u32 aes_key_mode, u32 aes_mode);
+
+
+int TNHALCryptoMD5(const u8 *pucData, u32 unDataSize, int bFinal, u8 *pucOut);
+int TNHALCryptoSHA1(const u8 *pucData, u32 unDataSize, int bFinal, u8 *pucOut);
+int TNHALCryptoSHA256(const u8 *pucData, u32 unDataSize, int bFinal, u8 *pucOut);
+int TNHALCryptoSHA512(const u8 *pucData, u32 unDataSize, int bFinal, u8 *pucOut);
+
+/*
+	aes_key_mode: the key length of the key
+
+   	possible value:
+
+	SS_AES_KEY_128BIT
+	SS_AES_KEY_192BIT
+	SS_AES_KEY_256BIT
+*/
+
+/*
+	eEncFlag: encrypt or decrypt
+
+   	possible value:
+
+	SS_DIR_ENCRYPT
+	SS_DIR_DECRYPT
+
+*/
+
+int TNHALCryptoAESEcb(const u8 *pucIn, u32 unInLen, u8 *pucOut, const u8 *psKey, u32 aes_key_mode, int eEncFlag);
+int TNHALCryptoAESCbc(const u8 *pucIn, u32 unInLen, u8 *pucOut, const u8 *psKey, u32 aes_key_mode, u8 *psIv, int eEncFlag);
+
 
 #endif    /*  #ifndef _SS_H_  */

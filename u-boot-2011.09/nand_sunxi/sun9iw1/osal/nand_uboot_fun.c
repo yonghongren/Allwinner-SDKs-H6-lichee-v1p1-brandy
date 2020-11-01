@@ -509,7 +509,7 @@ int NAND_LogicInit(int boot_mode)
 	if(boot_mode == 1)
 	{
 		nftl_num = get_phy_partition_num(nand_info);
-		printf("boot_mode 1: nftl num: %d \n", nftl_num);
+		printf("NB1 : nftl num: %d \n", nftl_num);
 		if((nftl_num<1)||(nftl_num>5))
 		{
 			printf("NB1 : nftl num: %d error \n", nftl_num);
@@ -527,15 +527,14 @@ int NAND_LogicInit(int boot_mode)
 	}
 	else if(boot_mode==2)
 	{
-		printf("boot_mode 2: nftl_build_all\n");
-		result = nftl_build_all(nand_info);
-		nand_partition_num = get_phy_partition_num(nand_info);
-
+		nftl_num = get_phy_partition_num(nand_info);
+		printf("boot_mode 2: nftl num: %d \n", nftl_num);
 #else
 	if(boot_mode)
 	{
 		nftl_num = get_phy_partition_num(nand_info);
 		printf("NB1 : nftl num: %d \n", nftl_num);
+#endif
 		if((nftl_num<1)||(nftl_num>5))
 		{
 			printf("NB1 : nftl num: %d error \n", nftl_num);
@@ -549,7 +548,6 @@ int NAND_LogicInit(int boot_mode)
 			printf(" init nftl: %d \n", i);
 			result = nftl_build_one(nand_info, i);
 		}
-#endif
 	}
 	else
 	{

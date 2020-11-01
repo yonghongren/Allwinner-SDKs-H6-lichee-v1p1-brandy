@@ -236,16 +236,15 @@ void sunxi_usb_irq(void *data)
 */
 int sunxi_usb_init(int delaytime)
 {
-#if defined(CONFIG_ARCH_SUN50IW3P1) || defined(CONFIG_ARCH_SUN50IW6P1) || defined(CONFIG_ARCH_SUN8IW12P1)
-	unsigned int reg_val;
-#endif
+	uint reg_val = 0;
+
 	if(sunxi_udev_active->state_init())
 	{
 		printf("sunxi usb err: fail to init usb device\n");
 
 		return -1;
 	}
-		
+
 	//预先关闭usb中断
 	irq_disable(AW_IRQ_USB_OTG);
 	//初始化 sunxi_udc用到的资源
@@ -348,10 +347,15 @@ int sunxi_usb_init(int delaytime)
 
 	irq_install_handler(AW_IRQ_USB_OTG, sunxi_usb_irq, NULL);
 	irq_enable(AW_IRQ_USB_OTG);
+	/* sun8iw10p1 spec default value is not correct, bit 1 should be  0 */
+	reg_val = readl(SUNXI_USBOTG_BASE+USBC_REG_o_PHYCTL);
+	reg_val &= ~(0x01<<1);
+	writel(reg_val, SUNXI_USBOTG_BASE+USBC_REG_o_PHYCTL);
 
 #if defined(CONFIG_ARCH_SUN50IW3P1) || \
 	defined(CONFIG_ARCH_SUN50IW6P1) || \
-	defined(CONFIG_ARCH_SUN8IW12P1)
+	defined(CONFIG_ARCH_SUN8IW12P1) || \
+	defined(CONFIG_ARCH_SUN8IW15P1)
 	reg_val = readl(SUNXI_USBOTG_BASE+USBC_REG_o_PHYCTL);
 	reg_val &= ~(0x01<<USBC_PHY_CTL_SIDDQ);
 	reg_val |= 0x01<<USBC_PHY_CTL_VBUSVLDEXT;

@@ -4,7 +4,7 @@
  * author:  wangwei<wangwei@allwinnertech.com>
  * history: V0.1
  */
-
+ 
 #ifndef __SPI_HAL_H
 #define __SPI_HAL_H
 

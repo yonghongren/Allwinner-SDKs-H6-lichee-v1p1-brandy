@@ -62,7 +62,7 @@ int axp20_probe(void)
     __msdelay(100);//确保硬件ADC准备好。
 	if(axp_i2c_read(AXP20_ADDR, BOOT_POWER20_VERSION, &pmu_type))
 	{
-		printf("axp read error\n");
+		pr_msg("axp read error\n");
 
 		return -1;
 	}
@@ -426,11 +426,11 @@ int axp20_set_power_off(void)
     u8 reg_addr;
     u8  reg_value;
 
-	printf("axp20_set_power_off\n");
+	pr_msg("axp20_set_power_off\n");
 	reg_addr = BOOT_POWER20_OFF_CTL;
 	if(axp_i2c_read(AXP20_ADDR, reg_addr, &reg_value))
 	{
-	    printf("axp20_set_power_off read error\n");
+	    pr_msg("axp20_set_power_off read error\n");
     	return -1;
 	}
 	reg_value |= 1 << 7;
@@ -438,7 +438,7 @@ int axp20_set_power_off(void)
     {
         return -1;
     }
-    printf("axp20_set_power_off failed\n");
+    pr_msg("axp20_set_power_off failed\n");
 	return 0;
 }
 
@@ -606,22 +606,22 @@ int axp20_probe_vbus_cur_limit(void)
     reg_value &= 0x03;
     if(reg_value == 0x02)
     {
-        printf("limit to 100mA \n");
+        pr_msg("limit to 100mA \n");
         return 100;
     }
 	else if(reg_value == 0x01)
 	{
-		printf("limit to 500mA \n");
+		pr_msg("limit to 500mA \n");
 		return 500;
 	}
     else if(reg_value == 0x00)
     {
-        printf("limit to 900 \n");
+        pr_msg("limit to 900 \n");
         return 900;
     }
     else
     {
-        printf("do not limit current \n");
+        pr_msg("do not limit current \n");
         return 0;
     }
 }
@@ -849,7 +849,7 @@ __s32 axp20_set_power_on_vol(int vol_value)
 		}
 		if(axp_i2c_write(AXP20_ADDR, reg_addr, reg_value))
     	{
-			printf("boot power:unable to set voff vol\n");
+			pr_msg("boot power:unable to set voff vol\n");
 		}
 		else
 		{
@@ -884,7 +884,7 @@ __s32 axp20_set_power_off_vol(int vol_value)
 		}
 		if(axp_i2c_write(AXP20_ADDR, reg_addr, reg_value))
     	{
-			printf("boot power:unable to set power on vol\n");
+			pr_msg("boot power:unable to set power on vol\n");
 		}
 		else
 		{

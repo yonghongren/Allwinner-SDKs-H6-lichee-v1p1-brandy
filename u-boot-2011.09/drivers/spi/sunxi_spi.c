@@ -28,7 +28,7 @@
 #include <asm/arch/spi.h>
 #include <asm/arch/ccmu.h>
 #include <asm/arch/dma.h>
-
+#include <asm/arch/clock.h>
 //spic_info spic_info[SPIC_NUM];
 
 //__vu32 spi_busy;
@@ -42,7 +42,7 @@
 static  uint  spi_tx_dma_hd;
 static  uint  spi_rx_dma_hd;
 
-static uint spi_test_counter;
+//static uint spi_test_counter;
 /*
 ************************************************************************************************************
 *
@@ -314,7 +314,7 @@ int spic_init(uint spi_no)
 	while (readl(SPI_INTSTAT) & (1U << 31));
 	if(readl(SPI_INTSTAT) != 0x1b00)
 	{
-		printf("SPI Status Register Initialized Fail: \n", readl(SPI_INTSTAT));
+		printf("SPI Status Register Initialized Fail: %x \n", readl(SPI_INTSTAT));
 
 		return -1;
 	}

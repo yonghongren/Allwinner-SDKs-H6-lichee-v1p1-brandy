@@ -131,7 +131,6 @@ int (* sunxi_sprite_phyread_pt) (unsigned int start_block, unsigned int nblock, 
 int (* sunxi_sprite_phywrite_pt)(unsigned int start_block, unsigned int nblock, void *buffer) = sunxi_null_op;
 #ifdef CONFIG_SUNXI_SPINOR
 int (* sunxi_sprite_datafinish_pt) (void) = sunxi_null_datafinish;
-int (* sunxi_sprite_datafinish_card_pt) (void) = sunxi_null_datafinish;
 #endif
 
 
@@ -290,11 +289,6 @@ int sunxi_flash_mmc_secread( int item, unsigned char *buf, unsigned int nblock)
 	return mmc_boot->block_dev.block_read_secure(2, item, (u8 *)buf, nblock);
 }
 
-int sunxi_flash_mmc_secread_backup( int item, unsigned char *buf, unsigned int nblock)
-{
-	return mmc_boot->block_dev.block_read_secure_backup(2, item, (u8 *)buf, nblock);
-}
-
 int sunxi_flash_mmc_secwrite( int item, unsigned char *buf, unsigned int nblock)
 {
 	return mmc_boot->block_dev.block_write_secure(2, item, (u8 *)buf, nblock);
@@ -311,13 +305,6 @@ int sunxi_sprite_mmc_secwrite(int item ,unsigned char *buf,unsigned int nblock)
 int sunxi_sprite_mmc_secread(int item ,unsigned char *buf,unsigned int nblock)
 {
     if(mmc_sprite->block_dev.block_read_secure(2, item, (u8 *)buf, nblock) >=0)
-        return 0;
-    else
-        return -1;
-}
-int sunxi_sprite_mmc_secread_backup(int item ,unsigned char *buf,unsigned int nblock)
-{
-    if(mmc_sprite->block_dev.block_read_secure_backup(2, item, (u8 *)buf, nblock) >=0)
         return 0;
     else
         return -1;
@@ -377,11 +364,6 @@ static int
 sunxi_flash_spinor_datafinish(void)
 {
 	return spinor_datafinish();
-}
-static int
-sunxi_flash_spinor_card_datafinish(void)
-{
-	return spinor_datafinish_card();
 }
 
 static int
@@ -484,12 +466,6 @@ int sunxi_sprite_setdata_finish(void)
 {
 	return sunxi_sprite_datafinish_pt();
 }
-
-int sunxi_sprite_setdata_card_finish(void)
-{
-	return sunxi_sprite_datafinish_card_pt();
-}
-
 #endif
 
 
@@ -614,241 +590,246 @@ int sunxi_sprite_force_erase(void)
 ************************************************************************************************************
 */
 
-int sunxi_flash_handle_init(void)
+int sunxi_flash_boot_handler(int workmode)
 {
-    int workmode;
 	int storage_type;
 	int card_no;
-//	long long flash_size;
+	int nand_used, sdc0_used, sdc2_used, sdc_detmode=3;
 
-//	uboot_spare_head.boot_data.storage_type = 0;
-//	if(uboot_spare_head.boot_data.storage_type)
-//		uboot_spare_head.boot_data.work_mode = WORK_MODE_CARD_PRODUCT;//WORK_MODE_CARD_PRODUCT;
+	storage_type = uboot_spare_head.boot_data.storage_type;
 
-    workmode = uboot_spare_head.boot_data.work_mode;
-#if 1
-    printf("workmode = %d\n", workmode);
-    debug("storage type = %d\n", uboot_spare_head.boot_data.storage_type);
-#endif
-
-	if(workmode == WORK_MODE_BOOT || workmode == WORK_MODE_SPRITE_RECOVERY)
+	if((storage_type == 1) || (storage_type == 2))
 	{
-	    int nand_used, sdc0_used, sdc2_used, sdc_detmode=3;
-
-		storage_type = uboot_spare_head.boot_data.storage_type;
-		debug("storage type = %d\n", storage_type);
-        if((storage_type == 1) || (storage_type == 2))
+		if(2 == storage_type)
 		{
-		    if(2 == storage_type)
-			{
-			    nand_used = 0;
-			    sdc2_used = 1;
+			nand_used = 0;
+			sdc2_used = 1;
 
-				script_parser_patch("nand0_para", "nand0_used", &nand_used, 1);
-		        script_parser_patch("nand1_para", "nand1_used", &nand_used, 1);
-		        script_parser_patch("mmc2_para",  "sdc_used",   &sdc2_used, 1);
-		        script_parser_patch("mmc2_para",  "sdc_detmode", &sdc_detmode, 1);
-			}
-			else
-			{
-				//nand_used  = 0;
-			    sdc0_used  = 1;
-			    //sdc2_used  = 0;
-
-				//script_parser_patch("nand0_para", "nand0_used", &nand_used, 1);
-		        //script_parser_patch("nand1_para", "nand1_used", &nand_used, 1);
-		        script_parser_patch("mmc0_para",  "sdc_used",   &sdc0_used, 1);
-		        script_parser_patch("mmc0_para",  "sdc_detmode", &sdc_detmode, 1);
-		        //script_parser_patch("mmc2_para",  "sdc_used",   &sdc2_used, 1);
-			}
-			card_no = (storage_type == 1)?0:2;
-			printf("MMC:	 %d\n", card_no);
-			board_mmc_set_num(card_no);
-			debug("set card number\n");
-			board_mmc_pre_init(card_no);
-			debug("begin to find mmc\n");
-			mmc_boot = find_mmc_device(card_no);
-			if(!mmc_boot){
-				printf("fail to find one useful mmc card\n");
-				return -1;
-			}
-			debug("try to init mmc\n");
-			if (mmc_init(mmc_boot)) {
-				puts("MMC init failed\n");
-				return  -1;
-			}
-			debug("mmc %d init ok\n", card_no);
-
-			sunxi_flash_read_pt  = sunxi_flash_mmc_read;
-			sunxi_flash_write_pt = sunxi_flash_mmc_write;
-			sunxi_flash_size_pt  = sunxi_flash_mmc_size;
-			sunxi_flash_exit_pt  = sunxi_flash_mmc_exit;
-
-			sunxi_flash_phyread_pt  = sunxi_flash_mmc_phyread;
-			sunxi_flash_phywrite_pt = sunxi_flash_mmc_phywrite;
-			sunxi_sprite_phyread_pt  = sunxi_flash_mmc_phyread;
-			sunxi_sprite_phywrite_pt = sunxi_flash_mmc_phywrite;
+			script_parser_patch("nand0_para", "nand0_used", &nand_used, 1);
+			script_parser_patch("nand1_para", "nand1_used", &nand_used, 1);
+			script_parser_patch("mmc2_para",  "sdc_used",   &sdc2_used, 1);
+			script_parser_patch("mmc2_para",  "sdc_detmode", &sdc_detmode, 1);
 		}
 		else
 		{
-		    nand_used = 1;
-			sdc2_used  = 0;
-            script_parser_patch("nand0_para", "nand0_used", &nand_used, 1);
-		    script_parser_patch("nand1_para", "nand1_used", &nand_used, 1);
-		    script_parser_patch("mmc2_para",  "sdc_used",   &sdc2_used, 1);
+			//nand_used  = 0;
+			sdc0_used  = 1;
+			//sdc2_used  = 0;
 
-			tick_printf("NAND: ");
-			if (workmode == WORK_MODE_BOOT) {
-				if(nand_uboot_init(1))
-				{
-					tick_printf("nand init fail\n");
-					return -1;
-				}
-			}
-			else if (workmode == WORK_MODE_SPRITE_RECOVERY)
-			{
-				if(nand_uboot_init(2))
-				{
-					tick_printf("nand init fail\n");
-					return -1;
-				}
-			}
-			//flash_size = nand_uboot_get_flash_size();
-			//flash_size <<= 9;
-			//print_size(flash_size, "\n");
-			sunxi_flash_read_pt  = sunxi_flash_nand_read;
-			sunxi_flash_write_pt = sunxi_flash_nand_write;
-			sunxi_flash_size_pt  = sunxi_flash_nand_size;
-			sunxi_flash_exit_pt  = sunxi_flash_nand_exit;
-			sunxi_flash_flush_pt = sunxi_flash_nand_flush;
+			//script_parser_patch("nand0_para", "nand0_used", &nand_used, 1);
+			//script_parser_patch("nand1_para", "nand1_used", &nand_used, 1);
+			script_parser_patch("mmc0_para",  "sdc_used",   &sdc0_used, 1);
+			script_parser_patch("mmc0_para",  "sdc_detmode", &sdc_detmode, 1);
+			//script_parser_patch("mmc2_para",  "sdc_used",   &sdc2_used, 1);
 		}
-		sunxi_sprite_read_pt  = sunxi_flash_read_pt;
-		sunxi_sprite_write_pt = sunxi_flash_write_pt;
-
-		sunxi_flash_init_uboot(0);
-		script_parser_patch("target", "storage_type", &storage_type, 1);
-
-		tick_printf("sunxi flash init ok\n");
-#if defined(CONFIG_ARCH_SUN8IW1P1)
-		if((storage_type == 0) || (storage_type == 2))	//如果是A31非卡0启动，则需要跳转检测卡0
-		{
-			sunxi_card_probe_mmc0_boot();
+		card_no = (storage_type == 1)?0:2;
+		printf("MMC:	 %d\n", card_no);
+		board_mmc_set_num(card_no);
+		debug("set card number\n");
+		board_mmc_pre_init(card_no);
+		debug("begin to find mmc\n");
+		mmc_boot = find_mmc_device(card_no);
+		if(!mmc_boot){
+			printf("fail to find one useful mmc card\n");
+			return -1;
 		}
-#endif
-        if((storage_type == 0) ||(storage_type == 2))
-        {
-            int sprite_next_work = 0;
-            script_parser_fetch("card_boot","next_work",&sprite_next_work,1);
-            if(sprite_next_work == SUNXI_UPDATA_NEXT_ACTION_SPRITE_TEST)
-                sunxi_card_fill_boot0_magic();
-        }
+		debug("try to init mmc\n");
+		if (mmc_init(mmc_boot)) {
+			puts("MMC init failed\n");
+			return  -1;
+		}
+		debug("mmc %d init ok\n", card_no);
+
+		sunxi_flash_read_pt  = sunxi_flash_mmc_read;
+		sunxi_flash_write_pt = sunxi_flash_mmc_write;
+		sunxi_flash_size_pt  = sunxi_flash_mmc_size;
+		sunxi_flash_exit_pt  = sunxi_flash_mmc_exit;
+
+		sunxi_flash_phyread_pt  = sunxi_flash_mmc_phyread;
+		sunxi_flash_phywrite_pt = sunxi_flash_mmc_phywrite;
+		sunxi_sprite_phyread_pt  = sunxi_flash_mmc_phyread;
+		sunxi_sprite_phywrite_pt = sunxi_flash_mmc_phywrite;
 	}
-	else if((workmode & WORK_MODE_PRODUCT) || (workmode == 0x30))		/* 量产模式 */
+	else
 	{
-	    if(!nand_uboot_probe())
-        {
-        	printf("nand found\n");
-        	sunxi_sprite_init_pt  = sunxi_flash_nand_init;
-            sunxi_sprite_exit_pt  = sunxi_flash_nand_exit;
-            sunxi_sprite_read_pt  = sunxi_flash_nand_read;
-			sunxi_sprite_write_pt = sunxi_flash_nand_write;
-			sunxi_sprite_erase_pt = sunxi_flash_nand_erase;
-			sunxi_sprite_size_pt  = sunxi_flash_nand_size;
-			sunxi_sprite_flush_pt = sunxi_flash_nand_flush;
-            sunxi_sprite_force_erase_pt = sunxi_flash_nand_force_erase;
-			debug("sunxi sprite has installed nand function\n");
-			uboot_spare_head.boot_data.storage_type = 0;
-			if(workmode == 0x30)
-			{
-				if(sunxi_sprite_init(1))
-			    {
-			    	tick_printf("nand init fail\n");
+		nand_used = 1;
+		sdc2_used  = 0;
+		script_parser_patch("nand0_para", "nand0_used", &nand_used, 1);
+		script_parser_patch("nand1_para", "nand1_used", &nand_used, 1);
+		script_parser_patch("mmc2_para",  "sdc_used",   &sdc2_used, 1);
 
-					return -1;
-			    }
-			}
-        }
-#ifdef CONFIG_SUNXI_SPINOR
-		else if(!try_spi_nor(0)) //burn nor
-		{
-			printf("try nor successed \n");
-			sunxi_sprite_init_pt  = sunxi_flash_spinor_init;
-			sunxi_sprite_exit_pt  = sunxi_flash_spinor_exit;
-			sunxi_sprite_read_pt  = sunxi_flash_spinor_read;
-			sunxi_sprite_write_pt = sunxi_sprite_spinor_write;
-			sunxi_sprite_erase_pt = sunxi_flash_spinor_erase;
-			sunxi_sprite_size_pt  = sunxi_flash_spinor_size;
-			sunxi_sprite_flush_pt = sunxi_flash_spinor_flush;
-			sunxi_sprite_datafinish_pt = sunxi_flash_spinor_datafinish;
-			sunxi_sprite_datafinish_card_pt = sunxi_flash_spinor_card_datafinish;
-			printf("sunxi sprite has installed spi function\n");
-			uboot_spare_head.boot_data.storage_type = 3;
-		}
-#endif
-        else                                   /* burn sdcard 2 */
-		{
-			printf("try nand fail\n");
-		    board_mmc_pre_init(2);
-			mmc_sprite = find_mmc_device(2);
-			if(!mmc_sprite){
-				printf("fail to find one useful mmc card\n");
+		tick_printf("NAND: ");
+		if (workmode == WORK_MODE_BOOT) {
+			if(nand_uboot_init(1))
+			{
+				tick_printf("nand init fail\n");
 				return -1;
 			}
-
-			if (mmc_init(mmc_sprite)) {
-				puts("MMC init failed\n");
-				return  -1;
-			}
-			sunxi_sprite_init_pt  = sunxi_sprite_mmc_init;
-            sunxi_sprite_exit_pt  = sunxi_sprite_mmc_exit;
-			sunxi_sprite_read_pt  = sunxi_sprite_mmc_read;
-			sunxi_sprite_write_pt = sunxi_sprite_mmc_write;
-			sunxi_sprite_erase_pt = sunxi_sprite_mmc_erase;
-			sunxi_sprite_size_pt  = sunxi_sprite_mmc_size;
-			sunxi_sprite_phyread_pt  = sunxi_sprite_mmc_phyread;
-			sunxi_sprite_phywrite_pt = sunxi_sprite_mmc_phywrite;
-            sunxi_sprite_force_erase_pt = sunxi_sprite_mmc_force_erase;
-			debug("sunxi sprite has installed sdcard2 function\n");
-			uboot_spare_head.boot_data.storage_type = 2;
-	    }
-
-		if((workmode == WORK_MODE_CARD_PRODUCT) || (workmode == 0x30))      //sdcard burn mode
+		}
+		else if (workmode == WORK_MODE_SPRITE_RECOVERY)
 		{
-            board_mmc_pre_init(0);
-			mmc_boot = find_mmc_device(0);
-			if(!mmc_boot)
+			if(nand_uboot_init(2))
 			{
-				printf("fail to find one useful mmc card\n");
+				tick_printf("nand init fail\n");
 				return -1;
 			}
-
-			if (mmc_init(mmc_boot))
-			{
-				puts("MMC sprite init failed\n");
-				return  -1;
-			}
-			else
-			{
-				puts("mmc init ok\n");
-			}
-			sunxi_flash_init_pt  = sunxi_flash_mmc_init;
-			sunxi_flash_read_pt  = sunxi_flash_mmc_read;
-			sunxi_flash_write_pt = sunxi_flash_mmc_write;
-			sunxi_flash_size_pt  = sunxi_flash_mmc_size;
-			sunxi_flash_phyread_pt  = sunxi_flash_mmc_phyread;
-			sunxi_flash_phywrite_pt = sunxi_flash_mmc_phywrite;
-			sunxi_flash_exit_pt  = sunxi_flash_mmc_exit;
 		}
-		sunxi_flash_init_uboot(0);
+		//flash_size = nand_uboot_get_flash_size();
+		//flash_size <<= 9;
+		//print_size(flash_size, "\n");
+		sunxi_flash_read_pt  = sunxi_flash_nand_read;
+		sunxi_flash_write_pt = sunxi_flash_nand_write;
+		sunxi_flash_size_pt  = sunxi_flash_nand_size;
+		sunxi_flash_exit_pt  = sunxi_flash_nand_exit;
+		sunxi_flash_flush_pt = sunxi_flash_nand_flush;
 	}
-	else if(workmode & WORK_MODE_UPDATE)		/* 升级模式 */
+	sunxi_sprite_read_pt  = sunxi_flash_read_pt;
+	sunxi_sprite_write_pt = sunxi_flash_write_pt;
+
+	sunxi_flash_init_uboot(0);
+	script_parser_patch("target", "storage_type", &storage_type, 1);
+
+	tick_printf("sunxi flash init ok\n");
+#if defined(CONFIG_ARCH_SUN8IW1P1)
+	if((storage_type == 0) || (storage_type == 2))	//如果是A31非卡0启动，则需要跳转检测卡0
+	{
+		sunxi_card_probe_mmc0_boot();
+	}
+#endif
+	if((storage_type == 0) ||(storage_type == 2))
+	{
+		int sprite_next_work = 0;
+		script_parser_fetch("card_boot","next_work",&sprite_next_work,1);
+		if(sprite_next_work == SUNXI_UPDATA_NEXT_ACTION_SPRITE_TEST)
+		sunxi_card_fill_boot0_magic();
+	}
+	return 0;
+}
+
+int sunxi_flash_sprite_handler(int workmode)
+{
+	if(!nand_uboot_probe())
+	{
+		printf("try nand successed \n");
+		sunxi_sprite_init_pt  = sunxi_flash_nand_init;
+		sunxi_sprite_exit_pt  = sunxi_flash_nand_exit;
+		sunxi_sprite_read_pt  = sunxi_flash_nand_read;
+		sunxi_sprite_write_pt = sunxi_flash_nand_write;
+		sunxi_sprite_erase_pt = sunxi_flash_nand_erase;
+		sunxi_sprite_size_pt  = sunxi_flash_nand_size;
+		sunxi_sprite_flush_pt = sunxi_flash_nand_flush;
+		sunxi_sprite_force_erase_pt = sunxi_flash_nand_force_erase;
+		debug("sunxi sprite has installed nand function\n");
+		uboot_spare_head.boot_data.storage_type = 0;
+		if(workmode == 0x30)
+		{
+			if(sunxi_sprite_init(1))
+			{
+				tick_printf("nand init fail\n");
+				return -1;
+			}
+		}
+	}
+#ifdef CONFIG_SUNXI_SPINOR
+	else if(!try_spi_nor(0))
+	{
+		printf("try nor successed \n");
+		sunxi_sprite_init_pt  = sunxi_flash_spinor_init;
+		sunxi_sprite_exit_pt  = sunxi_flash_spinor_exit;
+		sunxi_sprite_read_pt  = sunxi_flash_spinor_read;
+		sunxi_sprite_write_pt = sunxi_sprite_spinor_write;
+		sunxi_sprite_erase_pt = sunxi_flash_spinor_erase;
+		sunxi_sprite_size_pt  = sunxi_flash_spinor_size;
+		sunxi_sprite_flush_pt = sunxi_flash_spinor_flush;
+		sunxi_sprite_datafinish_pt = sunxi_flash_spinor_datafinish;
+		printf("sunxi sprite has installed spi function\n");
+		uboot_spare_head.boot_data.storage_type = 3;
+	}
+#endif
+	else
+	{
+		printf("try nand fail\n");
+		board_mmc_pre_init(2);
+		mmc_sprite = find_mmc_device(2);
+		if(!mmc_sprite){
+			printf("fail to find one useful mmc card\n");
+			return -1;
+		}
+
+		if (mmc_init(mmc_sprite)) {
+			puts("MMC init failed\n");
+			return  -1;
+		}
+		sunxi_sprite_init_pt  = sunxi_sprite_mmc_init;
+		sunxi_sprite_exit_pt  = sunxi_sprite_mmc_exit;
+		sunxi_sprite_read_pt  = sunxi_sprite_mmc_read;
+		sunxi_sprite_write_pt = sunxi_sprite_mmc_write;
+		sunxi_sprite_erase_pt = sunxi_sprite_mmc_erase;
+		sunxi_sprite_size_pt  = sunxi_sprite_mmc_size;
+		sunxi_sprite_phyread_pt  = sunxi_sprite_mmc_phyread;
+		sunxi_sprite_phywrite_pt = sunxi_sprite_mmc_phywrite;
+		sunxi_sprite_force_erase_pt = sunxi_sprite_mmc_force_erase;
+		debug("sunxi sprite has installed sdcard2 function\n");
+		uboot_spare_head.boot_data.storage_type = 2;
+	}
+
+	//sdcard burn mode
+	if((workmode == WORK_MODE_CARD_PRODUCT) || (workmode == 0x30))
+	{
+		board_mmc_pre_init(0);
+		mmc_boot = find_mmc_device(0);
+		if(!mmc_boot)
+		{
+			printf("fail to find one useful sdmmc card\n");
+			return -1;
+		}
+
+		if (mmc_init(mmc_boot))
+		{
+			puts("sdmmc0 sprite init failed\n");
+			return  -1;
+		}
+		else
+		{
+			puts("sdmmc0 init ok\n");
+		}
+		sunxi_flash_init_pt  = sunxi_flash_mmc_init;
+		sunxi_flash_read_pt  = sunxi_flash_mmc_read;
+		sunxi_flash_write_pt = sunxi_flash_mmc_write;
+		sunxi_flash_size_pt  = sunxi_flash_mmc_size;
+		sunxi_flash_phyread_pt  = sunxi_flash_mmc_phyread;
+		sunxi_flash_phywrite_pt = sunxi_flash_mmc_phywrite;
+		sunxi_flash_exit_pt  = sunxi_flash_mmc_exit;
+	}
+	sunxi_flash_init_uboot(0);
+	return 0;
+}
+
+int sunxi_flash_handle_init(void)
+{
+	int workmode;
+	int ret = 0;
+
+	workmode = uboot_spare_head.boot_data.work_mode;
+
+	printf("workmode = %d\n", workmode);
+	//printf("storage type = %d\n", uboot_spare_head.boot_data.storage_type);
+
+	if(workmode == WORK_MODE_BOOT || workmode == WORK_MODE_SPRITE_RECOVERY)
+	{
+		ret = sunxi_flash_boot_handler(workmode);
+	}
+	else if((workmode & WORK_MODE_PRODUCT) || (workmode == 0x30))
+	{
+		ret = sunxi_flash_sprite_handler(workmode);
+	}
+	else if(workmode & WORK_MODE_UPDATE)
 	{
 	}
 	else   /* undefined mode */
 	{
 	}
-
-	return 0;
+	return ret;
 }
 /*
 ************************************************************************************************************

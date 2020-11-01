@@ -22,9 +22,15 @@
 #include "asm/arch/timer.h"
 #include "asm/arch/archdef.h"
 #include "asm/arch/key.h"
-#include <asm/arch/base_pmu.h>
+#include <sunxi_board.h>
 
-
+static void set_circuits_analog(void)
+{
+	/*calibration circuits analog enable*/
+	/*sunxi_clear_bit(RES_CAL_CTRL_REG, BIT(1));*/
+	sunxi_clear_bit(RES_CAL_CTRL_REG, BIT(0));
+	sunxi_set_bit(RES_CAL_CTRL_REG, BIT(0));
+}
 
 void set_factor_n(int factor_n, int reg)
 {
@@ -181,13 +187,9 @@ void set_ahb(void)
 
 void set_apb(void)
 {
-#ifndef APB_24MHZ
 	/*PLL6:APB1 = 600M:100M */
 	writel((2<<0) | (1<<8), CCMU_APB1_CFG_GREG);
 	writel((0x03 << 24)|readl(CCMU_APB1_CFG_GREG), CCMU_APB1_CFG_GREG);
-#else
-	writel(0x00, CCMU_APB1_CFG_GREG);
-#endif
 	__usdelay(1);
 }
 
@@ -213,27 +215,6 @@ void set_pll_dma(void)
 
 	tmp = readl(CCMU_MBUS_MST_CLK_GATING_REG) | (1<<0);
 	writel(tmp, CCMU_MBUS_MST_CLK_GATING_REG);
-}
-
-void set_pll_ddr(void)
-{
-	__u32 clk_src;
-
-	/*Got the source clock for dram */
-	clk_src = (readl(CCMU_DRAM_CLK_REG) >> 24) & 0x3;
-
-	switch(clk_src) {
-	/* src is pll_ddr0 */
-	case 0:
-		/* disable pll_ddr1 */
-		writel(0x00, CCMU_PLL_DDR1_CTRL_REG);
-		break;
-	case 1:
-		/* disable pll_ddr0 */
-		writel(0x00, CCMU_PLL_DDR0_CTRL_REG);
-		break;
-	}
-
 }
 
 void set_pll_mbus(void)
@@ -279,6 +260,8 @@ void set_platform_config(void)
 		reg_val &= ~(1 << 1);
 		writel(reg_val, reg_addr);
 	}
+
+	set_circuits_analog();
 }
 
 static void set_cpu_step(void)
@@ -289,28 +272,11 @@ static void set_cpu_step(void)
 	reg_val &= (~(0x7 << 28));
 	reg_val |= (0x01 << 28);
 	writel(reg_val, SUNXI_CCM_BASE + 0x400);
-	//__usdelay(10);
-}
-
-void set_pll_vol(void)
-{
-	u32 reg_val;
-
-	/*key field for ldo enable*/
-	reg_val = readl(PLL_CTRL_REG1);
-	reg_val |= (0xA7 << 24);
-	writel(reg_val, PLL_CTRL_REG1);
-
-	/*set pllvdd ldo output 1.14v*/
-	reg_val = readl(PLL_CTRL_REG1);
-	reg_val |= (0x6 << 16);
-	writel(reg_val, PLL_CTRL_REG1);
 }
 
 void set_pll(void)
 {
 	printf("set pll start\n");
-	set_pll_vol();
 	set_platform_config();
 	set_cpu_step();
 	set_pll_cpux_axi();
@@ -385,50 +351,4 @@ int sunxi_key_clock_close(void)
 	writel(reg_val, CCMU_GPADC_BGR_REG);
 
 	return 0;
-}
-
-int checking_tcxo(void)
-{
-	u32 reg_val;
-	u32 reg_addr;
-    u8  pmu_val;
-    u8  pmu_rsb_add = 0x2d;
-    u8  pmu_power_status_addr = 0x00;
-
-    //checking tcxo 
-    //bit1 0-disable 1-enable
-	reg_addr = SUNXI_RTC_BASE + 0x160;
-	reg_val = readl(reg_addr);
-    if(!(reg_val & (1 << 1)))
-    {
-        printf("TCXO already disable.\n");
-        return 0;
-    }
-
-    //DCXT not disable,this is the first power on
-    //check if power of ac in
-    pmu_bus_read(pmu_rsb_add, pmu_power_status_addr, &pmu_val);
-    if((pmu_val & (1 << 7)) || !(pmu_val & (1 << 0)))
-    {
-        printf("AC or battery power,keep running.\n");
-        return 0;
-    }
-
-    //not ac , close DCXO
-    set_pll();
-
-    // power off
-    if(pmu_bus_read(pmu_rsb_add, 0x32, &pmu_val))
-    {
-            return -1;
-    }
-    pmu_val |= 1 << 7;
-    if(pmu_bus_write(pmu_rsb_add, 0x32, pmu_val))
-    {
-            printf("power off failed\n");
-            return -1;
-    }
-    printf("power off\n");
-    __msdelay(1000);
-    return -1;
 }

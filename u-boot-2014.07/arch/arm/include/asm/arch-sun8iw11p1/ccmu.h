@@ -57,6 +57,18 @@
 #define LOCK_EN_PLL_PERIPH1    (1<<12)
 #define LOCK_EN_NEW_MODE       (1<<28)
 
+/* clock ID */
+#define AXI_BUS         (0)
+#define AHB1_BUS0       (1)
+#define AHB1_BUS1       (2)
+#define AHB1_LVDS       (3)
+#define APB1_BUS0       (4)
+#define APB2_BUS0       (5)
+
+#define SPI3_CKID               ((AHB1_BUS0 << 8) | 23)
+#define SPI2_CKID               ((AHB1_BUS0 << 8) | 22)
+#define SPI1_CKID               ((AHB1_BUS0 << 8) | 21)
+#define SPI0_CKID               ((AHB1_BUS0 << 8) | 20)
 
 
 /* cfg list */
@@ -130,22 +142,6 @@
 #define DMA_GATING_BASE                     CCMU_BUS_CLK_GATING_REG0
 #define DMA_GATING_PASS                     (1)
 #define DMA_GATING_BIT                      (6)
-
-/* clock ID */
-#define AXI_BUS         (0)
-#define AHB1_BUS0       (1)
-#define AHB1_BUS1       (2)
-#define AHB1_LVDS       (3)
-#define APB1_BUS0       (4)
-#define APB2_BUS0       (5)
-#define SPI3_CKID               ((AHB1_BUS0 << 8) | 23)
-#define SPI2_CKID               ((AHB1_BUS0 << 8) | 22)
-#define SPI1_CKID               ((AHB1_BUS0 << 8) | 21)
-#define SPI0_CKID               ((AHB1_BUS0 << 8) | 20)
-
-#define CCMU_SPI_BGR_REG        (SUNXI_CCM_BASE + 0x96C)
-#define SPI_RST_OFFSET          (16)
-#define SPI_GATING_OFFSET       (16)
 
 /* ehci */
 #define BUS_CLK_GATING_REG 0x60

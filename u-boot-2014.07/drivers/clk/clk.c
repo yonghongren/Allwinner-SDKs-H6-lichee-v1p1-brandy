@@ -74,7 +74,7 @@ static int __clk_enable(struct clk *clk)
 
 	if (!clk){
 
-		printf("%s: clk is null.\n",__func__);
+		pr_error("%s: clk is null.\n", __func__);
 		return -1;
 	}
 	if (clk->flags & CLK_IS_ROOT) {
@@ -131,7 +131,7 @@ static int __clk_set_parent(struct clk *clk, struct clk *parent)
 	}
 
 	if (i == clk->num_parents) {
-		printf("%s: clock %s is not a possible parent of clock %s\n",
+		pr_error("%s: clock %s is not a possible parent of clock %s\n",
 				__func__, parent->name, clk->name);
 		goto out;
 	}
@@ -181,7 +181,7 @@ static struct clk *__clk_init_parent(struct clk *clk)
 	}
 
 	if (!clk->ops->get_parent) {
-		printf("%s:multi-parent clocks %s must implement .get_parent\n",
+		pr_error("%s:multi-parent clocks %s must implement .get_parent\n",
 			__func__, clk->name);
 		goto out;
 	};
@@ -219,12 +219,12 @@ int __clk_init(struct clk *clk)
 	/* struct hlist_node *tmp, *tmp2; */
 
 	if (!clk) {
-		printf("%s: this is a null clk!\n",__func__);
+		pr_error("%s: this is a null clk!\n", __func__);
 		return -1;
 	}
 	/* check to see if a clock with this name is already registered */
 	if (__clk_lookup(clk->name)) {
-		printf("%s: clk %s already initialized\n",
+		pr_error("%s: clk %s already initialized\n",
 				__func__, clk->name);
 		ret = -1;
 		goto out;
@@ -232,14 +232,14 @@ int __clk_init(struct clk *clk)
 	/* check that clk_ops are sane.  See Documentation/clk.txt */
 	if (clk->ops->set_rate &&
 			!(clk->ops->round_rate && clk->ops->recalc_rate)) {
-		printf("%s: %s must implement .round_rate & .recalc_rate\n",
+		pr_error("%s: %s must implement .round_rate & .recalc_rate\n",
 				__func__, clk->name);
 		ret = -1;
 		goto out;
 	}
 
 	if (clk->ops->set_parent && !clk->ops->get_parent) {
-		printf("%s: %s must implement .get_parent & .set_parent\n",
+		pr_error("%s: %s must implement .get_parent & .set_parent\n",
 				__func__, clk->name);
 		ret = -1;
 		goto out;
@@ -248,7 +248,7 @@ int __clk_init(struct clk *clk)
 	/* throw a WARN if any entries in parent_names are NULL */
 	for (i = 0; i < clk->num_parents; i++)
 		if(!clk->parent_names[i])
-		printf("%s: invalid NULL in %s's .parent_names\n",
+		pr_msg("%s: invalid NULL in %s's .parent_names\n",
 				__func__, clk->name);
 	/*
 	 * Allocate an array of struct clk *'s to avoid unnecessary string
@@ -379,7 +379,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	/* only re-parent if the clock is not in use */
 	if ((clk->flags & CLK_SET_PARENT_GATE) && clk->prepare_count) {
 
-		printf("%s: clk->enable_count = %d\n",__func__, clk->enable_count);
+		pr_error("%s: clk->enable_count = %d\n", __func__, clk->enable_count);
 		ret = -1;
 	}
 	else
@@ -422,7 +422,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 		best_parent_rate = clk->parent->rate;
 
 	if (!clk->parent) {
-		printf("%s: %s has NULL parent\n", __func__, clk->name);
+		pr_error("%s: %s has NULL parent\n", __func__, clk->name);
 		ret = -1;
 
 		goto out;
@@ -478,7 +478,7 @@ struct clk *clk_register(struct clk_hw *hw)
 	if(clk)
 		memset(clk, 0, sizeof(*clk));
 	if (!clk) {
-		printf("%s: could not allocate clk\n", __func__);
+		pr_error("%s: could not allocate clk\n", __func__);
 		ret = -1;
 		goto fail_out;
 	}
@@ -508,12 +508,12 @@ int of_pll_clk_config_setup(struct clk *child_clk, u32 parent_handle)
 	struct clk *clk;
 
 	if (child_clk == NULL || parent_handle == 0)
-		printf("%s: error:child_clk: 0x%x or parent_handle:0x%x is error\n",
+		pr_error("%s: error:child_clk: 0x%x or parent_handle:0x%x is error\n",
 		     __func__, (u32) child_clk, (u32) parent_handle);
 
 	node_offset = fdt_node_offset_by_phandle(working_fdt, parent_handle);
 	if (node_offset < 0) {
-		printf("%s: error:get property by handle error\n", __func__);
+		pr_error("%s: error:get property by handle error\n", __func__);
 		return -1;
 	}
 
@@ -521,19 +521,19 @@ int of_pll_clk_config_setup(struct clk *child_clk, u32 parent_handle)
 	    fdt_getprop_string(working_fdt, node_offset, "clock-output-names",
 			       &clk_name);
 	if (ret < 0) {
-		printf("%s: clock-output-names is null\n", __func__);
+		pr_error("%s: clock-output-names is null\n", __func__);
 		return -1;
 	}
 
 	clk = clk_get(NULL, clk_name);
 	if (!clk) {
-		printf("%s: get clk is null:%s\n", __func__, clk_name);
+		pr_error("%s: get clk is null:%s\n", __func__, clk_name);
 		return -1;
 	}
 
 	ret = clk_set_parent(child_clk, clk);
 	if (ret) {
-		printf("%s: error:set parent is error. ret = %d\n", __func__,
+		pr_error("%s: error:set parent is error. ret = %d\n", __func__,
 		       ret);
 		return -1;
 	}
@@ -544,7 +544,7 @@ int of_pll_clk_config_setup(struct clk *child_clk, u32 parent_handle)
 	if (ret >= 0) {
 		ret = of_pll_clk_config_setup(clk, parent_handle);
 		if (ret) {
-			printf("%s: of_pll_clk_config_setup error.\n",
+			pr_error("%s: of_pll_clk_config_setup error.\n",
 			       __func__);
 			return -1;
 		}
@@ -556,7 +556,7 @@ int of_pll_clk_config_setup(struct clk *child_clk, u32 parent_handle)
 	if (ret >= 0) {
 		ret = clk_set_rate(clk, rate);
 		if (ret) {
-			printf("%s: clk_set_rate is error. ret = %d\n",
+			pr_error("%s: clk_set_rate is error. ret = %d\n",
 			       __func__, ret);
 			return -1;
 		}
@@ -576,7 +576,7 @@ int of_periph_clk_config_setup(int node_offset)
 	struct clk **clk_list = NULL;
 
 	if (node_offset < 0) {
-		printf("error:fdt err returned %s\n",
+		pr_error("error:fdt err returned %s\n",
 		       fdt_strerror(node_offset));
 		return -1;
 	}
@@ -584,14 +584,14 @@ int of_periph_clk_config_setup(int node_offset)
 	handle_num =
 	    fdt_getprop_u32(working_fdt, node_offset, "clocks", handle);
 	if (handle_num < 0) {
-		printf("%s:%d:error:get property handle %s error:%s\n",
+		pr_error("%s:%d:error:get property handle %s error:%s\n",
 		       __func__, __LINE__, "clocks", fdt_strerror(handle_num));
 		return -1;
 	}
 
 	clk_list = malloc(handle_num * sizeof(struct clk *));
 	if (!clk_list) {
-		printf("%s: clk_list malloc error!\n", __func__);
+		pr_error("%s: clk_list malloc error!\n", __func__);
 		return -1;
 	}
 	memset(clk_list, 0, handle_num * sizeof(struct clk *));
@@ -602,7 +602,7 @@ int of_periph_clk_config_setup(int node_offset)
 		node_offset =
 		    fdt_node_offset_by_phandle(working_fdt, handle[i]);
 		if (node_offset < 0) {
-			printf("%s:%d: error:get property by handle error\n",
+			pr_error("%s:%d: error:get property by handle error\n",
 			       __func__, __LINE__);
 			goto err;
 		}
@@ -611,13 +611,13 @@ int of_periph_clk_config_setup(int node_offset)
 		    fdt_getprop_string(working_fdt, node_offset,
 				       "clock-output-names", &clk_name);
 		if (ret < 0) {
-			printf("%s: clock-output-names is null\n", __func__);
+			pr_error("%s: clock-output-names is null\n", __func__);
 			goto err;
 		}
 
 		clk_list[i] = clk_get(NULL, clk_name);
 		if (strcmp(clk_list[i]->name, clk_name))
-			printf("%s: clk_list[%d]->name = %s\n", __func__, i,
+			pr_msg("%s: clk_list[%d]->name = %s\n", __func__, i,
 			       clk_list[i]->name);
 
 		ret =
@@ -627,7 +627,7 @@ int of_periph_clk_config_setup(int node_offset)
 			ret =
 			    of_pll_clk_config_setup(clk_list[i], parent_handle);
 			if (ret) {
-				printf
+				pr_error
 				    ("%s: %d: of_pll_clk_config_setup is error.",
 				     __func__, __LINE__);
 				goto err;
@@ -657,7 +657,7 @@ struct clk *of_clk_get(int node_offset, int index)
 	struct clk *clk;
 
 	if (node_offset < 0) {
-		printf("%s: error:fdt err returned %s\n", __func__,
+		pr_error("%s: error:fdt err returned %s\n", __func__,
 		       fdt_strerror(node_offset));
 		return NULL;
 	}
@@ -665,19 +665,19 @@ struct clk *of_clk_get(int node_offset, int index)
 	handle_num =
 	    fdt_getprop_u32(working_fdt, node_offset, "clocks", handle);
 	if (handle_num < 0) {
-		printf("%s: error:get property handle %s error:%s\n", __func__,
+		pr_error("%s: error:get property handle %s error:%s\n", __func__,
 		       "clocks", fdt_strerror(handle_num));
 		return NULL;
 	}
 
 	if (index >= handle_num) {
-		printf("%s: index is error,reset it.\n", __func__);
+		pr_error("%s: index is error,reset it.\n", __func__);
 		return NULL;
 	}
 
 	node_offset = fdt_node_offset_by_phandle(working_fdt, handle[index]);
 	if (node_offset < 0) {
-		printf("%s: error:get property by handle error\n", __func__);
+		pr_error("%s: error:get property by handle error\n", __func__);
 		return NULL;
 	}
 
@@ -685,7 +685,7 @@ struct clk *of_clk_get(int node_offset, int index)
 	    fdt_getprop_string(working_fdt, node_offset, "clock-output-names",
 			       &clk_name);
 	if (ret < 0) {
-		printf("%s: get clock name error.\n", __func__);
+		pr_error("%s: get clock name error.\n", __func__);
 		return NULL;
 	}
 	clk = clk_get(NULL, clk_name);

@@ -45,7 +45,6 @@ extern int sunxi_secure_object_write(const char *item_name, char *buffer, int le
 extern int sunxi_secure_object_read(const char *item_name, char *buffer, int buffer_len, int *data_len);
 
 
-
 extern int smc_load_sst_encrypt(
 		char *name,
 		char *in, unsigned int len,
@@ -53,7 +52,6 @@ extern int smc_load_sst_encrypt(
 
 #define SUNXI_SECURE_STORTAGE_INFO_HEAD_LEN (64 + 4 + 4 + 4)
 #define SUNXI_HDCP_KEY_LEN (288)
-
 typedef struct
 {
 	char     name[64];      //key name
@@ -63,6 +61,5 @@ typedef struct
 	char    key_data[4096 - SUNXI_SECURE_STORTAGE_INFO_HEAD_LEN];//the raw data of key
 }
 sunxi_secure_storage_info_t;
-
 
 #endif

@@ -22,21 +22,35 @@
 #include <asm/io.h>
 
 
-#define SUNXI_CLUSTER_PWROFF_GATING(cluster)      (SUNXI_RCPUCFG_BASE + 0x44 + (cluster<<2))
-#define SUNXI_CPU_PWR_CLAMP(cluster, cpu)         (SUNXI_RCPUCFG_BASE + 0x50 + (cluster<<4) + (cpu<<2))
+#define SUNXI_CLUSTER_PWROFF_GATING(cluster) \
+	(SUNXI_RCPUCFG_BASE + 0x44 + (cluster<<2))
+#define SUNXI_CPU_PWR_CLAMP(cluster, cpu)         \
+	(SUNXI_RCPUCFG_BASE + 0x50 + (cluster<<4) + (cpu<<2))
 
-#define SUNXI_CLUSTER_CTRL0(cluster)              (SUNXI_CPUX_CFG_BASE + 0x00 + (cluster<<4))
-#define SUNXI_CLUSTER_CTRL1(cluster)              (SUNXI_CPUX_CFG_BASE + 0x04 + (cluster<<4))
-#define SUNXI_CLUSTER_CPU_STATUS(cluster)         (SUNXI_CPUX_CFG_BASE + 0x30 + (cluster<<2))
-#define SUNXI_CPU_RST_CTRL(cluster)               (SUNXI_CPUX_CFG_BASE + 0x80 + (cluster<<2))
-#define SUNXI_DBG_REG0                            (SUNXI_CPUX_CFG_BASE + 0x20)
-#define SUNXI_CPU_RVBA_L(cpu)                     (SUNXI_CPUX_CFG_BASE + 0xA0 + (cpu)*0x8)
-#define SUNXI_CPU_RVBA_H(cpu)                     (SUNXI_CPUX_CFG_BASE + 0xA4 + (cpu)*0x8)
+#define SUNXI_CLUSTER_CTRL0(cluster)             \
+	(SUNXI_CPUX_CFG_BASE + 0x00 + (cluster<<4))
+#define SUNXI_CLUSTER_CTRL1(cluster)             \
+	(SUNXI_CPUX_CFG_BASE + 0x04 + (cluster<<4))
+#define SUNXI_CLUSTER_CPU_STATUS(cluster)        \
+	(SUNXI_CPUX_CFG_BASE + 0x30 + (cluster<<2))
+#define SUNXI_CPU_RST_CTRL(cluster)              \
+	(SUNXI_CPUX_CFG_BASE + 0x80 + (cluster<<2))
+#define SUNXI_DBG_REG0                           \
+	(SUNXI_CPUX_CFG_BASE + 0x20)
+#define SUNXI_CPU_RVBA_L(cpu)                    \
+	(SUNXI_CPUX_CFG_BASE + 0xA0 + (cpu)*0x8)
+#define SUNXI_CPU_RVBA_H(cpu)                    \
+(SUNXI_CPUX_CFG_BASE + 0xA4 + (cpu)*0x8)
 
-#define SUNXI_CPU_ENTRY                           (SUNXI_RTC_BASE + 0x1bc)
+#define SUNXI_CPU_ENTRY                          \
+	(SUNXI_RTC_BASE + 0x1bc)
 
-#define SUNXI_CLUSTER_PWRON_RESET(cluster)        (SUNXI_RCPUCFG_BASE + 0x30  + (cluster<<2))
-#define SUNXI_CPU_SYS_RESET                       (SUNXI_RCPUCFG_BASE + 0x140)
+#define SUNXI_CLUSTER_PWRON_RESET(cluster)       \
+	(SUNXI_RCPUCFG_BASE + 0x30  + (cluster<<2))
+#define SUNXI_CPU_SYS_RESET                      \
+	(SUNXI_RCPUCFG_BASE + 0x140)
+
+
 #define C0_RST_CTRL			(0x00)
 #define C0_CTRL_REG0			(0x10)
 #define C0_CPU_STATUS			(0X80)
@@ -64,7 +78,8 @@ static inline void sunxi_set_wfi_mode(int cpu)
 
 static inline int sunxi_probe_wfi_mode(int cpu)
 {
-	return readl(SUNXI_CPUX_CFG_BASE + C0_CPU_STATUS) & (1 << (STANDBYWFI_OFFSET + cpu));
+	return readl(SUNXI_CPUX_CFG_BASE + C0_CPU_STATUS) &
+		(1 << (STANDBYWFI_OFFSET + cpu));
 }
 
 
@@ -84,44 +99,6 @@ static inline int sunxi_probe_cpu_power_status(int cpu)
 		return 0;
 
 	return 1;
-}
-
-static int cpu_power_switch_set(u32 cluster, u32 cpu, bool enable)
-{
-	if (enable) {
-		if (0x00 == readl(SUNXI_CPU_PWR_CLAMP(cluster, cpu)))
-			return 0;
-
-		/* de-active cpu power clamp */
-		writel(0xFE, SUNXI_CPU_PWR_CLAMP(cluster, cpu));
-		__usdelay(20);
-
-		writel(0xF8, SUNXI_CPU_PWR_CLAMP(cluster, cpu));
-		__usdelay(10);
-
-		writel(0xE0, SUNXI_CPU_PWR_CLAMP(cluster, cpu));
-		__usdelay(10);
-
-		writel(0xc0, SUNXI_CPU_PWR_CLAMP(cluster, cpu));
-		__usdelay(10);
-
-		writel(0x80, SUNXI_CPU_PWR_CLAMP(cluster, cpu));
-		__usdelay(10);
-
-		writel(0x00, SUNXI_CPU_PWR_CLAMP(cluster, cpu));
-		__usdelay(20);
-		while(0x00 != readl(SUNXI_CPU_PWR_CLAMP(cluster, cpu)))
-			;
-	} else {
-		if (0xFF == readl(SUNXI_CPU_PWR_CLAMP(cluster, cpu)))
-			return 0;
-
-		writel(0xFF, SUNXI_CPU_PWR_CLAMP(cluster, cpu));
-		__usdelay(30);
-		while(0xFF != readl(SUNXI_CPU_PWR_CLAMP(cluster, cpu)));
-
-	}
-	return 0;
 }
 
 static inline void sunxi_enable_cpu(int cpu)
@@ -229,5 +206,5 @@ static inline void sunxi_disable_cpu(int cpu)
 
 	/* pr_debug("[%s]: end\n", __func__);*/
 }
+#endif /* ___PLAT_SMP_H__ */
 
-#endif /* __PLAT_SMP_H */

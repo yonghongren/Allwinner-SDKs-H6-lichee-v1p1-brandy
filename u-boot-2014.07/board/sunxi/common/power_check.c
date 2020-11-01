@@ -1,3 +1,9 @@
+/*
+ *  * Copyright 2000-2009
+ *   * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+ *    *
+ *     * SPDX-License-Identifier:GPL-2.0+
+ *     */
 #include <common.h>
 //#include <asm/arch/drv_display.h>
 #include <sys_config.h>
@@ -9,7 +15,6 @@
 #include <sys_config_old.h>
 
 DECLARE_GLOBAL_DATA_PTR;
-
 
 typedef enum __BOOT_POWER_STATE
 {
@@ -35,6 +40,8 @@ int __sunxi_bmp_display(char* name)
 int sunxi_bmp_display(char * name)
 	__attribute__((weak, alias("__sunxi_bmp_display")));
 
+
+
 static void UpdateChargeVariable(void)
 {
 	#if 0
@@ -58,19 +65,12 @@ static void EnterNormalShutDownMode(void)
 static void EnterLowPowerShutDownMode(void)
 {
 	printf("battery ratio is low without  dc or ac, should be ShowDown\n");
-
-#ifdef CONFIG_SUN8IW12P1_NOR
-	/*use pmu led and 2Hz frequency*/
-	axp_set_led_control(0x02);
-	__msdelay(3000);
-	/*close pmu led */
-	axp_set_led_control(0x00);
-	__msdelay(1000);
-#else
+	#ifdef CONFIG_EINK_PANEL_USED
+	board_display_eink_update("bat\\low_pwr.bmp", 0x04);
+	#else
 	sunxi_bmp_display("bat\\low_pwr.bmp");
+	#endif
 	__msdelay(3000);
-
-#endif
 	sunxi_board_shutdown();
 	for(;;);
 }
@@ -78,9 +78,11 @@ static void EnterLowPowerShutDownMode(void)
 static void EnterShutDownWithChargeMode(void)
 {
 	printf("battery low power and vol with dc or ac, should charge longer\n");
-#ifndef CONFIG_SUN8IW12P1_NOR
+	#ifdef CONFIG_EINK_PANEL_USED
+	board_display_eink_update("bat\\bempty.bmp", 0x04);
+	#else
 	sunxi_bmp_display("bat\\bempty.bmp");
-#endif
+	#endif
 	__msdelay(3000);
 	sunxi_board_shutdown();
 	for(;;);
@@ -88,29 +90,25 @@ static void EnterShutDownWithChargeMode(void)
 
 static void EnterAndroidChargeMode(void)
 {
-#if defined(CONFIG_SUN8IW12P1_NOR)
-	printf("startup system with ac or vubs\n");
-	UpdateChargeVariable();
-#else
 	printf("sunxi_bmp_charger_display\n");
+	#ifdef CONFIG_EINK_PANEL_USED
+	board_display_eink_update("bat\\battery_charge.bmp", 0x04);
+	#else
 	sunxi_bmp_display("bat\\battery_charge.bmp");
+	#endif
+
 	UpdateChargeVariable();
-#endif
 }
 
 static void EnterNormalBootMode(void)
 {
 	printf("sunxi_bmp_logo_display\n");
-#if defined(CONFIG_SUNXI_LOAD_JPEG) || defined(CONFIG_SUN8IW12P1_NOR)
-#ifdef CONFIG_SUNXI_LOAD_JPEG
-	sunxi_load_jpeg("bootlogo.jpg");
-#else
-	read_bmp_to_kernel("bootlogo");
-#endif
-
-#else
+	#ifdef CONFIG_EINK_PANEL_USED
+	board_display_eink_update("bootlogo.bmp", 0x04);
+	#else
 	sunxi_bmp_display("bootlogo.bmp");
-#endif
+	#endif
+
 }
 
 
@@ -184,11 +182,11 @@ static BOOT_POWER_STATE_E GetStateOnLowBatteryRatio(int PowerBus,int LowVoltageF
 
 	do {
 		//power  not exist,shutdown directly
-		//if(PowerBus == 0)
-		//{
-		//	BootPowerState = STATE_SHUTDOWN_DIRECTLY;
-		//	break;
-		//}
+		if(PowerBus == 0)
+		{
+			BootPowerState = STATE_SHUTDOWN_DIRECTLY;
+			break;
+		}
 
 		//----------------power  exist: dcin or vbus------------------
 		//user config is 3, allow boot directly  by insert dcin, not check battery ratio
@@ -201,29 +199,13 @@ static BOOT_POWER_STATE_E GetStateOnLowBatteryRatio(int PowerBus,int LowVoltageF
 		//low voltage
 		if(LowVoltageFlag)
 		{
-			//checking exist or not 
-			if(PowerBus != 0)
-			{
-				BootPowerState = STATE_SHUTDOWN_CHARGE;
-			}
-			else
-			{
-				BootPowerState = STATE_SHUTDOWN_DIRECTLY;
-			}
+			BootPowerState = STATE_SHUTDOWN_CHARGE;
 		}
 		//high voltage
 		else
 		{
-			//checking exist or not 
-			if(PowerBus != 0)
-			{
-				BootPowerState = (PowerOnCause == AXP_POWER_ON_BY_POWER_KEY) ? \
-					STATE_ANDROID_CHARGE:STATE_SHUTDOWN_CHARGE;
-			}
-			else
-			{
-				BootPowerState = STATE_NORMAL_BOOT;
-			}
+			BootPowerState = (PowerOnCause == AXP_POWER_ON_BY_POWER_TRIGGER) ? \
+				STATE_ANDROID_CHARGE:STATE_SHUTDOWN_CHARGE;
 		}
 	}while(0);
 	return BootPowerState;
@@ -293,7 +275,7 @@ int PowerCheck(void)
 
 	//check power bus
 	PowerBus = axp_probe_power_source();
-	printf("PowerBus = %d( %d:vBus %d:acBus other: not exist)\n", PowerBus,AXP_VBUS_EXIST,AXP_DCIN_EXIST);
+	pr_msg("PowerBus = %d( %d:vBus %d:acBus other: not exist)\n", PowerBus, AXP_VBUS_EXIST, AXP_DCIN_EXIST);
 
 	power_limit_for_vbus(BatExist,PowerBus);
 
@@ -323,19 +305,21 @@ int PowerCheck(void)
 	BatRatio = GetBatteryRatio();
 	BatVol = axp_probe_battery_vol();
 	printf("Battery Voltage=%d, Ratio=%d\n", BatVol, BatRatio);
+
 	//PMU_SUPPLY_DCDC2 is for cpua
-	Ret = script_parser_fetch(PMU_SCRIPT_NAME,
-	            "pmu_safe_vol", &SafeVol, 1);
+	Ret = script_parser_fetch(PMU_SCRIPT_NAME, "pmu_safe_vol", &SafeVol, 1);
 	if((Ret) || (SafeVol < 3000))
 	{
 		SafeVol = 3500;
 	}
-
-	LowBatRatioFlag =  (BatRatio<3) ? 1:0;
+	LowBatRatioFlag =  (BatRatio<1) ? 1:0;
 	LowVoltageFlag  =  (BatVol<SafeVol) ? 1:0;
 	PowerOnCause = ProbeStartupCause();
-
+	#ifdef	CONFIG_SUNXI_AXP2585
+	if (LowBatRatioFlag || LowVoltageFlag)
+	#else
 	if(LowBatRatioFlag)
+	#endif
 	{
 		//low battery ratio
 		BootPowerState = GetStateOnLowBatteryRatio(PowerBus,LowVoltageFlag,PowerOnCause);

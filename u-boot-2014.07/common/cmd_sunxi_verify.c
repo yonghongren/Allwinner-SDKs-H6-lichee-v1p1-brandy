@@ -33,8 +33,6 @@
 
 static int sunxi_certif_pubkey_check( sunxi_key_t  *pubkey, u8 *hash_buf);
 static int sunxi_root_certif_pk_verify(sunxi_certif_info_t *sunxi_certif, u8 *buf, u32 len, u8 *hash_buf);
-
-#ifndef CONFIG_OTA_UPDATA_KERNEL_ALONE
 static int check_public_in_rootcert(const char *name, sunxi_certif_info_t *sub_certif )
 {
 	struct sbrom_toc1_item_info  *toc1_item;
@@ -56,41 +54,40 @@ static int check_public_in_rootcert(const char *name, sunxi_certif_info_t *sub_c
 
 	for(i=0;i<root_certif.extension.extension_num;i++)
 	{
-		if(!strcmp((const char *)root_certif.extension.name[i], name))
+		if(strcmp((const char *)root_certif.extension.name[i], name))
 		{
-			printf("find %s key stored in root certif\n", name);
-
-			if(memcmp(root_certif.extension.value[i],
-						sub_certif->pubkey.n+1, sub_certif->pubkey.n_len-1))
-			{
-				printf("%s key n is incompatible\n", name);
-				printf(">>>>>>>key in rootcertif<<<<<<<<<<\n");
-				sunxi_dump((u8 *)root_certif.extension.value[i], sub_certif->pubkey.n_len-1);
-				printf(">>>>>>>key in certif<<<<<<<<<<\n");
-				sunxi_dump((u8 *)sub_certif->pubkey.n+1, sub_certif->pubkey.n_len-1);
-
-				return -1;
-			}
-			if(memcmp(root_certif.extension.value[i] + sub_certif->pubkey.n_len-1,
-						sub_certif->pubkey.e, sub_certif->pubkey.e_len))
-			{
-				printf("%s key e is incompatible\n", name);
-				printf(">>>>>>>key in rootcertif<<<<<<<<<<\n");
-				sunxi_dump((u8 *)root_certif.extension.value[i] + sub_certif->pubkey.n_len-1, sub_certif->pubkey.e_len);
-				printf(">>>>>>>key in certif<<<<<<<<<<\n");
-				sunxi_dump((u8 *)sub_certif->pubkey.e, sub_certif->pubkey.e_len);
-
-				return -1;
-			}
-			break;
+			continue;
 		}
+		printf("find %s key stored in root certif\n", name);
+
+		if(memcmp(root_certif.extension.value[i],
+					sub_certif->pubkey.n+1, sub_certif->pubkey.n_len-1))
+		{
+			printf("%s key n is incompatible\n", name);
+			printf(">>>>>>>key in rootcertif<<<<<<<<<<\n");
+			sunxi_dump((u8 *)root_certif.extension.value[i], sub_certif->pubkey.n_len-1);
+			printf(">>>>>>>key in certif<<<<<<<<<<\n");
+			sunxi_dump((u8 *)sub_certif->pubkey.n+1, sub_certif->pubkey.n_len-1);
+
+			return -1;
+		}
+		if(memcmp(root_certif.extension.value[i] + sub_certif->pubkey.n_len-1,
+					sub_certif->pubkey.e, sub_certif->pubkey.e_len))
+		{
+			printf("%s key e is incompatible\n", name);
+			printf(">>>>>>>key in rootcertif<<<<<<<<<<\n");
+			sunxi_dump((u8 *)root_certif.extension.value[i] + sub_certif->pubkey.n_len-1, sub_certif->pubkey.e_len);
+			printf(">>>>>>>key in certif<<<<<<<<<<\n");
+			sunxi_dump((u8 *)sub_certif->pubkey.e, sub_certif->pubkey.e_len);
+
+			return -1;
+		}
+		break;
 	}
 
 	return 0 ;
 
 }
-#endif
-
 int sunxi_verify_signature(void *buff, uint len, const char *cert_name)
 {
 	u8 hash_of_file[32];
@@ -190,17 +187,13 @@ int sunxi_verify_embed_signature(void *buff, uint len, const char *cert_name, vo
 	if(ret)
 	{
 		printf("sunxi_verify_signature err: calc hash failed\n");
-		free(cert_buf);
-
-		return -1;
+		goto __ERROR_END;
 	}
-
-	//printf("cert dump\n");
-	//sunxi_dump(cert_buf,cert_len);
 	if(sunxi_certif_verify_itself(&sub_certif, cert_buf, cert_len)){
 		printf("%s error: cant verify the content certif\n", __func__);
-		free(cert_buf);
-		return -1;
+		printf("cert dump\n");
+		sunxi_dump(cert_buf, cert_len);
+		goto __ERROR_END;
 	}
 
 	if(memcmp(hash_of_file, sub_certif.extension.value[0], 32))
@@ -210,23 +203,20 @@ int sunxi_verify_embed_signature(void *buff, uint len, const char *cert_name, vo
 		sunxi_dump(hash_of_file, 32);
 		printf(">>>>>>>hash in certif<<<<<<<<<<\n");
 		sunxi_dump(sub_certif.extension.value[0], 32);
-
-		free(cert_buf);
-		return -1;
+		goto __ERROR_END;
 	}
 
-#ifndef CONFIG_OTA_UPDATA_KERNEL_ALONE
 	/*Approvel certificate by trust-chain*/
 	if( check_public_in_rootcert(cert_name, &sub_certif) ){
 		printf("check rootpk[%s] in rootcert fail\n",cert_name);
-		free(cert_buf);
-		return -1;
+		goto __ERROR_END;
 	}
-#endif
-
 	free(cert_buf);
-
 	return 0;
+__ERROR_END:
+	if(cert_buf)
+		free(cert_buf);
+	return -1;
 }
 /*
 ************************************************************************************************************

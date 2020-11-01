@@ -27,10 +27,9 @@
 #include <asm/io.h>
 #include <asm/arch/spi.h>
 #include <asm/arch/ccmu.h>
+//#include <asm/arch/ccmu.h>
 #include <asm/arch/dma.h>
-#include <sys_config.h>
-
-//#define SUNXI_NOR_FLASH_DEBUG 1
+#define SUNXI_NOR_FLASH_DEBUG 1
 #ifdef  SUNXI_NOR_FLASH_DEBUG
 #define SUNXI_DEBUG(fmt,args...)	printf(fmt ,##args)
 #else
@@ -306,8 +305,6 @@ void spic_set_clk(u32 spi_no, u32 clk)
 int spic_init(u32 spi_no)
 {
 	u32 rval;
-	u32 SPI_CLCK;
-	int ret;
 	//uint reg_val, div;
 	spi_rx_dma = malloc_noncache(sizeof(sunxi_dma_setting_t));
 	spi_tx_dma = malloc_noncache(sizeof(sunxi_dma_setting_t));
@@ -368,18 +365,9 @@ int spic_init(u32 spi_no)
 	sunxi_dma_setting(spi_tx_dma_hd, (void *)spi_tx_dma);
 	spi_no = 0;
 	spi_onoff(spi_no, 1);
-	ret = script_parser_fetch("boot_spi_board0", "boot_spi_speed_hz", (int *)(&SPI_CLCK),1);
-	if (ret < 0)
-	{
-		printf("[debug_jaosn]:not set the spinor clock use the default\n");
-		spi_cfg_mclk(spi_no, SPI_CLK_SRC, SPI_MCLK);
-		spic_set_clk(spi_no, SPI_DEFAULT_CLK);	
-	}else
-	{
-		printf("[debug_jaosn]:use the clock in sys_config \n");
-		spi_cfg_mclk(spi_no, SPI_CLK_SRC, SPI_CLCK);
-		spic_set_clk(spi_no, SPI_CLCK);
-	}
+	
+	spi_cfg_mclk(spi_no, SPI_CLK_SRC, SPI_MCLK);
+	spic_set_clk(spi_no, SPI_DEFAULT_CLK);
 	
 	rval = SPI_SOFT_RST|SPI_TXPAUSE_EN|SPI_MASTER|SPI_ENABLE;
 	writel(rval, SPI_GCR);
@@ -411,7 +399,7 @@ int spic_rw( u32 tcnt, void* txbuf, u32 rcnt, void* rxbuf)
 			while (i < tcnt)
 			{
 				//send data
-				while(((readl(SPI_FSR)>>16)==SPI_FIFO_SIZE));
+				while(((readl(SPI_FSR)>>16)==SPI_FIFO_SIZE) );
 				writeb(*(tx_buffer+i),SPI_TXD);
 				i++;
 			}

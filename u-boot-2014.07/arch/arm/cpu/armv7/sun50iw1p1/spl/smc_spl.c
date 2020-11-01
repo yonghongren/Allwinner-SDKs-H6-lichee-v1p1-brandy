@@ -90,7 +90,7 @@ int sunxi_smc_config(uint dram_size, uint secure_region_size)
 	//设置fullmemory访问属性
 	writel(permission | region_size | 1 , SMC_REGIN_ATTRIBUTE_REG(1));
 
-	//设置顶端16M起始地址
+	//设置顶端Secure RAM起始地址
 	region_size = (__tzasc_calc_2_power(secure_region_size*1024/32) + 0b001110)<<1;
 	permission  = 0b1100<<28;	//设置只允许安全模式访问
 
@@ -110,7 +110,30 @@ int sunxi_smc_config(uint dram_size, uint secure_region_size)
 		writel(long_regin_start & 0xffff8000, SMC_REGIN_SETUP_LOW_REG(2));
 	}
 	//设置安全区域访问属性
-	writel(permission | region_size | 1 , SMC_REGIN_ATTRIBUTE_REG(2));
+	writel(permission | region_size | 0 , SMC_REGIN_ATTRIBUTE_REG(2));
+
+	/* 1MB for ATF */
+	permission = 0b1100;
+	region_size = 0b10011;
+	region_start = 0x08000000;
+	writel(region_start, SMC_REGIN_SETUP_LOW_REG(3));
+	writel((permission<<28) | (region_size<<1) | 1 ,
+		SMC_REGIN_ATTRIBUTE_REG(3));
+	/* 10 MB for SecureOS  0x48600000~0x49000000*/
+	/* split with 2M + 8M for address align by SMC */
+	permission = 0b1100;
+	region_size = 0b10100;
+	region_start = 0x08600000;
+	writel(region_start, SMC_REGIN_SETUP_LOW_REG(4));
+	writel((permission<<28) | (region_size<<1) | 1 ,
+		SMC_REGIN_ATTRIBUTE_REG(4));
+
+	permission = 0b1100;
+	region_size = 0b10110;
+	region_start = 0x08800000;
+	writel(region_start, SMC_REGIN_SETUP_LOW_REG(5));
+	writel((permission<<28) | (region_size<<1) | 1 ,
+		SMC_REGIN_ATTRIBUTE_REG(5));
 
 	return 0;
 }

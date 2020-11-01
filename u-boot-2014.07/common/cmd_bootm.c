@@ -21,74 +21,12 @@
 #include <linux/ctype.h>
 #include <linux/err.h>
 #include <u-boot/zlib.h>
+#ifdef CONFIG_SUNXI_MULITCORE_BOOT
+#include <cputask.h>
+#endif
+#include <fdtdec.h>
 
 DECLARE_GLOBAL_DATA_PTR;
-
-#ifdef CONFIG_ARCH_SUN8IW12P1
-#define SIZEOF_FC_MAP 0x1000
-static int update_common_mix_date(void)
-{
-	char cmdline[512] = {0};
-	char tmpbuf[128] = {0};
-	char *buff = NULL;
-	char *str = getenv("bootargs");
-	char *align_addr;
-
-	buff =  malloc(SIZEOF_FC_MAP + 0x1000);
-	if (NULL == buff) {
-		printf("mix malloc buff failt\n");
-		return -1;
-	}
-	align_addr = (char *)((unsigned int)buff +
-			(0x1000U - (0xfffu & (unsigned int)buff)));
-
-	memcpy(align_addr, (void *)FC_ADDR, SIZEOF_FC_MAP );
-	memset((void *)FC_ADDR, 0, SIZEOF_FC_MAP );
-
-	strcpy(cmdline, str);
-	sprintf(tmpbuf, " mix=0x%x@0x%x", SIZEOF_FC_MAP , (uint)align_addr);
-
-	printf("cmdline:%s\n", tmpbuf);
-	strcat(cmdline, tmpbuf);
-	setenv("bootargs", cmdline);
-
-	return 0;
-}
-#endif
-
-#ifdef CONFIG_SUNXI_MODULE_SPINOR
-static void update_mbr_offset(void)
-{
-	char cmdline[512] = {0};
-	char tmpbuf[128] = {0};
-	unsigned int mbr_offset;
-	char *str = getenv("bootargs");
-
-	mbr_offset = CONFIG_SPINOR_LOGICAL_OFFSET;
-	sprintf(tmpbuf, " mbr=0x%x", (uint)mbr_offset) ;
-
-#ifdef DISABLE_SUNXI_MBR
-	char *mtdpart = getenv("mtdparts");
-	char *tmpaddr;
-	char *desbuff =NULL;
-	char part_buff[218] = {0};
-	char device_name[16] = {0};
-
-	tmpaddr = strchr(mtdpart,':');
-	strncpy(device_name, mtdpart, (tmpaddr + 1 - mtdpart));
-	strcpy(part_buff, (tmpaddr+1));
-	desbuff = tmpbuf;
-	sprintf(desbuff,"%s mtdparts=%s%dK(uboot)ro,%s",tmpbuf,device_name,
-					(CONFIG_SPINOR_LOGICAL_OFFSET * 512 / 1024),part_buff);
-#endif
-	printf("mbr_partition:%s\n", tmpbuf);
-	strcpy(cmdline, str);
-	strcat(cmdline, tmpbuf);
-	setenv("bootargs", cmdline);
-
-
-}
-#endif
 
 #if defined(CONFIG_CMD_IMI)
 static int image_info(unsigned long addr);
@@ -159,16 +97,6 @@ static int do_bootm_subcommand(cmd_tbl_t *cmdtp, int flag, int argc,
 
 int do_bootm(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-
-#ifdef CONFIG_ARCH_SUN8IW12P1
-			update_common_mix_date();
-#endif
-
-#ifdef CONFIG_SUNXI_MODULE_SPINOR
-	update_mbr_offset();
-#endif
-
-
 #ifdef CONFIG_NEEDS_MANUAL_RELOC
 	static int relocated = 0;
 
@@ -181,6 +109,11 @@ int do_bootm(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 		relocated = 1;
 	}
+#endif
+
+#ifdef CONFIG_SUNXI_MULITCORE_BOOT
+	sunxi_secondary_cpu_poweroff();
+	sunxi_fdt_reflush_all();
 #endif
 
 	/* determine if we have a sub command */

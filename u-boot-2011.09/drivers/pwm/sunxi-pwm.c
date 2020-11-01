@@ -201,6 +201,7 @@ int sunxi_pwm_config(int pwm, int duty_ns, int period_ns)
     temp = (temp & 0xfffffff0) | pre_scal_id;
 
     sunxi_pwm_write_reg(pwm * 0x10, temp);
+    printf("[PWM]temp = %d,entire_cycles = %d, active_cycles = %d\n", pwm * 0x10,entire_cycles, active_cycles);
 
     sunxi_pwm_write_reg(pwm * 0x10 + 0x04, ((entire_cycles - 1)<< 16) | active_cycles);
 

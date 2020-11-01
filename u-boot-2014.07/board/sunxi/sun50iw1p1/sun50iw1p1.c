@@ -52,9 +52,7 @@ DECLARE_GLOBAL_DATA_PTR;
 /* add board specific code here */
 int board_init(void)
 {
-//	gd->bd->bi_arch_number = LINUX_MACHINE_ID;
-//	gd->bd->bi_boot_params = (PHYS_SDRAM_1 + 0x100);
-//	debug("board_init storage_type = %d\n",uboot_spare_head.boot_data.storage_type);
+
 	u32 reg_val;
 	//set sram for vedio use, default is boot use
 	reg_val = readl(0x01c00004);

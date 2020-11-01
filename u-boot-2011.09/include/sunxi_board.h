@@ -68,7 +68,7 @@ extern int board_display_framebuffer_change(void *buffer);
 extern int board_display_device_open(void);
 extern int borad_display_get_screen_width(void);
 extern int borad_display_get_screen_height(void);
-extern int board_display_setenv(char *data);
+extern void board_display_setenv(char *data);
 
 extern void board_status_probe(int standby_mode);
 
@@ -83,8 +83,6 @@ extern void usb_detect_for_charge(int detect_time);
 extern int sunxi_flash_handle_init(void);
 
 extern int sunxi_bmp_display(char *name);
-extern int sunxi_advert_display(char *fatname, char *filename);
-extern int sunxi_advert_disp_probe(void);
 
 extern int drv_disp_init(void);
 extern int drv_disp_exit(void);
@@ -126,11 +124,13 @@ extern int power_off(void);
 extern void sunxi_set_fel_flag(void);
 extern void sunxi_clear_fel_flag(void);
 
+#ifdef CONFIG_DETECT_RTC_BOOT_MODE
+extern int sunxi_get_bootmode_flag(void);
+extern int sunxi_set_bootmode_flag(u8 flag);
+#endif
 extern int sunxi_verify_signature(void *buff, uint len, const char *cert_name);
 extern int sunxi_verify_rotpk_hash(void *input_hash_buf, int len);
-extern int erase_all_private_data(void);
-extern int read_private_key_by_name(const char * name, char *buffer, int buffer_len, int *data_len);
-extern int save_user_private_data(char *name, char *data, int length);
+
 extern void sunxi_dump(void *addr, unsigned int size);
 
 #endif /*_SUNXI_BOARD_H_ */

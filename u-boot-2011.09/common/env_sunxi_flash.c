@@ -34,7 +34,6 @@
 #ifdef CONFIG_ALLWINNER
 #include <boot_type.h>
 #include <sys_partition.h>
-#include <sys_config.h>
 #endif
 extern uchar default_environment[];
 
@@ -133,7 +132,6 @@ static void flash_env_relocate_spec(int workmode)
 #if !defined(ENV_IS_EMBEDDED)
 	char buf[CONFIG_ENV_SIZE];
 	u32 start;
-	int value, ret;
 
 	if((workmode & WORK_MODE_PRODUCT) && (!(workmode & WORK_MODE_UPDATE)))
 	{
@@ -153,18 +151,9 @@ static void flash_env_relocate_spec(int workmode)
 			use_default();
 			return;
 		}
-
-		ret = script_parser_fetch("env_crc", "env_crc_check_no_used", &value, 1);
-		if(!ret && (value == 1))
-		{
-			printf("not check env\n");
-			env_import(buf, 0);
-		}
-		else
-		{
-			env_import(buf, 1);
-		}
+		env_import(buf, 1);
 	}
+
 #endif
 }
 

@@ -37,9 +37,6 @@ int set_ddr_voltage(int set_vol);
 int set_pll_voltage(int set_vol);
 int set_efuse_voltage(int set_vol);
 int set_sys_voltage(int set_vol, int onoff);
-s32 pmu_bus_read(u32 rtaddr, u32 daddr, u8 *data);
-s32 pmu_bus_write(u32 rtaddr, u32 daddr,u8 data);
-
 
 
 #endif  /* __BASE_PMU_H_ */

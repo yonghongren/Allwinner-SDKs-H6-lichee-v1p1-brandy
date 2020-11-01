@@ -31,6 +31,7 @@
 #include <sys_config_old.h>
 #include <power/sunxi/axp.h>
 #include <fdt_support.h>
+#include <private_uboot.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -49,6 +50,16 @@ static ulong pmu_nodeoffset_in_config = 0;
 	#define CHARGER_PMU 0
 #endif
 
+void sunxi_axp_dummy_init(void)
+{
+	int i;
+
+	pr_msg("probe axp is dummy\n");
+	memset(sunxi_axp_dev, 0, SUNXI_AXP_DEV_MAX * 4);
+	for (i = 0; i < SUNXI_AXP_DEV_MAX; i++) {
+		sunxi_axp_dev[i] = &sunxi_axp_null;
+	}
+}
 
 int axp_probe(void)
 {
@@ -58,7 +69,7 @@ int axp_probe(void)
 	pmu_nodeoffset_in_config = script_parser_offset(PMU_SCRIPT_NAME);
 	if(pmu_nodeoffset_in_config == 0 )
 	{
-		printf("axp: get node[%s] error\n",PMU_SCRIPT_NAME);
+		pr_msg("axp: get node[%s] error\n",PMU_SCRIPT_NAME);
 	}
 
 	axp_num = platform_axp_probe((sunxi_axp_dev_t* *)&sunxi_axp_dev,
@@ -83,7 +94,7 @@ int axp_reinit(void)
 	pmu_nodeoffset_in_config = script_parser_offset(PMU_SCRIPT_NAME);
 	if(pmu_nodeoffset_in_config == 0)
 	{
-		printf("axp: get node[%s] error\n",PMU_SCRIPT_NAME);
+		pr_msg("axp: get node[%s] error\n",PMU_SCRIPT_NAME);
 		return 0;
 	}
 
@@ -109,20 +120,20 @@ int axp_probe_factory_mode(void)
 
 	if(buffer_value == PMU_PRE_FACTORY_MODE)	//factory mode: need the power key and dc or vbus
 	{
-		printf("factory mode detect\n");
-		status = sunxi_axp_dev[0]->probe_power_status();
+		pr_msg("factory mode detect\n");
+		status = sunxi_axp_dev[CHARGER_PMU]->probe_power_status();
 		if(status > 0)  //has the dc or vbus
 		{
-			poweron_reason = sunxi_axp_dev[0]->probe_this_poweron_cause();
+			poweron_reason = sunxi_axp_dev[CHARGER_PMU]->probe_this_poweron_cause();
 			if(poweron_reason == AXP_POWER_ON_BY_POWER_KEY)
 			{
 				//set the system next powerom status as 0x0e(the system mode)
-				printf("factory mode release\n");
+				pr_msg("factory mode release\n");
 				sunxi_axp_dev[0]->set_next_sys_mode(PMU_PRE_SYS_MODE);
 			}
 			else
 			{
-				printf("factory mode: try to poweroff without power key\n");
+				pr_msg("factory mode: try to poweroff without power key\n");
 				axp_set_hardware_poweron_vol();  //poweroff
 				axp_set_power_off();
 				for(;;);
@@ -130,7 +141,7 @@ int axp_probe_factory_mode(void)
 		}
 		else
 		{
-			printf("factory mode: try to poweroff without power in\n");
+			pr_msg("factory mode: try to poweroff without power in\n");
 			axp_set_hardware_poweroff_vol();  //poweroff
 			axp_set_power_off();
 			for(;;);
@@ -166,7 +177,18 @@ int axp_set_hardware_poweroff_vol(void)
 
 int  axp_set_power_off(void)
 {
-	return sunxi_axp_dev[0]->set_power_off();
+
+#ifdef	CONFIG_SUNXI_AXP2585
+	if (sunxi_axp_dev[CHARGER_PMU]->set_power_off()) {
+		puts("bmu power off err\n");
+		return -1;
+	}
+#endif
+	if (sunxi_axp_dev[0]->set_power_off()) {
+		puts("pmu power off err\n");
+		return -1;
+	}
+	return 0;
 }
 
 int axp_set_next_poweron_status(int value)
@@ -176,7 +198,11 @@ int axp_set_next_poweron_status(int value)
 
 int axp_probe_pre_sys_mode(void)
 {
+#ifdef	CONFIG_SUNXI_AXP2585
+	return sunxi_axp_dev[0]->probe_pre_sys_mode();
+#else
 	return sunxi_axp_dev[CHARGER_PMU]->probe_pre_sys_mode();
+#endif
 }
 
 int  axp_power_get_dcin_battery_exist(int *dcin_exist, int *battery_exist)
@@ -205,20 +231,6 @@ int  axp_probe_battery_vol(void)
 	return sunxi_axp_dev[CHARGER_PMU]->probe_battery_vol();
 }
 
-#ifdef CONFIG_SUN8IW12P1_NOR
-int  axp_probe_battery_ocv_vol(void)
-{
-	return sunxi_axp_dev[CHARGER_PMU]->probe_battery_ocv_vol();
-}
-
-int  axp_set_led_control(int value)
-{
-	return sunxi_axp_dev[CHARGER_PMU]->set_led_control(value);
-}
-
-#endif
-
-
 int  axp_probe_rest_battery_capacity(void)
 {
 	return sunxi_axp_dev[CHARGER_PMU]->probe_battery_ratio();
@@ -231,17 +243,17 @@ int  axp_probe_key(void)
 
 int  axp_probe_charge_current(void)
 {
-	return sunxi_axp_dev[0]->probe_charge_current();
+	return sunxi_axp_dev[CHARGER_PMU]->probe_charge_current();
 }
 
 int  axp_set_charge_current(int current)
 {
-	return sunxi_axp_dev[0]->set_charge_current(current);
+	return sunxi_axp_dev[CHARGER_PMU]->set_charge_current(current);
 }
 
 int  axp_set_charge_control(void)
 {
-	return sunxi_axp_dev[0]->set_charge_control();
+	return sunxi_axp_dev[CHARGER_PMU]->set_charge_control();
 }
 
 int axp_set_vbus_limit_dc(void)
@@ -250,8 +262,8 @@ int axp_set_vbus_limit_dc(void)
 		"pmu_ac_vol", (uint32_t *)&gd->limit_vol);
 	script_parser_fetch_by_offset(pmu_nodeoffset_in_config,
 		"pmu_ac_cur", (uint32_t *)&gd->limit_cur);
-	sunxi_axp_dev[0]->set_vbus_vol_limit(gd->limit_vol);
-	sunxi_axp_dev[0]->set_vbus_cur_limit(gd->limit_cur);
+	sunxi_axp_dev[CHARGER_PMU]->set_vbus_vol_limit(gd->limit_vol);
+	sunxi_axp_dev[CHARGER_PMU]->set_vbus_cur_limit(gd->limit_cur);
 	return 0;
 }
 
@@ -261,8 +273,8 @@ int axp_set_vbus_limit_pc(void)
 		"pmu_usbpc_vol", (uint32_t *)&gd->limit_pcvol);
 	script_parser_fetch_by_offset(pmu_nodeoffset_in_config,
 		"pmu_usbpc_cur", (uint32_t *)&gd->limit_pccur);
-	sunxi_axp_dev[0]->set_vbus_vol_limit(gd->limit_pcvol);
-	sunxi_axp_dev[0]->set_vbus_cur_limit(gd->limit_pccur);
+	sunxi_axp_dev[CHARGER_PMU]->set_vbus_vol_limit(gd->limit_pcvol);
+	sunxi_axp_dev[CHARGER_PMU]->set_vbus_cur_limit(gd->limit_pccur);
 	return 0;
 }
 
@@ -276,12 +288,12 @@ int axp_set_all_limit(void)
 
 int axp_set_suspend_chgcur(void)
 {
-	return sunxi_axp_dev[0]->set_charge_current(gd->pmu_suspend_chgcur);
+	return sunxi_axp_dev[CHARGER_PMU]->set_charge_current(gd->pmu_suspend_chgcur);
 }
 
 int axp_set_runtime_chgcur(void)
 {
-	return sunxi_axp_dev[0]->set_charge_current(gd->pmu_runtime_chgcur);
+	return sunxi_axp_dev[CHARGER_PMU]->set_charge_current(gd->pmu_runtime_chgcur);
 }
 
 int axp_set_charge_vol_limit(void)
@@ -344,7 +356,7 @@ int axp_set_power_supply_output(void)
 
 			if(sunxi_axp_dev[0]->set_supply_status_byname(power_name, power_vol_d, onoff))
 			{
-				printf("axp set %s to %d failed\n", power_name, power_vol_d);
+				pr_msg("axp set %s to %d failed\n", power_name, power_vol_d);
 				return -1;
 			}
 	}while(1);
@@ -375,17 +387,17 @@ int axp_slave_set_power_supply_output(void)
 	}
 	if(index == -1)
 	{
-		printf("unable to find slave pmu\n");
+		pr_msg("unable to find slave pmu\n");
 		return -1;
 	}
-	printf("slave power\n");
+	pr_msg("slave power\n");
 	do
 	{
 		memset(power_name, 0, 16);
 		ret = script_parser_fetch_subkey_next("slave_power_sply", power_name, &power_vol, &power_index1,&power_index2);
 		if(ret < 0)
 		{
-		      printf("find slave power sply to end\n");
+		      pr_msg("find slave power sply to end\n");
 		     return 0;
 		}
 
@@ -408,13 +420,13 @@ int axp_slave_set_power_supply_output(void)
 			onoff = 0;
 		}
 #if defined(CONFIG_SUNXI_AXP_CONFIG_ONOFF)
-		printf("%s = %d, onoff=%d\n", power_name, power_vol_d, onoff);
+		pr_msg("%s = %d, onoff=%d\n", power_name, power_vol_d, onoff);
 #else
-		printf("%s = %d\n", power_name, power_vol_d);
+		pr_msg("%s = %d\n", power_name, power_vol_d);
 #endif
 		if(sunxi_axp_dev[index]->set_supply_status_byname(power_name, power_vol_d, onoff))
 		{
-		    printf("axp set %s to %d failed\n", power_name, power_vol_d);
+		    pr_msg("axp set %s to %d failed\n", power_name, power_vol_d);
 		}
 	}while(1);
 
@@ -427,8 +439,8 @@ int axp_probe_power_supply_condition(void)
 	int   ratio;
 	int   safe_vol;
 
-	dcin_exist = sunxi_axp_dev[0]->probe_power_status();
-	bat_vol = sunxi_axp_dev[0]->probe_battery_vol();
+	dcin_exist = sunxi_axp_dev[CHARGER_PMU]->probe_power_status();
+	bat_vol = sunxi_axp_dev[CHARGER_PMU]->probe_battery_vol();
 
 	safe_vol = 0;
 	script_parser_fetch_by_offset(pmu_nodeoffset_in_config,"pmu_safe_vol", (uint32_t*)&safe_vol);
@@ -438,12 +450,7 @@ int axp_probe_power_supply_condition(void)
 		safe_vol = 3500;
 	}
 
-	ratio = sunxi_axp_dev[0]->probe_battery_ratio();
-	if(ratio < 1)
-	{
-		sunxi_axp_dev[0]->set_coulombmeter_onoff(0);
-		sunxi_axp_dev[0]->set_coulombmeter_onoff(1);
-	}
+	ratio = sunxi_axp_dev[CHARGER_PMU]->probe_battery_ratio();
 	pr_msg("bat_vol=%d, ratio=%d\n", bat_vol, ratio);
 	if(ratio < 1)
 	{
@@ -585,17 +592,17 @@ int axp_set_supply_status_byregulator(const char* id, int onoff)
 		main_hd = script_parser_fetch(main_key,"regulator_count",&ldo_count, 1);
 		if (main_hd != 0)
 		{
-			printf("unable to get ldo_count  from [%s] \n",main_key);
+			pr_msg("unable to get ldo_count  from [%s] \n",main_key);
 			break;
 		}
 
 		for (index = 1; index <= ldo_count; index++)
 		{
-			sprintf(sub_key_name, "regulator%d", index);
+			sprintf(sub_key_name, "regulator%u", index);
 			main_hd = script_parser_fetch(main_key,sub_key_name,(int*)(sub_key_value), sizeof(sub_key_value)/sizeof(int));
 			if (main_hd != 0)
 			{
-				printf("unable to get subkey %s from [%s]\n",sub_key_name, main_key);
+				pr_msg("unable to get subkey %s from [%s]\n",sub_key_name, main_key);
 				break;
 			}
 			if (find_regulator_str(sub_key_value, id))
@@ -612,7 +619,7 @@ int axp_set_supply_status_byregulator(const char* id, int onoff)
 
 	if (!find_flag)
 	{
-		printf("unable to find regulator %s from [pmu1_regu] or [pmu2_regu] \n",id);
+		pr_msg("unable to find regulator %s from [pmu1_regu] or [pmu2_regu] \n",id);
 		return -1;
 	}
 
@@ -644,7 +651,7 @@ int axp_set_supply_status_byregulator(const char* id, int onoff)
 	ret = axp_set_supply_status_byname(pmu_type,vol_type,0, onoff);
 	if(ret != 0)
 	{
-		printf("error: supply regelator %s=id, pmu_type=%s_%s onoff=%d fail\n", id,pmu_type,vol_type,onoff );
+		pr_msg("error: supply regelator %s=id, pmu_type=%s_%s onoff=%d fail\n", id,pmu_type,vol_type,onoff );
 	}
 
 	return ret;
@@ -803,7 +810,7 @@ int set_sunxi_gpio_power_bias(void)
 
 			port_index =__gpio_name_is_valid(gpio_name);
 			if (port_index < 0) {
-				printf("Unsupport to set gpio %s\n",gpio_name);
+				pr_msg("Unsupport to set gpio %s\n",gpio_name);
 				break;
 			}
 
@@ -818,18 +825,19 @@ int set_sunxi_gpio_power_bias(void)
 			supply_set = 0;
 
 		}
-		printf("set %s(%d) bias:%d\n", gpio_name,
+		pr_msg("set %s(%d) bias:%d\n", gpio_name,
 					port_index, bias_vol_set);
 		__pio_power_mode_select(bias_vol_set, port_index);
-
-		if (supply_set) {
-			printf("axp=%s, supply=%s, vol=%d\n", axp,
-				supply, bias_vol_set);
-			if (axp_set_supply_status_byname(axp, supply,
-							bias_vol_set, 1) < 0)
-				printf("pmu set fail!\n");
+		if (uboot_spare_head.boot_ext[0].data[0]) {
+			if (supply_set) {
+				pr_msg("axp=%s, supply=%s, vol=%d\n", axp,
+						supply, bias_vol_set);
+				if (axp_set_supply_status_byname(axp, supply,
+						bias_vol_set, 1) < 0)
+				pr_msg("pmu set fail!\n");
 			}
-		} while(1);
+		}
+	} while (1);
 
 		return 0;
 }

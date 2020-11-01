@@ -34,11 +34,11 @@ struct sunxi_lradc {
 };
 
 
-#define GP_CTRL			((volatile u32 *)(SUNXI_KEYADC_BASE+0x04))
-#define GP_CS_EN 		((volatile u32 *)(SUNXI_KEYADC_BASE+0x08))
-#define GP_DATA_INTC	 ((volatile u32 *)(SUNXI_KEYADC_BASE+0x28))
-#define GP_DATA_INTS 	((volatile u32 *)(SUNXI_KEYADC_BASE+0x38))
-#define GP_CH0_DATA	 ((volatile u32 *)(SUNXI_KEYADC_BASE+0x80))
+#define GP_CTRL       (SUNXI_KEYADC_BASE+0x04)
+#define GP_CS_EN      (SUNXI_KEYADC_BASE+0x08)
+#define GP_DATA_INTC  (SUNXI_KEYADC_BASE+0x28)
+#define GP_DATA_INTS  (SUNXI_KEYADC_BASE+0x38)
+#define GP_CH0_DATA   (SUNXI_KEYADC_BASE+0x80)
 
 #define GPADC0_DATA_PENDING		(1 << 0)	/* gpadc0 has data */
 

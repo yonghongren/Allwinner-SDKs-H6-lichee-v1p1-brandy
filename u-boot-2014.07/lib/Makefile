@@ -39,7 +39,6 @@ obj-y += qsort.o
 obj-$(CONFIG_SHA1) += sha1.o
 obj-$(CONFIG_SUPPORT_EMMC_RPMB) += sha256.o
 obj-$(CONFIG_SHA256) += sha256.o
-obj-$(CONFIG_SHA512) += sha512.o
 obj-y	+= strmhz.o
 obj-$(CONFIG_TPM) += tpm.o
 obj-$(CONFIG_RBTREE)	+= rbtree.o
@@ -67,5 +66,8 @@ obj-$(CONFIG_TRACE) += trace.o
 obj-$(CONFIG_LIB_UUID) += uuid.o
 obj-y += vsprintf.o
 obj-$(CONFIG_LIB_RAND) += rand.o
+obj-$(CONFIG_SUNXI_FINS_FUNC) += aw_ff_trace.o
 
 subdir-ccflags-$(CONFIG_CC_OPTIMIZE_LIBS_FOR_SPEED) += -O2
+ccflags-$(CONFIG_SUNXI_FINS_FUNC_EXCLUDE_FILE) += -finstrument-functions-exclude-file-list=vsprintf.c
+subdir-ccflags-$(CONFIG_SUNXI_FINS_FUNC_LIB_DIR) += -finstrument-functions

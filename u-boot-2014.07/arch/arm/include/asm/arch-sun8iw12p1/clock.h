@@ -111,7 +111,6 @@ struct sunxi_ccm_reg {
         //u32 clk_outb_reg;
 };
 
-extern void set_pll_ddr( void );
 extern void set_pll( void );
 extern void set_gpio_gate(void);
 extern void reset_pll(void);

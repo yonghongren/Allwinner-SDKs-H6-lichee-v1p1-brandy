@@ -1,3 +1,9 @@
+/*
+ *  * Copyright 2000-2009
+ *   * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+ *    *
+ *     * SPDX-License-Identifier:GPL-2.0+
+ *     */
 #include "tv_ac200.h"
 #include "tv_ac200_lowlevel.h"
 #include <i2c.h>
@@ -27,14 +33,14 @@ static bool tv_suspend_status;
 
 /*#define	 AC200_DEBUG*/
 #define __ac200_err(msg...) do { \
-	{printf("[ac200] %s,line:%d:    ", \
-	__func__, __LINE__); printf(msg); } \
+	{pr_msg("[ac200] %s,line:%d\n ", \
+	__func__, __LINE__); pr_msg(msg); } \
 	} while (0)
 
 #if defined(AC200_DEBUG)
 #define __ac200_dbg(msg...) do { \
-	{printf("[ac200] %s,line:%d:    ", \
-	__func__, __LINE__); printf(msg); } \
+	{pr_msg("[ac200] %s,line:%d\n", \
+	__func__, __LINE__); pr_msg(msg); } \
 	} while (0)
 #else
 #define __ac200_dbg(msg...)
@@ -61,24 +67,24 @@ extern unsigned int disp_boot_para_parse(void);
 
 void tv_report_hpd_work(void)
 {
-	printf("there is null report hpd work,you need support the switch class!");
+	pr_msg("there is null report hpd work,you need support the switch class!");
 }
 
 s32 tv_detect_thread(void *parg)
 {
-	printf("there is null tv_detect_thread,you need support the switch class!");
+	pr_msg("there is null tv_detect_thread,you need support the switch class!");
 	return -1;
 }
 
 s32 tv_detect_enable(void)
 {
-	printf("there is null tv_detect_enable,you need support the switch class!");
+	pr_msg("there is null tv_detect_enable,you need support the switch class!");
 	return -1;
 }
 
 s32 tv_detect_disable(void)
 {
-	printf("there is null tv_detect_disable,you need support the switch class!");
+	pr_msg("there is null tv_detect_disable,you need support the switch class!");
     	return -1;
 }
 
@@ -129,27 +135,27 @@ static int  tv_i2c_init(void)
 		    ret = disp_sys_script_get_item(key_name, "tv_twi_addr",
 						   &value, 1);
 		    if (ret != 1) {
-			    printf("get tv_twi_addr failed\n");
+			    pr_msg("get tv_twi_addr failed\n");
 			    return -1;
 		    }
 		    ac200_twi_addr = value;
 		    ret = disp_sys_script_get_item(key_name, "tv_twi_id",
 						   &value, 1);
 		    if (ret != 1) {
-			    printf("get tv_twi_id failed\n");
+			    pr_msg("get tv_twi_id failed\n");
 			    return -1;
 		    }
 #if defined(CONFIG_SYS_I2C) && defined (CONFIG_ARCH_SUN50IW6P1)
 		    i2c_set_bus_num(1);
 		    i2c_init(CONFIG_SYS_I2C_AC200_SPEED,
 			     value);
-		    printf("speed=%d, slave=%d\n",
+		    debug("speed=%d, slave=%d\n",
 			   (u32)CONFIG_SYS_I2C_AC200_SPEED,
 			   (u32)ac200_twi_addr);
 #else
 		    i2c_init(CONFIG_SYS_I2C_SPEED,
 			     value);
-		    printf("speed=%d, slave=%d\n",
+		    debug("speed=%d, slave=%d\n",
 			   (u32)CONFIG_SYS_I2C_SPEED,
 			   (u32)ac200_twi_addr);
 #endif /*endif CONFIG_SYS_I2C */
@@ -164,20 +170,21 @@ static int  tv_i2c_init(void)
  * @brief      read tv out sid from efuse
  * @param[IN]   none
  * @param[OUT]  p_dac_cali:tv_out dac cali
- * @param[OUT]  p_bandgap:tv_out bandgap
+ * @param[OUT]  p_bandgap:tv_out bandcap
  * @return	return 0 if success,-1 if fail
  */
 static s32 tv_read_sid(u16 *p_dac_cali, u16 *p_bandgap)
 {
 	s32 ret = 0;
 	u8 buf[48];
+	s32 buf_len = 48;
 
 	if (p_dac_cali == NULL || p_bandgap == NULL) {
 		__ac200_err("%s's pointer type args are NULL!\n", __func__);
 		return -1;
 	}
-	ret = sunxi_efuse_read(EFUSE_EMAC_NAME, buf);
-	if (ret <= 0) {
+	ret = sunxi_efuse_read(EFUSE_EMAC_NAME, buf, &buf_len);
+	if (ret < 0) {
 		__ac200_err("sunxi_efuse_readn failed:%d\n", ret);
 		return ret;
 	}
@@ -188,6 +195,7 @@ static s32 tv_read_sid(u16 *p_dac_cali, u16 *p_bandgap)
 	return 0;
 }
 #endif /*endif CONFIG_SUN50IW6P1 */
+
 static s32 tv_clk_config(u32 mode)
 {
 	unsigned long pixel_clk, pll_rate, lcd_rate, dclk_rate;//hz
@@ -272,7 +280,7 @@ static s32 tv_open(void)
 	if (ret != 0)
 		__ac200_err("tve_open failed:%d\n", ret);
 	else
-		printf("tv_open finsih\n");
+		pr_msg("tv_open finsih\n");
 	return 0;
 }
 
@@ -403,7 +411,7 @@ int tv_ac200_init(void)
 			if(2 == ret) {
 				ret = strcmp(modules_name, "tv_ac200");
 				if (ret) {
-					printf("tv driver is not tv_ac200! module_name = %s.\n", modules_name);
+					pr_msg("tv driver is not tv_ac200! module_name = %s.\n", modules_name);
 					return -1;
 				}
 			}
@@ -424,7 +432,7 @@ int tv_ac200_init(void)
 
 			if(2 == ret) {
 				tv_power_used = 1;
-				printf("[TV] tv_power: %s\n", tv_power);
+				pr_msg("[TV] tv_power: %s\n", tv_power);
 			}
 
 			ret = disp_sys_script_get_item("ac200", "tv_pwm_ch",
@@ -468,7 +476,7 @@ int tv_ac200_init(void)
 			if (tv_source_ops.tcon_simple_enable)
 				tv_source_ops.tcon_simple_enable(tv_device);
 			else
-				printf("tcon_simple_enable failed\n");
+				pr_msg("tcon_simple_enable failed\n");
 #if defined(CONFIG_ARCH_SUN50IW6P1)
 			if (tv_read_sid(&dac_cali, &bandgap) != 0) {
 				dac_cali = 0;
@@ -478,8 +486,6 @@ int tv_ac200_init(void)
 			__ac200_dbg("dac cali:0x%x, bandgap:0x%x\n", dac_cali,
 				    bandgap);
 			aw1683_tve_init(&dac_cali, &bandgap);
- 			disp_delay_ms(200);
- 			aw1683_tve_plug_status();
 		}
 	} else
 		tv_used = 0;

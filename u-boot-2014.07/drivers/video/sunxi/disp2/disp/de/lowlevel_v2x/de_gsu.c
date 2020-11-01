@@ -165,7 +165,7 @@ int de_gsu_enable(unsigned int sel, unsigned int chno, unsigned int en)
 /*static int de_gsu_set_fir_coef(unsigned int sel, unsigned int chno,
  *				unsigned int *coef)
  *{
- *	memcpy((void *)&gsu_dev[sel][chno-VI_CHN_NUM]->hcoeff, coef,
+ *	memcpy(&gsu_dev[sel][chno-VI_CHN_NUM]->hcoeff, coef,
  *		sizeof(unsigned int)*GSU_PHASE_NUM);
  *
  *	return 0;
@@ -248,7 +248,7 @@ int de_gsu_set_para(unsigned int sel, unsigned int chno, unsigned int enable,
 
 	/* fir coefficient */
 	pt_coef = de_gsu_calc_fir_coef(para->vstep);
-	memcpy((void *)&gsu_dev[sel][chno_t]->hcoeff, lan2coefftab16 + pt_coef,
+	memcpy(&gsu_dev[sel][chno_t]->hcoeff, lan2coefftab16 + pt_coef,
 		sizeof(unsigned int) * GSU_PHASE_NUM);
 	gsu_dev[sel][chno_t]->ctrl.bits.coef_switch_rdy = 1;
 	gsu_glb_block[sel][chno_t].dirty = 1;

@@ -571,14 +571,15 @@ static int mmc_calibrate_delay_unit(struct sunxi_mmc_host* mmchost)
 
 	struct mmc_reg_v4p1 *reg = (struct mmc_reg_v4p1 *)mmchost->reg;
 	unsigned rval = 0;
-	unsigned clk[3] = {50*1000*1000, 100*1000*1000, 200*1000*1000};
-	unsigned period[3] = {10*1000, 5*1000, 2500}; //ps, module clk is 2xclk at init phase.
+	unsigned clk[4] = {50*1000*1000, 100*1000*1000, 150*1000*1000, 200*1000*1000};
+	/*ps, module clk is 2xclk at init phase.*/
+	unsigned period[4] = {10*1000, 5*1000, 3333, 2500};
 	unsigned result = 0;
 	int i = 0;
 
 	MMCDBG("start %s, don't access device...\n", __FUNCTION__);
 
-	for (i=0; i<3; i++)
+	for (i = 0; i < 4; i++)
 	{
 		MMCINFO("%d MHz...\n", clk[i]/1000/1000);
 		/* close card clock */
@@ -649,6 +650,7 @@ static int mmc_calibrate_delay_unit(struct sunxi_mmc_host* mmchost)
 #endif	/* FPGA_PLATFORM */
 	return 0;
 }
+
 static int mmc_core_init(struct mmc *mmc)
 {
 	struct sunxi_mmc_host* mmchost = (struct sunxi_mmc_host *)mmc->priv;
@@ -675,7 +677,8 @@ static int mmc_core_init(struct mmc *mmc)
 	writel(3, &reg->csdc);
 	writel(0xdeb, &reg->dbgc);
 
-	mmc_calibrate_delay_unit(mmchost);
+	if (mmchost->cfg.platform_caps.cal_delay_unit)
+		mmc_calibrate_delay_unit(mmchost);
 	return 0;
 }
 
@@ -926,17 +929,9 @@ static int mmc_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 	if (cmd->resp_type & MMC_RSP_BUSY)
 		MMCDBG("mmc %d mmc cmd %d check rsp busy\n", mmchost->mmc_no,cmd->cmdidx);
 	if ((cmd->cmdidx == 12)&&!(cmd->flags&MMC_CMD_MANUAL)){
-		MMCDBG("note we don't send stop cmd,only check busy here\n");
-		timeout = 500*1000;
-		do {
-			status = readl(&reg->status);
-			if (!timeout--) {
-				error = -1;
-				MMCINFO("mmc %d cmd12 busy timeout\n",mmchost->mmc_no);
-				goto out;
-			}
-			__usdelay(1);
-		} while (status & (1 << 9));
+		MMCDBG("usually, cmd12 is sent after cmd18/cmd25 automantically.\n");
+		/* don't wait write busy here, because no cmd12 will be sent for cmd24.
+		write busy status will be check after sent cmd25. */
 		return 0;
 	}
 	/*
@@ -1077,13 +1072,13 @@ static int mmc_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 		} while (!done);
 	}
 
-	if (cmd->resp_type & MMC_RSP_BUSY) {
+	if ((cmd->resp_type & MMC_RSP_BUSY)||((data)&& (data->flags & MMC_DATA_WRITE) )) {
 		if ((cmd->cmdidx == MMC_CMD_ERASE)
 			|| ((cmd->cmdidx == MMC_CMD_SWITCH)
 				&&(((cmd->cmdarg>>16)&0xFF) == EXT_CSD_SANITIZE_START)))
 			timeout = 0x1fffffff;
 		else
-			timeout = 500*1000;
+			timeout = 50000*1000;
 
 		do {
 			status = readl(&reg->status);

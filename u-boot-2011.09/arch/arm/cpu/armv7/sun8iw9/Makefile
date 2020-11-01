@@ -35,6 +35,8 @@ COBJS	+= timer.o
 COBJS	+= cpu_info.o
 COBJS	+= board.o
 COBJS	+= key.o
+COBJS	+= efuse.o
+COBJS	+= ss.o
 COBJS	+= usb/usbc.o 			\
            usb/usbc_dev.o 		\
            usb/usbc_host.o 		\

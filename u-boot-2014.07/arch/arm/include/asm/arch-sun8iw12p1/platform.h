@@ -32,7 +32,6 @@
 #define SUNXI_SS_BASE                       SUNXI_CE_BASE
 
 //CPUX
-//#define SUNXI_CPUXCFG_BASE                  (0x09010000L)
 #define SUNXI_CPUX_CFG_BASE                  (0x09010000L)
 #define SUNXI_DE_BASE                       (0x01000000L)
 
@@ -102,10 +101,10 @@
 #define SUNXI_RTWI_BASE                     (0x07081400L)
 #define SUNXI_RRSB_BASE                     (0x07083000L)
 
-#define PLL_CTRL_REG1                       (SUNXI_RPRCM_BASE + 0x244)
-
 #define RVBARADDR0_L                        (SUNXI_CPUX_CFG_BASE+0x40)
 #define RVBARADDR0_H                        (SUNXI_CPUX_CFG_BASE+0x44)
+
+#define RES_CAL_CTRL_REG                    (SUNXI_RPRCM_BASE + 0x310)
 
 #define GPIO_BIAS_MAX_LEN (32)
 #define GPIO_BIAS_MAIN_NAME "gpio_bias"

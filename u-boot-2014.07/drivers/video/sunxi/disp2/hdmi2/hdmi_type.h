@@ -1,13 +1,13 @@
-#ifndef  _HDMI_BOOT_H_
+#ifndef _HDMI_BOOT_H_
 #define  _HDMI_BOOT_H_
 #if 0
-typedef unsigned char      	u8;
-typedef signed char        	s8;
-typedef unsigned short     	u16;
-typedef signed short       	s16;
-typedef unsigned int       	u32;
-typedef signed int         	s32;
-typedef unsigned long long 	u64;
+typedef unsigned char	u8;
+typedef signed char		s8;
+typedef unsigned short	u16;
+typedef signed short	s16;
+typedef unsigned int	u32;
+typedef signed int		s32;
+typedef unsigned long long	u64;
 #endif
 #include <common.h>
 #include <malloc.h>

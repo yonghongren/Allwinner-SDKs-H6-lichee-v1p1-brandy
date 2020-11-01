@@ -40,7 +40,7 @@ int axp806_probe(void)
 	axp_i2c_config(SUNXI_AXP_806, AXP806_ADDR);
 	if(axp_i2c_read(AXP806_ADDR, BOOT_POWER806_VERSION, &pmu_type))
 	{
-		printf("axp read error\n");
+		pr_msg("axp read error\n");
 		return -1;
 	}
 	pmu_type &= 0xCF;
@@ -107,6 +107,16 @@ int axp806_probe_this_poweron_cause(void)
 
 int axp806_set_power_off(void)
 {
+    u8	 reg_value;
+
+	if (axp_i2c_read(CONFIG_SYS_I2C_SLAVE,
+				BOOT_POWER806_DIASBLE, &reg_value))
+		return -1;
+
+	reg_value |= 1 << 7;
+	if (axp_i2c_write(CONFIG_SYS_I2C_SLAVE,
+				BOOT_POWER806_DIASBLE, reg_value))
+		return -1;
 	return 0;
 }
 

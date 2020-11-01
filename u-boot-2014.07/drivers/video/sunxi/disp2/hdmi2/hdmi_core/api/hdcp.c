@@ -811,6 +811,7 @@ int hdcp_verify_dsa(hdmi_tx_dev_t *dev, const u8 *M, size_t n,
 {
 	int i = 0;
 	sha_t sha;
+	int ret;
 	static const u8 q[] = {
 		0xE7, 0x08, 0xC7, 0xF9, 0x4D, 0x3F, 0xEF, 0x97, 0xE2, 0x14, 0x6D,
 		0xCD, 0x6A, 0xB5, 0x6D, 0x5E, 0xCE, 0xF2, 0x8A, 0xEE
@@ -888,7 +889,7 @@ int hdcp_verify_dsa(hdmi_tx_dev_t *dev, const u8 *M, size_t n,
 	u8 pro[KSIZE];
 	u8 v[SIZE];
 
-	/* adapt to the expected format by aritmetic functions */
+	/* adapt to the expected format by arithmetic functions */
 	u8 r1[SIZE];
 	u8 s1[SIZE];
 
@@ -931,7 +932,8 @@ int hdcp_verify_dsa(hdmi_tx_dev_t *dev, const u8 *M, size_t n,
 
 	if (hdcp_compute_mod(dev, v, pro, q, sizeof(v)) == FALSE)
 		return FALSE;
-	return (hdcp_array_cmp(dev, v, r1, sizeof(v)) == 0);
+	ret = (hdcp_array_cmp(dev, v, r1, sizeof(v)) == 0);
+	return ret;
 }
 
 void hdcp_1p4_configure(hdmi_tx_dev_t *dev, hdcpParams_t *hdcp)

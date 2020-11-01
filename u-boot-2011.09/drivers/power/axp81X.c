@@ -30,38 +30,6 @@ extern int axp81_set_supply_status(int vol_name, int vol_value, int onoff);
 extern int axp81_set_supply_status_byname(char *vol_name, int vol_value, int onoff);
 extern int axp81_probe_supply_status(int vol_name, int vol_value, int onoff);
 extern int axp81_probe_supply_status_byname(char *vol_name);
-
-#define AXP_ID_ADDR				(0x3e) //0the real address is x13e
-
-int plat_get_chip_id(void)
-{
-	u8 chip_id = 0;
-	u8 data;
-	//change to high address
-	data = 0x1;
-	if(sunxi_rsb_write(AXP81X_ADDR, 0xff, &data,1))
-	{
-		printf("chipid:write 1 to addr 0xff  failed\n");
-		return -1;
-	}
-
-	if(sunxi_rsb_read(AXP81X_ADDR, AXP_ID_ADDR, &chip_id,1))
-	{
-		printf("chipid:read axp id failed\n");
-		return -1;
-	}
-	//change to low address
-	data = 0;
-	if(sunxi_rsb_write(AXP81X_ADDR, 0xFF, &data,1))
-	{
-		printf("chipid:write 0 to addr 0xff failed\n");
-		return -1;
-	}
-	printf("axp chip id:%x ", chip_id);
-
-	return chip_id;
-}
-
 /*
 ************************************************************************************************************
 *
@@ -82,7 +50,7 @@ int axp81_probe(void)
 {
 	u8    pmu_type;
 
-    axp_i2c_config(SUNXI_AXP_81X, AXP81X_ADDR);
+	axp_i2c_config(SUNXI_AXP_81X, AXP81X_ADDR);
 	if(axp_i2c_read(AXP81X_ADDR, BOOT_POWER81X_VERSION, &pmu_type))
 	{
 		printf("axp read error\n");
@@ -90,11 +58,22 @@ int axp81_probe(void)
 		return -1;
 	}
 
-    pmu_type &= 0xCF;
+	pmu_type &= 0xCF;
 	if(pmu_type == 0x41)
 	{
+		int i ;
 		/* pmu type AXP81X */
 		tick_printf("PMU: AXP81X\n");
+		//clear IRQ enable bit
+		//because RTC use the same irq line whit AXP,and RTC will enable NMI interrupt at the start stage.
+		//but the axp driver is not ready  at that moment
+		for(i = 0; i < 6; i++)
+		{
+			if(axp_i2c_write(AXP81X_ADDR,BOOT_POWER81X_INTEN1+i,0))
+			{
+				printf("axp clear IRQ enable bit error\n");
+			}
+		}
 
 		return 0;
 	}
@@ -604,71 +583,121 @@ int axp81_set_vbus_cur_limit(int current)
 	uchar reg_value;
 
 	//set bus current limit off
-	if(axp_i2c_read(AXP81X_ADDR, BOOT_POWER81X_VBUS_SET, &reg_value))
-    {
-        return -1;
-    }
-    reg_value &= 0xfC;
-	if(!current)
+	if(axp_i2c_read(AXP81X_ADDR, BOOT_POWER81X_CHARGE3, &reg_value))
 	{
-	    reg_value |= 0x03;
+		return -1;
 	}
-	else if(current >= 2500) //limit to2500
+	reg_value &= 0x0f;
+	//bit7-bit4:  0-100mA 1-500mA 2-900mA 3-1500mA
+	//	      4-2000mA 5-2500mA 6-3000mA 7-3500mA 8-4000mA
+
+	if(current >= 4000) //limit to 4000
 	{
-		reg_value |= 0x03;
+		reg_value |= 0x80;
 	}
-	else if(current >= 2000) //limit to 2000
+	else if(current >= 3500) //limit to 3500
 	{
-		reg_value |= 0x02;
+		reg_value |= 0x70;
 	}
-    else if(current >= 1500) //limit to 1500
+	else if(current >= 3000) //limit to 3000
 	{
-		reg_value |= 0x01;
+		reg_value |= 0x60;
 	}
-    else 				     //limit to 900
+	else if(current >=2500 )//limit to 2500
+	{
+		reg_value |= 0x50;
+	}
+	else if(current >=2000 )//limit to 2000
+	{
+		reg_value |= 0x40;
+	}
+	else if(current >=1500 )//limit to 1500
+	{
+		reg_value |= 0x30;
+	}
+	else if(current >=900 )
+	{
+		reg_value |= 0x20;
+	}
+	else if(current >=500 )
+	{
+		reg_value |= 0x10;
+	}
+	else if(current >=100 )
 	{
 		reg_value |= 0x00;
 	}
+	else
+	{
+		reg_value |= 0x10;
+	}
 
-	if(axp_i2c_write(AXP81X_ADDR, BOOT_POWER81X_VBUS_SET, reg_value))
-    {
-        return -1;
-    }
+	if(axp_i2c_write(AXP81X_ADDR, BOOT_POWER81X_CHARGE3, reg_value))
+	{
+		return -1;
+	}
 
-    return 0;
+	return 0;
 }
 
 int axp81_probe_vbus_cur_limit(void)
 {
-    uchar reg_value;
+	uchar reg_value;
+	int current = 0;
 
-    if(axp_i2c_read(AXP81X_ADDR,BOOT_POWER81X_VBUS_SET,&reg_value))
-    {
-        return -1;
-    }
-    reg_value &= 0x03;
-    if(reg_value == 0x01)
-    {
-        printf("limit to 1500mA \n");
-        return 1500;
-    }
-    else if(reg_value == 0x00)
-    {
-        printf("limit to 900 \n");
-        return 900;
-    }
-	else if(reg_value == 0x02)
+	if(axp_i2c_read(AXP81X_ADDR,BOOT_POWER81X_CHARGE3,&reg_value))
 	{
-		printf("limit to 2000mA \n");
-		return 2000;
+		return -1;
+	}
+	reg_value &= 0xf0;
+
+	//bit7-bit4:  0-100mA 1-500mA 2-900mA 3-1500mA
+	//	      4-2000mA 5-2500mA 6-3000mA 7-3500mA 8-4000mA
+
+	if(reg_value == 0x80) //limit to 4000
+	{
+		current = 4000;
+	}
+	else if(reg_value == 0x70) //limit to 3500
+	{
+		current = 3500;
+	}
+	else if(reg_value == 0x60) //limit to 3000
+	{
+		current = 3000;
+	}
+	else if(reg_value == 0x50 )//limit to 2500
+	{
+		current = 2500;
+	}
+	else if(reg_value == 0x40 )//limit to 2000
+	{
+		current =2000;
+	}
+	else if(reg_value == 0x30 )//limit to 1500
+	{
+		current =1500;
+	}
+	else if(reg_value == 0x20 )
+	{
+		current =900;
+	}
+	else if(reg_value == 0x10 )
+	{
+		current =500;
+	}
+	else if(reg_value == 0x00 )
+	{
+		current =100;
 	}
 	else
 	{
-		printf("limit to 2500mA \n");
-		return 2500;
+		reg_value |= 0x10;
 	}
-
+	printf("limit to %dmA \n",current);
+	return current;
 }
+
 /*
 ************************************************************************************************************
 *
@@ -691,33 +720,29 @@ int axp81_set_vbus_vol_limit(int vol)
 
 	//set bus vol limit off
 	if(axp_i2c_read(AXP81X_ADDR, BOOT_POWER81X_VBUS_SET, &reg_value))
-    {
-        return -1;
-    }
-    reg_value &= ~(7 << 3);
-	if(!vol)
 	{
-	    reg_value &= ~(1 << 6);
+		return -1;
 	}
-	else
-	{
-		if(vol < 4000)
-		{
-			vol = 4000;
-		}
-		else if(vol > 4700)
-		{
-			vol = 4700;
-		}
-		reg_value |= ((vol-4000)/100) << 3;
-	}
-	if(axp_i2c_write(AXP81X_ADDR, BOOT_POWER81X_VBUS_SET, reg_value))
-    {
-        return -1;
-    }
+	reg_value &= ~(7 << 3);
 
-    return 0;
+	if(vol < 4000)
+	{
+		vol = 4000;
+	}
+	else if(vol > 4700)
+	{
+		vol = 4700;
+	}
+	reg_value |= ((vol-4000)/100) << 3;
+
+	if(axp_i2c_write(AXP81X_ADDR, BOOT_POWER81X_VBUS_SET, reg_value))
+	{
+		return -1;
+	}
+
+	return 0;
 }
+
 /*
 ************************************************************************************************************
 *

@@ -22,17 +22,14 @@
 #include "common.h"
 #include "include.h"
 
+int root_rollback_used;
+aw_nvc_ext_t nvc_ext;
+
 static void usage(void)
 {
 	printf(" -toc0 cfg_file keypath                  create a toc0 file by the sbromsw file\n");
 	printf(" -toc1 cfg_file keypath cnfbase          create a toc1 file by the cfg_file\n");
-
-	printf(" -resign_toc0 cfg_file keypath           resign toc0 file\n");
-	printf(" -resign_toc1 cfg_file keypath cnfbase   split all items of toc1.fex\n");
-	printf(" -split_bootpkg cfg_file                 split all items of boot_package.fex");
-
 	printf(" -toc1 cfg_file keypath cnfbase version  create a toc1 file by the cfg_file\n");
-
 	printf(" -key  cfg_file keypath                  create all keys by the cfg_file\n");
 	printf(" -pack cfg_file                          create a package file by the cfg_file without certif\n");
 	printf(" -rotpk rsa-key-pair.file rootpk.bin     create root public key hash file from rsa key pair\n");
@@ -65,6 +62,9 @@ int main(int argc, char *argv[])
 
 		return -1;
 	}
+    root_rollback_used = 0;
+    nvc_ext.nvc = 0;
+    nvc_ext.oid = AW_EXTENSION_NVC_OID;
 
 	if (!strcmp(cmd, "-key")) {
 		char keypath[MAX_PATH] = "";
@@ -117,12 +117,12 @@ int main(int argc, char *argv[])
 
 		GetFullPath(keypath, argv[3]);
 		GetFullPath(cnfpath, argv[4]);
-		//printf("keypath=%s\n", keypath);
-		//printf("cnfpath=%s\n", cnfpath);
+		/*printf("keypath=%s\n", keypath);*/
+		/*printf("cnfpath=%s\n", cnfpath);*/
 
 		memset(tmpdirpath, 0, MAX_PATH);
 		GetFullPath(tmpdirpath, CERTPATH_CONST);
-		//printf("certpath=%s\n", tmpdirpath);
+		/*printf("certpath=%s\n", tmpdirpath);*/
 
 		memset(cmdline, 0, 1024);
 		sprintf(cmdline, "rm -rf %s", tmpdirpath);
@@ -180,15 +180,26 @@ int main(int argc, char *argv[])
 		char tmpdirpath[MAX_PATH];
 		char toc0path[MAX_PATH] = "";
 		char keypath[MAX_PATH] = "";
+		char versionpath[MAX_PATH] = "";
+		int  main_version = 0;
+		int sub_version = 0;
 		toc_descriptor_t  *toc0;
 		toc_key_item_descriptor_t *toc0_key_item = NULL;
 		int ret = 0;
 
-		if (argc != 4) {
+		if (argc <= 3 || argc >= 6) {
 			printf("Dragon Secure Boot: -toc0: invalid paramter counts\n");
 			usage();
 
 			return -1;
+		}
+		if (argc == 5) {
+			printf("toc0 get nvc for version\n");
+			GetFullPath(versionpath, argv[4]);
+			if (sboot_get_version(&main_version, &sub_version, versionpath)) {
+				printf("get version failed\n");
+				return -1;
+			}
 		}
 		GetFullPath(keypath, argv[3]);
 
@@ -212,7 +223,7 @@ int main(int argc, char *argv[])
 
 				return -1;
 			}
-			memset(toc0_key_item, 0, sizeof(sizeof(toc_key_item_descriptor_t)));
+			memset(toc0_key_item, 0, sizeof(toc_key_item_descriptor_t));
 
 			ret = create_all_file_for_toc0(argv[2], toc0_key_item, keypath);
 			if (ret <= 0) {
@@ -234,7 +245,7 @@ int main(int argc, char *argv[])
 
 				return -1;
 			}
-			memset(toc0, 0, sizeof(sizeof(toc_descriptor_t)));
+			memset(toc0, 0, sizeof(toc_descriptor_t));
 
 			if (create_cert_for_toc0(argv[2], toc0, keypath)) {
 				printf("create cert failed\n");
@@ -273,7 +284,7 @@ int main(int argc, char *argv[])
 		}
 		memset(package, 0, PACKAGE_CONFIG_MAX * sizeof(toc_descriptor_t));
 
-		if(createcnf_for_package(argv[2], package, 1))
+		if(createcnf_for_package(argv[2], package))
 		{
 			printf("create config for package failed\n");
 			free(package);
@@ -313,13 +324,25 @@ int main(int argc, char *argv[])
 		char toc0path[MAX_PATH]="";
 		char keypath[MAX_PATH]="";
 		toc_descriptor_t  *toc0;
+		char versionpath[MAX_PATH] = "";
+		int  main_version = 0;
+		int sub_version = 0;
 
-		if(argc != 4)
+		if (argc <= 3 || argc >= 6)
 		{
 			printf("Dragon Secure Boot: -toc0: invalid paramter counts\n");
 			usage();
 
 			return -1;
+		}
+
+		if (argc == 5) {
+			printf("resign_toc0 get nvc for version\n");
+			GetFullPath(versionpath, argv[4]);
+			if (sboot_get_version(&main_version, &sub_version, versionpath)) {
+				printf("get version failed\n");
+				return -1;
+			}
 		}
 		GetFullPath(keypath, argv[3]);
 
@@ -343,7 +366,7 @@ int main(int argc, char *argv[])
 
 			return -1;
 		}
-		memset(toc0, 0, sizeof(sizeof(toc_descriptor_t)));
+		memset(toc0, 0, sizeof(toc_descriptor_t));
 
 		if(create_cert_for_toc0(argv[2], toc0, keypath))
 		{
@@ -363,12 +386,10 @@ int main(int argc, char *argv[])
 
 	}
 	else if(strcmp(argv[1], "-resign_toc1") ==0 ){
-		char tmpdirpath[MAX_PATH];
+			char tmpdirpath[MAX_PATH];
 		char toc1path[MAX_PATH]="";
 		char keypath[MAX_PATH]="";
 		char cnfpath[MAX_PATH]="";
-		char cfgpath[MAX_PATH]="";
-		toc_descriptor_t  *toc1_package;
 		toc_descriptor_t  *toc1;
 
 		if(argc != 5)
@@ -376,24 +397,6 @@ int main(int argc, char *argv[])
 			printf("Dragon Secure Boot: -toc1: invalid paramter counts\n");
 
 			usage();
-			return -1;
-		}
-
-		GetFullPath(cfgpath, argv[2]);
-		printf("cfgpath=%s\n", cfgpath);
-
-		toc1_package = (toc_descriptor_t *)malloc(TOC1_CONFIG_MAX * sizeof(toc_descriptor_t));
-		if(toc1_package == NULL)
-		{
-			printf("main -resign_toc1 cant malloc memory to store toc1 config info\n");
-			return -1;
-		}
-
-		memset(toc1_package, 0, TOC1_CONFIG_MAX * sizeof(toc_descriptor_t));
-		if(createcnf_for_package(argv[2], toc1_package, 0))
-		{
-			printf("create config for toc1_package failed\n");
-			free(toc1_package);
 			return -1;
 		}
 
@@ -430,59 +433,16 @@ int main(int argc, char *argv[])
 		if(toc1 == NULL)
 		{
 			printf("main -resign_toc1 cant malloc memory to store toc1 config info\n");
-			if(toc1_package)
-				free(toc1_package);
 
 			return -1;
 		}
 		memset(toc1, 0, TOC1_CONFIG_MAX * sizeof(toc_descriptor_t));
-		if( splittoc1(toc1_package, TOC1_CONST_NAME) <0 ){
+		if( splittoc1(TOC1_CONST_NAME) <0 ){
 			printf("split uboot from toc1 fail\n");
 			free(toc1);
 			return -1 ;
 		}
-		if(toc1_package)
-			free(toc1_package);
-		if(toc1)
-			free(toc1);
-		return 0 ;
-
-	} 
-	else if(strcmp(argv[1], "-split_bootpkg") ==0 ){
-		char tmpdirpath[MAX_PATH];
-		char bootpkgpath[MAX_PATH]="";
-		char cfgpath[MAX_PATH]="";
-		toc_descriptor_t  *package;
-
-		if(argc != 3)
-		{
-			printf("Dragon Secure Boot: -split_bootpkg: invalid paramter counts\n");
-			usage();
-			return -1;
-		}
-
-		GetFullPath(cfgpath, argv[2]);
-		printf("cfgpath=%s\n", cfgpath);
-
-		package = (toc_descriptor_t *)malloc(PACKAGE_CONFIG_MAX * sizeof(toc_descriptor_t));
-		if(package == NULL)
-		{
-			printf("main -split_bootpkg cant malloc memory to store bootpkg config info\n");
-			return -1;
-		}
-
-		memset(package, 0, PACKAGE_CONFIG_MAX * sizeof(toc_descriptor_t));
-		if(createcnf_for_package(argv[2], package, 1))
-		{
-			printf("create config for package failed\n");
-			free(package);
-			return -1;
-		}
-
-		if( split_bootpkg(package, PACKAGE_CONST_NAME) <0 ){
-			printf("split items of boot_package.fex fail\n");
-			return -1 ;
-		}
+		free(toc1);
 		return 0 ;
 
 	} else {

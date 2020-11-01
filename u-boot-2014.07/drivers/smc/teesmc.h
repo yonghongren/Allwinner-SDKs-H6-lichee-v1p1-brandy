@@ -73,10 +73,6 @@
 #define TEESMC_RSSK_ENCRYPT      4
 #define TEESMC_RSSK_DECRYPT      5
 #define TEESMC_AES_CBC           6
-#define TEESMC_HUK_ENC       7
-#define TEESMC_HUK_DEC       8
-
-
 
 
 

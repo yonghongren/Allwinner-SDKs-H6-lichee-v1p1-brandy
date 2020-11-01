@@ -20,7 +20,7 @@
 */
 #include "common.h"
 #include "asm/io.h"
-#include "asm/arch/sid.h"
+#include "asm/arch/efuse.h"
 
 #define SID_OP_LOCK  (0xAC)
 
@@ -107,11 +107,12 @@ void sid_program_key(uint key_index, uint key_value)
 */
 void sid_read_rotpk(void *dst)
 {
+	uint chipid_index = EFUSE_ROTPK;
 	uint id_length = 32;
 	uint i = 0;
 	for(i = 0 ; i < id_length ;i+=4 )
 	{
-		*(u32*)dst  = sid_read_key(EFUSE_ROTPK + i );
+		*(u32*)dst  = sid_read_key(chipid_index + i );
 		dst += 4 ;
 	}
 	return ;

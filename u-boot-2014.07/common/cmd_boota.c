@@ -43,11 +43,10 @@
 #include <power/sunxi/pmu.h>
 #include <smc.h>
 #include <cputask.h>
-#include <fastboot.h>
 #include <sys_config_old.h>
 #include <sys_partition.h>
-#include <malloc.h>
-
+#include <sunxi_mbr.h>
+#include <ufdt_support.h>
 DECLARE_GLOBAL_DATA_PTR;
 
 
@@ -57,6 +56,10 @@ enum {
 };
 
 typedef void (*Kernel_Entry)(int zero,int machine_id,void *fdt_addr);
+__weak void clean_timestamp_counter(void)
+{
+    pr_msg("weak clean_timestamp_counter\n");
+}
 
 static void announce_and_cleanup(int fake)
 {
@@ -73,7 +76,7 @@ static void announce_and_cleanup(int fake)
 	udc_disconnect();
 #endif
 	cleanup_before_linux();
-	pr_notice("\nStarting kernel ...%s\n\n", fake ?
+	pr_force("\nStarting kernel ...%s\n\n", fake ?
 		"(fake run for tracing)" : "");
 }
 
@@ -87,7 +90,7 @@ uint get_arch_type(struct andr_img_hdr *hdr)
 }
 
 #ifdef CONFIG_SUNXI_SECURE_SYSTEM
-static int android_image_get_signature(const struct andr_img_hdr *hdr, 
+static int android_image_get_signature(const struct andr_img_hdr *hdr,
 									ulong *sign_data, ulong *sign_len)
 {
 	struct boot_img_hdr_ex  *hdr_ex;
@@ -95,21 +98,23 @@ static int android_image_get_signature(const struct andr_img_hdr *hdr,
 
 	hdr_ex = (struct boot_img_hdr_ex *)hdr;
 	if(strncmp((void *)(hdr_ex->cert_magic),AW_CERT_MAGIC,strlen(AW_CERT_MAGIC))){
-		printf("No cert image embeded, image %s\n",hdr_ex->cert_magic);
+		pr_msg("No cert image embeded, image %s\n",hdr_ex->cert_magic);
 		return 0;
 	}
 
 	addr = (unsigned long)hdr;
-
 	addr += hdr->page_size;
 	addr += ALIGN(hdr->kernel_size, hdr->page_size);
-	addr += ALIGN(hdr->ramdisk_size, hdr->page_size);
-	if(hdr->second_size)
+	if (hdr->ramdisk_size)
+		addr += ALIGN(hdr->ramdisk_size, hdr->page_size);
+	if (hdr->second_size)
 		addr += ALIGN(hdr->second_size, hdr->page_size);
+	if (hdr->recovery_dtbo_size)
+		addr += ALIGN(hdr->recovery_dtbo_size, hdr->page_size);
 
 	*sign_data = (ulong)addr;
 	*sign_len = hdr_ex->cert_size;
-	memset(hdr_ex->cert_magic,0,FASTBOOT_BOOT_MAGIC_SIZE+sizeof(unsigned));
+	memset(hdr_ex->cert_magic,0,ANDR_BOOT_MAGIC_SIZE+sizeof(unsigned));
 	return 1;
 }
 #endif
@@ -125,27 +130,51 @@ int do_boota_linux (void *kernel_addr, void *dtb_base, uint arch_type)
 	debug("## Transferring control to Linux (at address %lx)...\n",
 		(ulong) kernel_entry);
 
+#ifdef CONFIG_SUNXI_FINS_FUNC
+	extern int __attribute__((__no_instrument_function__))
+		ff_move_reloc_data(void);
+	ff_move_reloc_data();
+#endif
+
 #ifdef CONFIG_SUNXI_MULITCORE_BOOT
 	sunxi_secondary_cpu_poweroff();
 	sunxi_fdt_reflush_all();
 #endif
+#ifdef CONFIG_OF_LIBUFDT
+	void *dtbo_base = NULL;
+	if (check_dtbo_idx() < 0) {
+		pr_msg("check dtbo idx is NULL");
+		memcpy((void *)dtb_base, gd->fdt_blob, gd->fdt_size);
+	} else {
+		dtbo_base = sunxi_support_ufdt((void *)gd->fdt_blob, fdt_totalsize(gd->fdt_blob));
+		if (dtbo_base == NULL) {
+			pr_msg("sunxi dto merge fail\n");
+			return -1;
+		}
+		memcpy((void *)dtb_base, dtbo_base, fdt_totalsize(dtbo_base));
+	}
+#else
 
 	debug("moving platform.dtb from %lx to: %lx, size 0x%lx\n",
 		(ulong)dtb_base,
 		(ulong)(gd->fdt_blob),gd->fdt_size);
 	//fdt_blob  save the addree of  working_fdt
 	memcpy((void*)dtb_base, gd->fdt_blob,gd->fdt_size);
+#endif
 	if(fdt_check_header(dtb_base) !=0 )
 	{
-		printf("fdt header check error befor boot\n");
+		pr_msg("fdt header check error befor boot\n");
 		return -1;
 	}
 
+
 	announce_and_cleanup(fake);
-	if(sunxi_probe_secure_monitor())
+	if (sunxi_probe_secure_monitor()) {
 		arm_svc_run_os((ulong)kernel_addr, (ulong)dtb_base,  arch_type);
-	else
+	} else {
+		clean_timestamp_counter();
 		kernel_entry(0,0xffffffff,dtb_base);
+	}
 
 	return 0;
 }
@@ -168,80 +197,82 @@ void * memcpy2(void * dest,const void * src,__kernel_size_t n)
 
 void update_bootargs(void)
 {
+	int dram_clk = 0;
 	char *str;
 	char cmdline[1024] = {0};
 	char tmpbuf[128] = {0};
+	char *verifiedbootstate_info = getenv("verifiedbootstate");
 	str = getenv("bootargs");
-
 	strcpy(cmdline,str);
-	//charge type
-	if(gd->chargemode)
-	{
-		if((0==strcmp(getenv("bootcmd"),"run setargs_mmc boot_normal"))||(0==strcmp(getenv("bootcmd"),"run setargs_nand boot_normal")))
-		{
-			printf("only in boot normal mode, pass charger para to kernel\n");
-			strcat(cmdline," androidboot.mode=charger");
+
+	if ((!strcmp(getenv("bootcmd"), "run setargs_mmc boot_normal")) \
+			|| !strcmp(getenv("bootcmd"), "run setargs_nand boot_normal")) {
+		if (gd->chargemode == 0) {
+			pr_msg ("in boot normal mode,pass normal para to cmdline\n");
+			strcat(cmdline, " androidboot.mode=normal");
+		} else {
+			pr_msg("in charger mode, pass charger para to cmdline\n");
+			strcat(cmdline, " androidboot.mode=charger");
 		}
 	}
-
+#ifdef CONFIG_SUNXI_SERIAL
 	//serial info
-    if(!check_env_in_cmdline(str, "androidboot.serialno"))
-    {
-        str = getenv("sunxi_serial");
-        sprintf(tmpbuf," androidboot.serialno=%s",str);
-        strcat(cmdline,tmpbuf);
-    }
-	//boot_type
-	sprintf(tmpbuf, " boot_type=%d", get_boot_storage_type());
+	str = getenv("snum");
+	sprintf(tmpbuf," androidboot.serialno=%s",str);
 	strcat(cmdline,tmpbuf);
-	//harware info
-	sprintf(tmpbuf," androidboot.hardware=%s",board_hardware_info());
-	strcat(cmdline,tmpbuf);
-	/* gpt support */
-	if(PART_TYPE_GPT == sunxi_partition_get_type())
-	{
-		sprintf(tmpbuf, " gpt=1");
+#endif
+#ifdef CONFIG_SUNXI_MAC
+	str = getenv("mac");
+	if (str && !strstr(cmdline, " mac_addr=")) {
+		sprintf(tmpbuf, " mac_addr=%s", str);
 		strcat(cmdline, tmpbuf);
 	}
 
-	setenv("bootargs", cmdline);
-}
-
-#ifdef CONFIG_ARCH_SUN8IW12P1
-#define SIZEOF_FC_MAP 0x1000
-static int update_common_mix_date(void)
-{
-	char cmdline[512] = {0};
-	char tmpbuf[128] = {0};
-	char *buff;
-	char *align_addr;
-	char *str = getenv("bootargs");
-
-	buff =  malloc(SIZEOF_FC_MAP + 0x1000);
-	if (NULL == buff) {
-		printf("mix malloc buff failt\n");
-		return -1;
+	str = getenv("wifi_mac");
+	if (str && !strstr(cmdline, " wifi_mac=")) {
+		sprintf(tmpbuf, " wifi_mac=%s", str);
+		strcat(cmdline, tmpbuf);
 	}
-	align_addr = (char *)((unsigned int)buff +
-			(0x1000U - (0xfffu & (unsigned int)buff)));
 
-	memcpy(align_addr, (void *)FC_ADDR, SIZEOF_FC_MAP);
-	memset((void *)FC_ADDR, 0, SIZEOF_FC_MAP);
-
-	strcpy(cmdline, str);
-	sprintf(tmpbuf, " mix=0x%x@0x%x", SIZEOF_FC_MAP, (uint)align_addr);
-
-	printf("cmdline:%s\n", tmpbuf);
-	strcat(cmdline, tmpbuf);
-	setenv("bootargs", cmdline);
-
-	return 0;
-}
+	str = getenv("bt_mac");
+	if (str && !strstr(cmdline, " bt_mac=")) {
+		sprintf(tmpbuf, " bt_mac=%s", str);
+		strcat(cmdline, tmpbuf);
+	}
 #endif
+	//harware info
+	sprintf(tmpbuf," androidboot.hardware=%s",board_hardware_info());
+	strcat(cmdline,tmpbuf);
+	/*boot type*/
+	sprintf(tmpbuf," boot_type=%d",get_boot_storage_type_ext());
+	strcat(cmdline,tmpbuf);
+
+	/*dram_clk*/
+	script_parser_fetch("dram_para", "dram_clk", (int *)&dram_clk, 1);
+#ifdef CONFIG_ARCH_SUN8IW15P1
+	sprintf(tmpbuf, " dram_clk=%d", dram_clk);
+	strcat(cmdline, tmpbuf);
+#endif
+	/* gpt support */
+	if(PART_TYPE_GPT == sunxi_partition_get_type())
+	{
+		sprintf(tmpbuf," gpt=1");
+		strcat(cmdline,tmpbuf);
+	}
+
+
+	if (gd->securemode) {
+		/* verified boot state info */
+		sprintf(tmpbuf, " androidboot.verifiedbootstate=%s",
+				verifiedbootstate_info);
+		strcat(cmdline, tmpbuf);
+	}
+	setenv("bootargs", cmdline);
+	pr_msg("android.hardware = %s\n", board_hardware_info());
+}
 
 int do_boota (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-
 	ulong os_load_addr;
 	ulong os_data = 0,os_len = 0;
 	ulong rd_data,rd_len;
@@ -266,31 +297,111 @@ int do_boota (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	arch_type = get_arch_type(fb_hdr);
 	kernel_addr = (void *)fb_hdr->kernel_addr;
 #ifdef CONFIG_SUNXI_SECURE_SYSTEM
+	uint count = 0;
+	uint wait_for_power_key = 1;
 	if(gd->securemode)
 	{
-		ulong total_len = ALIGN(fb_hdr->ramdisk_size, fb_hdr->page_size) + 	\
-		                  ALIGN(fb_hdr->kernel_size, fb_hdr->page_size)  +  \
-		                  fb_hdr->page_size;
+		/* ORANGE, indicating a device may be freely modified.
+		 * Device integrity is left to the user to verify out-of-band.
+		 * The bootloader displays a warning to the user before allowing
+		 * the boot process to continue.*/
+		if (gd->lockflag == SUNXI_UNLOCKED) {
+			setenv("verifiedbootstate", "orange");
+			pr_msg("Your device software can't be checked for corruption.\n");
+			pr_msg("Please lock the bootloader.\n");
+			sunxi_bmp_display("orange_warning.bmp");
+			do {
+				if (axp_probe_key()) {
+					/* PAUSE BOOT */
+					pr_msg("pause boot,shutdown machine\n");
+					sunxi_board_shutdown();
+				}
+				__msdelay(1000);
+				count++;
+			} while	(count < 5);
+			if (gd->chargemode != 1) {
+				pr_msg("orange state:start to display bootlogo\n");
+				sunxi_bmp_display("bootlogo.bmp");
+			}
+		} else {
+			ulong total_len = 0;
+			ulong sign_data , sign_len;
+			int ret;
 
-		printf("total_len=%d\n", (unsigned int)total_len);
-		ulong sign_data , sign_len;
-		int ret ;
+			total_len += fb_hdr->page_size;
+			total_len += ALIGN(fb_hdr->kernel_size, fb_hdr->page_size);
+			if (fb_hdr->second_size)
+				total_len += ALIGN(fb_hdr->second_size, fb_hdr->page_size);
+			if (fb_hdr->ramdisk_size)
+				total_len += ALIGN(fb_hdr->ramdisk_size, fb_hdr->page_size);
+			if (fb_hdr->recovery_dtbo_size)
+				total_len += ALIGN(fb_hdr->recovery_dtbo_size, fb_hdr->page_size);
 
-		if( android_image_get_signature(fb_hdr,&sign_data,&sign_len)) {
-			ret = sunxi_verify_embed_signature((void*)os_load_addr, (unsigned int)total_len,
-												argv[2],(void *)sign_data,sign_len);
-		}else
-			ret = sunxi_verify_signature((void *)os_load_addr, (unsigned int)total_len, argv[2]);
-		if(ret)
-		{
-			printf("boota: verify the %s failed\n", argv[2]);
+			pr_msg("total_len=%ld\n", total_len);
 
-			return 1;
+			if (android_image_get_signature(fb_hdr, &sign_data, &sign_len))
+				ret = sunxi_verify_embed_signature((void *)os_load_addr,
+					(unsigned int)total_len,
+					argv[2], (void *)sign_data, sign_len);
+			else
+				ret = sunxi_verify_signature((void *)os_load_addr,
+					(unsigned int)total_len, argv[2]);
+
+			/* YELLOW, indicating the boot partition has been verified using the
+			 * embedded certificate, and the signature is valid. The bootloader
+			 * displays a warning and the fingerprint of the public key before
+			 * allowing the boot process to continue.*/
+			if (!strcmp(getenv("verifiedbootstate"), "yellow")) {
+				pr_msg("Your device has loaded a different operating system.\n");
+				pr_msg("stop booting until the power key is pressed\n");
+				sunxi_bmp_display("yellow_pause_warning.bmp");
+				do {
+					if (axp_probe_key()) {
+						/* PAUSE BOOT */
+						pr_msg("pause boot,waiting for press power key again\n");
+						sunxi_bmp_display("yellow_continue_warning.bmp");
+						do {
+							if (axp_probe_key()) {
+								/* CONTINUE BOOT */
+								wait_for_power_key = 0;
+								/* timeout,continue to bootup */
+								count = 5;
+							}
+						} while (wait_for_power_key);
+					}
+					__msdelay(1000);
+					count++;
+				} while	(count < 5);
+				if (gd->chargemode != 1) {
+					pr_msg("yellow state:start to display bootlogo\n");
+					sunxi_bmp_display("bootlogo.bmp");
+				}
+			} else {
+				/* GREEN, indicating a full chain of trust extending from the
+				 * bootloader to verified partitions, including the bootloader,
+				 * boot partition, and all verified partitions.*/
+				setenv("verifiedbootstate", "green");
+			}
+
+			/* RED, indicating the device has failed verification. The bootloader
+			 * displays an error and stops the boot process.*/
+			if (ret) {
+				pr_msg("boota: verify the %s failed\n", argv[2]);
+				setenv("verifiedbootstate", "red");
+				pr_msg("Your device is corrupt.It can't be truseted and will not boot.\n");
+				sunxi_bmp_display("red_warning.bmp");
+				__msdelay(30000);
+				sunxi_board_shutdown();
+				return -1;
+			}
 		}
 	}
 #endif
 	memcpy2((void*) (long)fb_hdr->kernel_addr, (const void *)os_data, os_len);
-	memcpy2((void*) (long)fb_hdr->ramdisk_addr, (const void *)rd_data, rd_len);
+	if (fb_hdr->ramdisk_size) {
+		memcpy2((void *)(long)fb_hdr->ramdisk_addr, (const void *)rd_data, rd_len);
+	}
+
 #ifdef SYS_CONFIG_MEMBASE
 	debug("moving sysconfig.bin from %lx to: %lx, size 0x%lx\n",
 		get_script_reloc_buf(SOC_SCRIPT),
@@ -300,13 +411,12 @@ int do_boota (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	memcpy((void*)SYS_CONFIG_MEMBASE, (void*)get_script_reloc_buf(SOC_SCRIPT),get_script_reloc_size(SOC_SCRIPT));
 #endif
 	update_bootargs();
-#ifdef CONFIG_ARCH_SUN8IW12P1
-	update_common_mix_date();
-#endif
 
 	//update fdt bootargs from env config
 	fdt_chosen(working_fdt);
-	fdt_initrd(working_fdt,(ulong)fb_hdr->ramdisk_addr, (ulong)(fb_hdr->ramdisk_addr+rd_len));
+	if (fb_hdr->ramdisk_size) {
+		fdt_initrd(working_fdt, (ulong)fb_hdr->ramdisk_addr, (ulong)(fb_hdr->ramdisk_addr+rd_len));
+	}
 
 	pr_msg("ready to boot\n");
 #if 1

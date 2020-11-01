@@ -22,8 +22,6 @@
  */
 
 #include <common.h>
-#include <sunxi_board.h>
-
 
 int do_reset(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
@@ -31,10 +29,8 @@ int do_reset(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	udelay (50000);				/* wait 50 ms */
 
-	/*disable_interrupts();
-	reset_cpu(0);*/
-	sunxi_board_restart(0);
-	
+	disable_interrupts();
+	reset_cpu(0);
 
 	/*NOTREACHED*/
 	return 0;

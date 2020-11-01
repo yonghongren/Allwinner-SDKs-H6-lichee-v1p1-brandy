@@ -25,7 +25,6 @@
 #include <common.h>
 #include <sunxi_mbr.h>
 #include <sys_config.h>
-#include <sys_config_old.h>
 #include "sprite_card.h"
 #include "sprite_download.h"
 #include "sprite_erase.h"
@@ -33,19 +32,6 @@
 #include <malloc.h>
 #include <sunxi_board.h>
 #include <fdt_support.h>
-#include "../board/sunxi/cartoon/sprite_char/sprite_char_i.h"
-
-extern _ui_char_info_t  ui_char_info;
-extern int sprite_led_exit(int status);
-
-#ifdef CONFIG_SUNXI_DISPLAY
-void sprite_card_finish_tip(void)
-{
-    int column  = sprite_source.screen_width/2/ui_char_info.word_size - 3;
-    int row  = sprite_source.screen_height/2/ui_char_info.word_size - 3;
-    sprite_uichar_printf_ex("CARD OK",row,column);
-}
-#endif
 /*
 ************************************************************************************************************
 *
@@ -112,80 +98,10 @@ void __dump_mbr(sunxi_mbr_t *mbr_info)
 		printf("part[%d] lenlo     :0x%x\n", i, part_info->lenlo);
 		printf("part[%d] user_type :0x%x\n", i, part_info->user_type);
 		printf("part[%d] keydata   :0x%x\n", i, part_info->keydata);
-		printf("part[%d] backup_flag   :0x%x\n", i, part_info->backup_flag);
 		printf("part[%d] ro        :0x%x\n", i, part_info->ro);
 		printf("\n");
 	}
 }
-
-#ifdef CONFIG_BACKUP_PARTITION
-static    int work_addr = 0;
-unsigned  int get_backup_flag_addr(void)
-{
-	return work_addr;
-}
-
-unsigned  int set_part_back_work(sunxi_mbr_t *mbr_info, unsigned int work_addr, int work)
-{
-
-	sunxi_partition         *part_info;
-	u32                     i;
-	char work_buffer[512] = "not_set";
-	int                     ret  = -1;
-	int                     used = 0;
-	ret = script_parser_fetch("backup_part", "used", (int *)&used, sizeof(int) / 4);
-	if (ret || !used)
-	{
-		printf("%s:[backup_part] no use\n",__func__);
-		return 0;
-	}
-
-	if((mbr_info != NULL))
-	{
-		for(part_info = mbr_info->array, i=0;i<mbr_info->PartCount;i++, part_info++)
-		{
-			if(0x8000 == part_info->backup_flag)
-			{
-				work_addr = part_info->addrlo + part_info->lenlo - 1;
-				printf("%s: @ part_info->name = %s, work_addr = 0x%x\n",__func__, part_info->name,work_addr);
-			}
-		}
-	}else{
-		debug("mbr_info == NULL!\n");
-	}
-
-	if(!work_addr)
-	{
-		//bad usage
-		printf("use %s error!:: mbr_info = %p, work_addr = 0x%x, work = %d\n",__func__,mbr_info,work_addr,work);
-		return -1;
-	}
-
-	if(!work)//set no_work
-	{
-
-		printf("%s: set no_work here\n",__func__);
-		strcpy(work_buffer,"no_work");
-		if(sunxi_sprite_write(work_addr, 1, work_buffer) != 1)//write to the last block
-		{
-			printf("sunxi sprite error: download backup_flag error : start 0x%x, sectors 0x%x\n",work_addr, 1);
-			return -1;
-		}
-	}
-	else//set work
-	{
-		printf("%s: set work here\n",__func__);
-		strcpy(work_buffer,"work");
-		if(sunxi_sprite_write(work_addr, 1, work_buffer) != 1)//write to the last block
-		{
-			printf("sunxi sprite error: download backup_flag error : start 0x%x, sectors 0x%x\n",work_addr, 1);
-			return -1;
-		}
-	}
-	printf("%s:  end  work_addr: 0x%x\n", __func__, work_addr);
-	return work_addr;
-}
-#endif
 
 /*
 ************************************************************************************************************
@@ -212,7 +128,7 @@ int sunxi_card_sprite_main(int workmode, char *name)
 	sunxi_download_info  dl_map;			//dlinfo
 	int    sprite_next_work;
 	int nodeoffset;
-	//int mbr_num = SUNXI_MBR_COPY_NUM;
+	int mbr_num = SUNXI_MBR_COPY_NUM;
 
 	tick_printf("sunxi sprite begin\n");
 	//获取当前是量产介质是nand或者卡
@@ -250,7 +166,6 @@ int sunxi_card_sprite_main(int workmode, char *name)
 	//根据mbr，决定擦除时候是否要保留数据
 	tick_printf("begin to erase flash\n");
 	nand_get_mbr((char *)img_mbr, 16 * 1024);
-
 	if(sunxi_sprite_erase_flash(img_mbr))
 	{
 		printf("sunxi sprite error: erase flash err\n");
@@ -258,12 +173,6 @@ int sunxi_card_sprite_main(int workmode, char *name)
 		return -1;
 	}
 	tick_printf("successed in erasing flash\n");
-#ifdef CONFIG_BACKUP_PARTITION
-	work_addr = set_part_back_work((sunxi_mbr_t *)img_mbr, 0, 0);
-#endif
-
-#ifndef DISABLE_SUNXI_MBR
-	int mbr_num = SUNXI_MBR_COPY_NUM;
 	if (production_media == STORAGE_NOR)
 	{
 		mbr_num = 1;
@@ -274,7 +183,6 @@ int sunxi_card_sprite_main(int workmode, char *name)
 
 		return -1;
 	}
-#endif
 	sprite_cartoon_upgrade(10);
 	tick_printf("begin to download part\n");
 	//开始烧写分区
@@ -305,11 +213,8 @@ int sunxi_card_sprite_main(int workmode, char *name)
 	tick_printf("successed in downloading boot0\n");
 	sprite_cartoon_upgrade(100);
 
-#ifdef CONFIG_SUNXI_DISPLAY
-    sprite_card_finish_tip();
-#endif
+    sprite_uichar_printf("CARD OK\n");
 	tick_printf("sprite success \n");
-	sprite_led_exit(0);
 	//烧写结束
 	__msdelay(3000);
 	//处理烧写完成后的动作

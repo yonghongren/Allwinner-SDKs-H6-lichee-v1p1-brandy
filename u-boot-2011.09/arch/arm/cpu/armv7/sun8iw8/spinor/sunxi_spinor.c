@@ -147,7 +147,6 @@ int spinor_read(uint start, uint sector_cnt, void *buffer)
 #endif
         if (spic_rw(txnum, (void *)sdata, rxnum, tmp_buf))
         {
-        	printf("@@@spinor_read error...\n");
             ret = -1;
             break;
         }

@@ -155,24 +155,24 @@ static int mmc_init_default_timing_para(int sdc_no)
 		mmchost->tm4.def_odly[HSSDR52_SDR25*MAX_CLK_FREQ_NUM+CLK_50M] = TM4_OUT_PH180;
 		mmchost->tm4.def_sdly[HSSDR52_SDR25*MAX_CLK_FREQ_NUM+CLK_50M] = 0;
 
-		mmchost->tm4.def_odly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_400K] = TM1_OUT_PH90;
+		mmchost->tm4.def_odly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_400K] = TM4_OUT_PH180;
 		mmchost->tm4.def_sdly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_400K] = 0xe;
-		mmchost->tm4.def_odly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_25M] = TM1_OUT_PH90;
+		mmchost->tm4.def_odly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_25M] = TM4_OUT_PH180;
 		mmchost->tm4.def_sdly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_25M] = 0xe;
-		mmchost->tm4.def_odly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_50M] = TM1_OUT_PH90;
+		mmchost->tm4.def_odly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_50M] = TM4_OUT_PH180;
 		mmchost->tm4.def_sdly[HSDDR52_DDR50*MAX_CLK_FREQ_NUM+CLK_50M] = 0xe;
 
 		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_400K] = TM4_OUT_PH180;
 		mmchost->tm4.def_sdly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_400K] = 0x0;
-		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_25M] = TM4_OUT_PH180;
+		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_25M] = TM4_OUT_PH90;
 		mmchost->tm4.def_sdly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_25M] = 0x0;
-		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_50M] = TM4_OUT_PH180;
+		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_50M] = TM4_OUT_PH90;
 		mmchost->tm4.def_sdly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_50M] = 0x11;
-		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_100M] = TM4_OUT_PH180;
+		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_100M] = TM4_OUT_PH90;
 		mmchost->tm4.def_sdly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_100M] = 0x12;
-		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_150M] = TM4_OUT_PH180;
+		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_150M] = TM4_OUT_PH90;
 		mmchost->tm4.def_sdly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_150M] = 0x13;
-		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_200M] = TM4_OUT_PH180;
+		mmchost->tm4.def_odly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_200M] = TM4_OUT_PH90;
 		mmchost->tm4.def_sdly[HS200_SDR104*MAX_CLK_FREQ_NUM+CLK_200M] = 0x6;
 
 		mmchost->tm4.def_odly[HS400*MAX_CLK_FREQ_NUM+CLK_400K] = TM4_OUT_PH180;
@@ -483,6 +483,7 @@ static void mmc_get_para_from_fex(int sdc_no)
 			}
 		}
 
+
 		ret = fdt_getprop_u32(working_fdt,nodeoffset,"sdc_odly_50M", (uint32_t*)(&rval));
 		if (ret<0) {
 			MMCDBG("get sdc0 sdc_odly_50M fail.\n");
@@ -653,7 +654,33 @@ static void mmc_get_para_from_fex(int sdc_no)
 				MMCINFO("burn boot0 to emmc boot part.\n");
 				cfg->platform_caps.drv_burn_boot_pos |= DRV_PARA_BURN_EMMC_BOOT_PART;
 			}
+
+			if (rval & DRV_PARA_BURN_FORCE_FLUSH_CACHE) {
+				MMCINFO("force flush cache on write boot.\n");
+				cfg->platform_caps.drv_burn_boot_pos |= DRV_PARA_BURN_FORCE_FLUSH_CACHE;
+			}
 		}
+
+		ret = fdt_getprop_u32(working_fdt, nodeoffset, "sdc_wp", (uint32_t *)(&rval));
+		if (ret < 0)
+			MMCINFO("get sdc2 sdc_wp fail.\n");
+		else {
+			if (rval & DRV_PARA_ENABLE_EMMC_USER_PART_WP) {
+				MMCINFO("enable emmc write protect.\n");
+				cfg->platform_caps.drv_wp_feature |= DRV_PARA_ENABLE_EMMC_USER_PART_WP;
+			}
+		}
+
+		ret = fdt_getprop_u32(working_fdt, nodeoffset,  "sdc_hc_cap_unit", (uint32_t *)(&rval));
+		if (ret < 0)
+			MMCINFO("get sdc2 sdc_hc_cap_unit fail.\n");
+		else {
+			if (rval & DRV_PARA_ENABLE_EMMC_USER_PART_WP) {
+				MMCINFO("enable emmc high capacity-erase/high-capacity write protect unit size.\n");
+				cfg->platform_caps.drv_hc_cap_unit_feature |= DRV_PARA_ENABLE_EMMC_HC_CAP_UNIT;
+			}
+		}
+
 
 		ret = fdt_getprop_u32(working_fdt, nodeoffset, "sdc_cal_delay_unit", (uint32_t *)(&rval));
 		if (ret < 0)
@@ -1055,7 +1082,7 @@ int sunxi_mmc_init(int sdc_no)
 	struct sunxi_mmc_host *host = NULL;
 
 	MMCINFO("mmc driver ver %s\n", DRIVER_VER);
-
+	
 	if ((sdc_no != 2) && (sdc_no != 0)) {
 		MMCINFO("sdc_on error, %d\n", sdc_no);
 		return -1;

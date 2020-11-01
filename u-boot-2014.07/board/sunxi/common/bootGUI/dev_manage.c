@@ -1,3 +1,13 @@
+/*
+ * (C) Copyright 2018-2028
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * lianpengcai <lianpengcai@allwinnertech.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
 #include <common.h>
 #include <boot_gui.h>
 #include "boot_gui_config.h"
@@ -26,7 +36,7 @@ static int get_display_resolution(const int type, char *buf, int num)
 		*p++ = '\0';
 		format = simple_strtoul(buf, NULL, 16);
 		if (type == ((format >> 8) & 0xFF)) {
-			printf("get format[%x] for type[%d]\n", format, type);
+			pr_msg("get format[%x] for type[%d]\n", format, type);
 			return format & 0xff;
 		}
 		num -= (p - buf);
@@ -77,7 +87,7 @@ static int get_device_configs(disp_device_t *disp_dev_list, int *dev_num)
 		*dev_num = id;
 	} else {
 		/* cannot allow that dev_num is no larger than 0 */
-		printf("no cfs of display devices.\n");
+		pr_msg("no cfs of display devices.\n");
 		memset((void *)disp_dev_list, 0, sizeof(*disp_dev_list));
 		disp_dev_list->type = DISP_OUTPUT_TYPE_LCD;
 		*dev_num = 1;
@@ -111,7 +121,7 @@ static disp_device_t *do_hpd_detect(disp_device_t *disp_dev, int dev_num)
 			disp_dev->hpd_state = hal_get_hpd_state(
 				devices[0]->screen_id, disp_dev->type);
 			if (disp_dev->hpd_state) {
-				printf("main-hpd:count=%d,sel=%d,type=%d\n",
+				pr_msg("main-hpd:count=%u,sel=%d,type=%d\n",
 					HPD_DETECT_COUNT0 - count,
 					disp_dev->screen_id, disp_dev->type);
 				return disp_dev;
@@ -125,7 +135,7 @@ static disp_device_t *do_hpd_detect(disp_device_t *disp_dev, int dev_num)
 				disp_dev->hpd_state = hal_get_hpd_state(
 					disp_dev->screen_id, disp_dev->type);
 				if (disp_dev->hpd_state) {
-					printf("ext-hpd:count=%d,sel=%d,type=%d\n",
+					pr_msg("ext-hpd:count=%u,sel=%d,type=%d\n",
 						HPD_DETECT_COUNT1 - count,
 						disp_dev->screen_id, disp_dev->type);
 					return disp_dev;
@@ -159,7 +169,7 @@ int disp_devices_open(void)
 	disp_device_t *output_dev = NULL;
 
 	/* 1.get display devices list */
-	memset((void *)devices, 0, sizeof(devices) / sizeof(devices[0]));
+	memset((void *)devices, 0, sizeof(devices));
 	def_output_dev = get_device_configs(devices, &actual_dev_num);
 
 	/* 2.chose one as output by doing hpd */
@@ -171,12 +181,14 @@ int disp_devices_open(void)
 	switch (output_dev->type) {
 	case DISP_OUTPUT_TYPE_HDMI:
 		if (0 == output_dev->hpd_state) {
-			printf("hdmi hpd out, force open?\n");
+			pr_msg("hdmi hpd out, force open?\n");
 			/* Todo: force open hdmi device */
 		} else {
 			int vendor_id;
 			struct disp_device_config saved;
 			if (!hal_get_disp_device_config(DISP_OUTPUT_TYPE_HDMI, &saved)) {
+				/*output_dev->type = saved.type;*/
+				/*output_dev->mode = saved.mode;*/
 				output_dev->bits = saved.bits;
 				output_dev->format = saved.format;
 				output_dev->cs = saved.cs;
@@ -185,35 +197,29 @@ int disp_devices_open(void)
 				output_dev->format = (output_dev->type == DISP_OUTPUT_TYPE_LCD) ?
 						DISP_CSC_TYPE_RGB : DISP_CSC_TYPE_YUV444;
 				output_dev->bits = DISP_DATA_8BITS;
-				output_dev->bits = DISP_EOTF_GAMMA22;
+				output_dev->eotf = DISP_EOTF_GAMMA22;
 				output_dev->cs = DISP_BT709;
 			}
 
 			verify_mode = hdmi_verify_mode(
 				output_dev->screen_id, output_dev->mode, &vendor_id);
 			if (verify_mode != output_dev->mode) {
-				/* If the mode is change, need to reset the
-				 * other configs (format/bits/cs).
-				 * TODO: select format and bits according to edid*/
 				output_dev->mode = verify_mode;
 				if (verify_mode == DISP_TV_MOD_3840_2160P_50HZ
 						|| verify_mode == DISP_TV_MOD_3840_2160P_60HZ) {
 					output_dev->bits = DISP_DATA_8BITS;
 					output_dev->format = DISP_CSC_TYPE_YUV420;
 					output_dev->cs = DISP_BT709;
-				} else {
-					output_dev->bits = DISP_DATA_8BITS;
-					output_dev->format = DISP_CSC_TYPE_YUV444;
-					output_dev->cs = verify_mode > DISP_TV_MOD_720P_50HZ ?
-						DISP_BT709 : DISP_BT601;
 				}
 			}
+			debug("***** [Switch] %d,%d-%d,%d,0x%04x,%d *****\n", output_dev->type, output_dev->mode,
+				output_dev->bits, output_dev->format, output_dev->cs, output_dev->eotf);
 			hal_switch_device(output_dev, FB_ID_0); /* fixme */
 		}
 		break;
 	case DISP_OUTPUT_TYPE_LCD:
 		if (LCD_SKIP_OPEN == lcd_is_skip_open(output_dev->screen_id)) {
-			printf("lcd skip open\n");
+			pr_msg("lcd skip open\n");
 			hal_save_int_to_kernel("ban_bl", 1);
 			return 0;
 		}
@@ -222,7 +228,7 @@ int disp_devices_open(void)
 		hal_switch_device(output_dev, FB_ID_0); /* fixme */
 		break;
 	default:
-		printf("open device(type=%d) fail!\n", output_dev->type);
+		pr_error("open device(type=%d) fail!\n", output_dev->type);
 		return -1;
 	}
 
@@ -240,7 +246,7 @@ int disp_devices_open(void)
 
 	/* update display device config to kerner */
 	if (hal_save_disp_device_config_to_kernel(0, 0))
-		printf("save disp device failed\n");
+		pr_error("save disp device failed\n");
 #endif
 
 	return 0;
@@ -256,11 +262,10 @@ int disp_device_open_ex(int dev_id, int fb_id, int flag)
 	disp_device_t *output_dev = NULL;
 
 	/* 1.get display devices list */
-	memset((void *)devices, 0, sizeof(devices) / sizeof(devices[0]));
+	memset((void *)devices, 0, sizeof(devices));
 	def_output_dev = get_device_configs(devices, &actual_dev_num);
-	def_output_dev = def_output_dev;
 	if (dev_id >= actual_dev_num) {
-		printf("invalid para: dev_id=%d, actual_dev_num=%d\n",
+		pr_msg("invalid para: dev_id=%d, actual_dev_num=%d\n",
 			dev_id, actual_dev_num);
 		return -1;
 	}

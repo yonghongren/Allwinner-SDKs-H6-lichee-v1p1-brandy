@@ -1,5 +1,7 @@
 #include "disp_vdevice.h"
 
+#if defined(CONFIG_USE_AC200) || defined(CONFIG_USE_GM7121)
+
 struct disp_vdevice_private_data {
 	u32 enabled;
 	bool suspended;
@@ -791,3 +793,4 @@ EXPORT_SYMBOL(disp_vdevice_register);
 EXPORT_SYMBOL(disp_vdevice_unregister);
 EXPORT_SYMBOL(disp_vdevice_get_source_ops);
 #endif
+#endif /*endif CONFIG_USE_AC200 */

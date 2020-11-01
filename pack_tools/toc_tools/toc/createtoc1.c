@@ -21,7 +21,6 @@
 #include "common.h"
 #include "include.h"
 #include <errno.h>
-#include <string.h>
 
 int createtoc1(toc_descriptor_t *toc1, char *toc1_name, int main_v, int sub_v)
 {
@@ -239,23 +238,22 @@ int getfile_size(FILE *pFile)
 }
 
 /*split uboot image from toc1*/
-int splittoc1(toc_descriptor_t *toc1_package, char *toc1 )
+int splittoc1(char *toc1 )
 {
-	char full_toc1[MAX_PATH];
-	FILE *ftoc1 = NULL;
+	char full_toc1[MAX_PATH] , full_uboot[MAX_PATH] ;
+	FILE *ftoc1 = NULL, *fuboot = NULL;
 	int ret = -1, totallen, actlen ,cnt;
 	char *body = NULL ;
+	char * uboot = "u-boot.fex";
+
 	unsigned int offset;
-	char file_path[MAX_PATH];
-	char bin_file[MAX_PATH];
-	FILE *fp = NULL;
-	toc_descriptor_t *p_package = toc1_package;
 
 	printf("split %s\n",toc1);
-
 	sbrom_toc1_head_info_t  *toc1_head;
-	sbrom_toc1_item_info_t  *item_head;
+	sbrom_toc1_item_info_t  *item_head ;
+
 	GetFullPath(full_toc1, toc1);
+	GetFullPath(full_uboot, uboot);
 
 	if( (ftoc1=fopen(full_toc1,"r+")) == NULL) {
 		printf("Open toc1 file %s fail ---%s\n",full_toc1,
@@ -274,53 +272,30 @@ int splittoc1(toc_descriptor_t *toc1_package, char *toc1 )
 				strerror(errno));
 			goto splittoc1_out;
 	}
-
 	toc1_head = (sbrom_toc1_head_info_t *)body ;
 	item_head = body + sizeof(sbrom_toc1_head_info_t);
 	cnt = toc1_head->items_nr;
 	offset = (sizeof(sbrom_toc1_head_info_t) + cnt* sizeof(sbrom_toc1_item_info_t) + 1023) & (~1023);
 
-	for(; cnt > 0; item_head++, cnt--)
-	{
-		if(item_head->type == CONFIG_ROOTKEY_TYPE)
-		{
-			p_package++;
-			continue;
-		}
+	for(; cnt >0 ;item_head ++, cnt -- )
+		if( (!strcmp(item_head->name, "u-boot") )&&
+				(item_head->type == 3))
+			break ;
 
-		if(item_head->type == CONFIG_DER_TYPE)
-		{
-			if( !(strcmp(p_package->item,"boot")) || !(strcmp(p_package->item, "recovery")))
-				p_package++;
+	offset = item_head->data_offset ;
+	actlen = item_head->data_len ;
+	printf("uboot offset 0x%x len 0x%x\n",offset, actlen);
 
-			continue;
-		}
-
-		offset = item_head->data_offset;
-		actlen = item_head->data_len;
-
-        //printf("file in toc1 is  %s   \n", p_package->bin);
-		sprintf(bin_file, "%s", p_package->bin);
-		GetFullPath(file_path, bin_file);
-
-		if( (fp = fopen(file_path, "w+")) == NULL)
-		{
-			printf("Opne %s file %s fail---%s\n", bin_file, file_path, strerror(errno));
-			goto splittoc1_out;
-		}
-
-		if( fwrite( body + offset, actlen, 1, fp) != 1)
-		{
-			printf("write %s file fail -- %s\n", bin_file, strerror(errno));
-			goto splittoc1_out;
-		}
-
-		p_package++;
-		fclose(fp);
-		fp = NULL;
-
+	if( (fuboot=fopen(full_uboot,"w+")) == NULL) {
+		printf("Open uboot file %s fail ---%s\n",full_uboot,
+				strerror(errno));
+		goto splittoc1_out;
 	}
 
+	if( fwrite(body+offset, actlen, 1, fuboot ) != 1){
+		printf("write uboot file fail --- %s\n", strerror(errno));
+		goto splittoc1_out;
+	}
 	ret = 0;
 
 splittoc1_out:
@@ -328,83 +303,8 @@ splittoc1_out:
 		free(body);
 	if(ftoc1)
 		fclose(ftoc1);
-	if(fp)
-		fclose(fp);
-	return ret ;
-}
-
-/*split  items of boot_package.fex*/
-int split_bootpkg(toc_descriptor_t *package, char *boot_pkg )
-{
-	char full_bootpkg[MAX_PATH];
-	FILE *fbootpkg = NULL;
-	int ret = -1, totallen, actlen ,cnt;
-	char *body = NULL ;
-	unsigned int offset;
-	char file_path[MAX_PATH];
-	char bin_file[MAX_PATH];
-	FILE *fp = NULL;
-
-	sbrom_toc1_head_info_t  *bootpkg_head;
-	sbrom_toc1_item_info_t  *item_head ;
-	toc_descriptor_t *p_package = package;
-
-	printf("split %s\n",boot_pkg);
-	GetFullPath(full_bootpkg, boot_pkg);
-	if( (fbootpkg = fopen(full_bootpkg, "r+")) == NULL ){
-		printf("Open boot_package file %s fail ---%s\n",full_bootpkg,
-				strerror(errno));
-		goto split_bootpkg_out;
-	}
-
-	totallen = getfile_size(fbootpkg);
-	if( (body = malloc(totallen)) == NULL ){
-		printf("malloc boot_package body fail\n");
-		goto split_bootpkg_out;
-	}
-
-	if( fread(body, totallen, 1, fbootpkg) != 1 ){
-		printf("Read boot_paclage %s file head fail --- %s\n", full_bootpkg,
-				strerror(errno));
-			goto split_bootpkg_out;
-	}
-	bootpkg_head = (sbrom_toc1_head_info_t *)body ;
-	item_head = body + sizeof(sbrom_toc1_head_info_t);
-	cnt = bootpkg_head->items_nr;
-	offset = (sizeof(sbrom_toc1_head_info_t) + cnt* sizeof(sbrom_toc1_item_info_t) + 1023) & (~1023);
-
-	for( ; cnt > 0; item_head++, p_package++, cnt-- )
-	{
-		offset = item_head->data_offset;
-		actlen = item_head->data_len;
-		sprintf(bin_file, "%s", p_package->bin);
-		GetFullPath(file_path, bin_file);
-
-		if( (fp = fopen(file_path, "w+")) == NULL)
-		{
-			printf("Opne %s file %s fail---%s\n", bin_file, file_path, strerror(errno));
-			goto split_bootpkg_out;
-		}
-
-		if( fwrite( body + offset, actlen, 1, fp) != 1)
-		{
-			printf("write %s file fail -- %s\n", bin_file, strerror(errno));
-			goto split_bootpkg_out;
-		}
-
-		fclose(fp);
-		fp = NULL;
-	}
-
-	ret = 0;
-
-split_bootpkg_out:
-	if(body)
-		free(body);
-	if(fbootpkg)
-		fclose(fbootpkg);
-	if(fp)
-		fclose(fp);
+	if(fuboot)
+		fclose(fuboot);
 	return ret ;
 }
 

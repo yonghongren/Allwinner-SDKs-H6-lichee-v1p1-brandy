@@ -50,7 +50,8 @@ struct sunxi_mmc {
 	volatile u32 res0;           /* (0x54)*/
 	volatile u32 a12a;          /* (0x58)Auto command 12 argument*/
 	volatile u32 ntsr;            /* (0x5c)SMC2 Newtiming Set Register */
-	volatile u32 res1[6];     /* (0x60~0x74) */
+	volatile u32 ntdbg;			/*0x60*/
+	volatile u32 res1[5];     /* (0x64~0x74) */
 	volatile u32 hwrst;        /* (0x78) SMC eMMC Hardware Reset Register */
 	volatile u32 res2;          /*  (0x7c) */
 	volatile u32 dmac;        /*  (0x80) SMC IDMAC Control Register */

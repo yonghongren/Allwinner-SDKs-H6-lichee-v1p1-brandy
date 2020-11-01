@@ -181,13 +181,13 @@ int sunxi_sprite_force_erase_key(void)
 	}
 	if(sunxi_sprite_erase_private_key(buf))
 	{
-		printf("erase private key fail \n");
+		printf("erase key fail \n");
 		return -1;
 	}
 #ifdef CONFIG_SUNXI_SECURE_STORAGE
     if(sunxi_secure_storage_init())
         return -1;
-	if(sunxi_secure_storage_erase_all() == -1)
+	if(sunxi_secure_storage_erase_data_only("key_burned_flag") == -1)
         return -1;
 #endif
 	printf("erase key success \n");

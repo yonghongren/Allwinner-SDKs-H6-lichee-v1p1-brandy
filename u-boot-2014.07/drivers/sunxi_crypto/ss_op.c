@@ -111,11 +111,6 @@ __weak void ss_open(void)
 	reg_val |= CE_GATING_PASS<<CE_GATING_BIT;
 	writel(reg_val,CE_GATING_BASE);
 
-	/*assert*/
-	reg_val = readl(CE_RST_REG_BASE);
-	reg_val &= ~(CE_DEASSERT<<CE_RST_BIT);
-	writel(reg_val,CE_RST_REG_BASE);
-
 	/*de-assert*/
 	reg_val = readl(CE_RST_REG_BASE);
 	reg_val |= CE_DEASSERT<<CE_RST_BIT;

@@ -170,6 +170,7 @@ enum disp_output_type
 	DISP_OUTPUT_TYPE_TV     = 2,
 	DISP_OUTPUT_TYPE_HDMI   = 4,
 	DISP_OUTPUT_TYPE_VGA    = 8,
+	DISP_OUTPUT_TYPE_EDP    = 32, /*16 for vdpo*/
 };
 
 enum disp_tv_mode
@@ -211,6 +212,16 @@ enum disp_tv_mode
 	DISP_TV_MOD_2560_1440P_60HZ     = 0x26,
 	DISP_TV_MOD_1440_2560P_70HZ     = 0x27,
 	DISP_TV_MOD_1080_1920P_60HZ	= 0x28,
+	DISP_TV_MOD_1280_1024P_60HZ     = 0x41,
+	DISP_TV_MOD_1024_768P_60HZ      = 0x42,
+	DISP_TV_MOD_900_540P_60HZ       = 0x43,
+	DISP_TV_MOD_1920_720P_60HZ      = 0x44,
+
+	/*Just for the solution of hdmi edid detailed timiming block*/
+	DISP_HDMI_MOD_DT0                = 0x4a,
+	DISP_HDMI_MOD_DT1                = 0x4b,
+	DISP_HDMI_MOD_DT2                = 0x4c,
+	DISP_HDMI_MOD_DT3                = 0x4d,
 	/*
 	 * vga
 	 * NOTE:macro'value of new solution must between
@@ -228,6 +239,7 @@ enum disp_tv_mode
 	DISP_VGA_MOD_1280_720P_60        = 0x58,
 	DISP_VGA_MOD_1920_1200P_60       = 0x5a,
 	DISP_VGA_MOD_MAX_NUM             = 0x5b,
+
 	DISP_TV_MODE_NUM                 = 0x5c,
 };
 
@@ -590,20 +602,24 @@ enum disp_init_mode
 	DISP_INIT_MODE_TWO_DIFF_SCREEN_SAME_CONTENTS = 5,//fb0 for two different screen(screen0 layer is normal layer, screen1 layer is scaler layer);
 };
 
-struct disp_tv_func
-{
-		int (*tv_enable)(u32 sel);
-		int (*tv_disable)(u32 sel);
-		int (*tv_suspend)(u32 sel);
-		int (*tv_resume)(u32 sel);
-		int (*tv_get_mode)(u32 sel);
-		int (*tv_set_mode)(u32 sel, enum disp_tv_mode tv_mod);
-		int (*tv_get_input_csc) (u32 sel);
-		int (* tv_get_video_timing_info) (u32 sel, struct disp_video_timings **video_info);
-		int (*tv_mode_support) (u32 sel, enum disp_tv_mode mode);
-		int (*tv_hot_plugging_detect)(u32 state);
-		int (*tv_set_enhance_mode)(u32 sel, u32 mode);
-		int (*tv_get_hpd_status)(u32 sel);
+struct disp_tv_func {
+	int (*tv_enable)(u32 sel);
+	int (*tv_disable)(u32 sel);
+	int (*tv_suspend)(u32 sel);
+	int (*tv_resume)(u32 sel);
+	int (*tv_get_mode)(u32 sel);
+	int (*tv_set_mode)(u32 sel, enum disp_tv_mode tv_mod);
+	int (*tv_get_input_csc)(u32 sel);
+	int (*tv_get_video_timing_info)(u32 sel,
+					struct disp_video_timings **video_info);
+	int (*tv_mode_support)(u32 sel, enum disp_tv_mode mode);
+	int (*tv_hot_plugging_detect)(u32 state);
+	int (*tv_set_enhance_mode)(u32 sel, u32 mode);
+	int (*tv_get_hpd_status)(u32 sel);
+	int (*tv_irq_enable)(u32 sel, u32 irq_id, u32 en);
+	int (*tv_irq_query)(u32 sel);
+	unsigned int (*tv_get_cur_line)(u32 sel);
+	int (*tv_get_startdelay)(u32 sel);
 };
 
 /* disp_vdevice_interface_para - vdevice interaface parameter
@@ -655,8 +671,10 @@ struct disp_device_func
 {
 	int (*enable)(void);
 	int (*disable)(void);
+	int (*get_work_mode)(void);
 	int (*set_mode)(u32 mode);
 	int (*mode_support)(u32 mode);
+	int (*get_support_mode)(u32 init_mode);
 	int (*get_HPD_status)(void);
 	int (*get_input_csc)(void);
 	int (*get_video_timing_info)(struct disp_video_timings **video_info);
@@ -699,6 +717,11 @@ enum disp_tv_output
     DISP_TV_YPBPR   = 2,
     DISP_TV_SVIDEO  = 4,
     DISP_VGA = 5,
+};
+
+enum disp_hdmi_work_mode {
+	DISP_HDMI_SEMI_AUTO = 0,
+	DISP_HDMI_FULL_AUTO = 1,
 };
 
 enum tag_DISP_CMD
@@ -748,6 +771,9 @@ enum tag_DISP_CMD
 	DISP_SET_TV_HPD = 0xc5,
 	DISP_HDMI_GET_EDID = 0xc6,
 	DISP_HDMI_GET_HPD_STATUS = 0xc7,
+	DISP_HDMI_GET_SUPPORT_MODE = 0xc9,
+	DISP_HDMI_GET_WORK_MODE = 0xca,
+
 	DISP_TV_GET_HPD_STATUS = 0xc8,
 	//----lcd----
 	DISP_LCD_ENABLE = 0x100,
@@ -808,4 +834,3 @@ enum tag_DISP_CMD
 #define FBIOGET_LAYER_HDL_1 0x4701
 
 #endif
-

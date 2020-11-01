@@ -261,7 +261,12 @@ ENTRY(secondary_cpu_start)
 #endif
 	bic	    r0, #CR_V		        @ V = 0
 	MCR     p15, 0, r0, c1, c0, 0   @Write SCTLR
-
+#ifdef CONFIG_ARM_A7
+	@ enable smp
+	MRC     p15, 0, r0, c1, c0, 1
+	ORR     r0, r0, #0x040
+	MCR     p15, 0, r0, c1, c0, 1
+#endif
 	@ set sp
 	ldr r0, =secondary_cpu_mode_stack
 	ldr sp, [r0, #0x0]
@@ -282,6 +287,7 @@ ENTRY(secondary_cpu_start)
 	msr	cpsr, r0
 
 	b  sunxi_secendary_cpu_task
+	b .
 ENDPROC(secondary_cpu_start)
 
 
@@ -339,6 +345,12 @@ ENTRY(third_cpu_start)
 	mcr	p15, 0, r0, c1, c0, 0	@ Write CP15 SCTRL Register
 #endif
 
+#ifdef CONFIG_ARM_A7
+	@ enable smp
+	MRC     p15, 0, r0, c1, c0, 1
+	ORR     r0, r0, #0x040
+	MCR     p15, 0, r0, c1, c0, 1
+#endif
 	@ set sp
 	ldr r0, =secondary_cpu_mode_stack
 	ldr sp, [r0, #0x8]
@@ -348,6 +360,7 @@ ENTRY(third_cpu_start)
 	ldr r9, [r0, #0x4]
 
 	b  sunxi_third_cpu_task
+	b .
 ENDPROC(third_cpu_start)
 
 /* void cpu_spin_lock(lock address) - lock mutex */

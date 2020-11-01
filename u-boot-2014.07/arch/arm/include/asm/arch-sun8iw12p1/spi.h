@@ -143,3 +143,4 @@ extern int   spic_rw( u32 txlen, void* txbuff, u32 rxlen, void* rxbuff);
 extern void  spic_config_dual_mode(u32 spi_no, u32 rxdual, u32 dbc, u32 stc);
 
 #endif
+

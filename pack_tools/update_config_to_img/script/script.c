@@ -726,7 +726,7 @@ u32 randto1k(u32 num)
 	}
 }
 
-#define TIEM_MAIN_MAX       128
+#define TIEM_MAIN_MAX       256
 
 int parser_script(void *pbuf, int script_len, FILE *hfile)
 {

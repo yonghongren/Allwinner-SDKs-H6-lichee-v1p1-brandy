@@ -1,3 +1,13 @@
+/*
+ * Allwinner SoCs grallocator.
+ *
+ * Copyright (C) 2017 Allwinner.
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
 #ifndef __GR_ALLOCATOR_H__
 #define __GR_ALLOCATOR_H__
 
@@ -23,5 +33,9 @@ int graphic_buffer_alloc(unsigned int w, unsigned h, unsigned int bpp,
 	int usage, void **handle, unsigned int *stride);
 
 int graphic_buffer_free(void *handle, int usage);
+
+#ifndef CONFIG_SUNXI_LOGBUFFER
+#define HW_FB_ADDR SUNXI_DISPLAY_FRAME_BUFFER_ADDR
+#endif
 
 #endif /* #ifndef __GR_ALLOCATOR_H__ */

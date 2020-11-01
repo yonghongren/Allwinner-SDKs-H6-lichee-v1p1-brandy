@@ -1215,7 +1215,7 @@ static int axp806_set_cldo1(int set_vol, int onoff)
 	    {
 	        return -1;
 	    }
-	    reg_value &= 0xf0;
+	    reg_value &= 0xe0;
 		reg_value |= ((set_vol - 700)/100);
 	    if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_CLDO1OUT_VOL, reg_value))
 	    {

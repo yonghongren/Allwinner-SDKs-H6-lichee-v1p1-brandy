@@ -62,7 +62,7 @@ static int axp806_set_dcdc1(int set_vol, int onoff)
 		reg_value |= tmp_step;
 		if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_DCAOUT_VOL, reg_value))
 		{
-			printf("sunxi pmu error : unable to set dcdc1\n");
+			pr_msg("sunxi pmu error : unable to set dcdc1\n");
 
 			return -1;
 		}
@@ -86,7 +86,7 @@ static int axp806_set_dcdc1(int set_vol, int onoff)
 	}
 	if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_OUTPUT_CTL1, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff dcdc1\n");
+		pr_msg("sunxi pmu error : unable to onoff dcdc1\n");
 
 		return -1;
 	}
@@ -147,7 +147,7 @@ static int axp806_set_dcdc2(int set_vol, int onoff)
 		reg_value |= (set_vol - 1000)/50;
 		if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_DCBOUT_VOL, reg_value))
 		{
-			printf("sunxi pmu error : unable to set dcdc2\n");
+			pr_msg("sunxi pmu error : unable to set dcdc2\n");
 			return -1;
 		}
 	}
@@ -170,7 +170,7 @@ static int axp806_set_dcdc2(int set_vol, int onoff)
 	}
 	if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_OUTPUT_CTL1, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff dcdc2\n");
+		pr_msg("sunxi pmu error : unable to onoff dcdc2\n");
 
 		return -1;
 	}
@@ -229,14 +229,14 @@ static int axp806_set_dcdc3(int set_vol, int onoff)
 		}
 		if(axp_i2c_read(AXP806_ADDR, BOOT_POWER806_DCCOUT_VOL, &reg_value))
 		{
-			printf("sunxi pmu error : unable to set dcdc3\n");
+			pr_msg("sunxi pmu error : unable to set dcdc3\n");
 			return -1;
 		}
 		reg_value &= 0x80;
 		reg_value |= tmp_step;
 		if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_DCCOUT_VOL, reg_value))
 		{
-			printf("sunxi pmu error : unable to set dcdc3\n");
+			pr_msg("sunxi pmu error : unable to set dcdc3\n");
 
 			return -1;
 		}
@@ -260,7 +260,7 @@ static int axp806_set_dcdc3(int set_vol, int onoff)
 	}
 	if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_OUTPUT_CTL1, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff dcdc3\n");
+		pr_msg("sunxi pmu error : unable to onoff dcdc3\n");
 
 		return -1;
 	}
@@ -337,7 +337,7 @@ static int axp806_set_dcdc4(int set_vol, int onoff)
 		reg_value |= tmp_step;
 		if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_DCDOUT_VOL, reg_value))
 		{
-			printf("sunxi pmu error : unable to set dcdc4\n");
+			pr_msg("sunxi pmu error : unable to set dcdc4\n");
 
 			return -1;
 		}
@@ -361,7 +361,7 @@ static int axp806_set_dcdc4(int set_vol, int onoff)
 	}
 	if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_OUTPUT_CTL1, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff dcdc4\n");
+		pr_msg("sunxi pmu error : unable to onoff dcdc4\n");
 
 		return -1;
 	}
@@ -423,7 +423,7 @@ static int axp806_set_dcdc5(int set_vol, int onoff)
 		reg_value |= ((set_vol - 1100)/100);
 		if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_DCEOUT_VOL, reg_value))
 		{
-			printf("sunxi pmu error : unable to set dcdc5\n");
+			pr_msg("sunxi pmu error : unable to set dcdc5\n");
 
 			return -1;
 		}
@@ -447,7 +447,7 @@ static int axp806_set_dcdc5(int set_vol, int onoff)
 	}
 	if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_OUTPUT_CTL1, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff dcdc5\n");
+		pr_msg("sunxi pmu error : unable to onoff dcdc5\n");
 
 		return -1;
 	}
@@ -498,7 +498,7 @@ static int axp806_set_aldo1(int set_vol, int onoff)
 		reg_value |= ((set_vol - 700)/100);
 		if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_ALDO1OUT_VOL, reg_value))
 		{
-			printf("sunxi pmu error : unable to set aldo1\n");
+			pr_msg("sunxi pmu error : unable to set aldo1\n");
 
 			return -1;
 		}
@@ -522,7 +522,7 @@ static int axp806_set_aldo1(int set_vol, int onoff)
 	}
 	if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_OUTPUT_CTL1, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff aldo1\n");
+		pr_msg("sunxi pmu error : unable to onoff aldo1\n");
 
 		return -1;
 	}
@@ -573,7 +573,7 @@ static int axp806_set_aldo2(int set_vol, int onoff)
 		reg_value |= ((set_vol - 700)/100);
 		if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_ALDO2OUT_VOL, reg_value))
 		{
-			printf("sunxi pmu error : unable to set aldo2\n");
+			pr_msg("sunxi pmu error : unable to set aldo2\n");
 
 			return -1;
 		}
@@ -597,7 +597,7 @@ static int axp806_set_aldo2(int set_vol, int onoff)
 	}
 	if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_OUTPUT_CTL1, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff aldo2\n");
+		pr_msg("sunxi pmu error : unable to onoff aldo2\n");
 
 		return -1;
 	}
@@ -648,7 +648,7 @@ static int axp806_set_aldo3(int set_vol, int onoff)
 		reg_value |= ((set_vol - 700)/100);
 		if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_ALDO3OUT_VOL, reg_value))
 		{
-			printf("sunxi pmu error : unable to set aldo3\n");
+			pr_msg("sunxi pmu error : unable to set aldo3\n");
 
 			return -1;
 		}
@@ -672,7 +672,7 @@ static int axp806_set_aldo3(int set_vol, int onoff)
 	}
 	if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_OUTPUT_CTL1, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff aldo3\n");
+		pr_msg("sunxi pmu error : unable to onoff aldo3\n");
 
 		return -1;
 	}
@@ -723,7 +723,7 @@ static int axp806_set_bldo1(int set_vol, int onoff)
 		reg_value |= ((set_vol - 700)/100);
 		if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_BLDO1OUT_VOL, reg_value))
 		{
-			printf("sunxi pmu error : unable to set bldo1\n");
+			pr_msg("sunxi pmu error : unable to set bldo1\n");
 
 			return -1;
 		}
@@ -747,7 +747,7 @@ static int axp806_set_bldo1(int set_vol, int onoff)
 	}
 	if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_OUTPUT_CTL2, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff bldo1\n");
+		pr_msg("sunxi pmu error : unable to onoff bldo1\n");
 
 		return -1;
 	}
@@ -798,7 +798,7 @@ static int axp806_set_bldo2(int set_vol, int onoff)
 		reg_value |= ((set_vol - 700)/100);
 		if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_BLDO2OUT_VOL, reg_value))
 		{
-			printf("sunxi pmu error : unable to set bldo2\n");
+			pr_msg("sunxi pmu error : unable to set bldo2\n");
 
 			return -1;
 		}
@@ -822,7 +822,7 @@ static int axp806_set_bldo2(int set_vol, int onoff)
 	}
 	if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_OUTPUT_CTL2, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff bldo2\n");
+		pr_msg("sunxi pmu error : unable to onoff bldo2\n");
 
 		return -1;
 	}
@@ -873,7 +873,7 @@ static int axp806_set_bldo3(int set_vol, int onoff)
 		reg_value |= ((set_vol - 700)/100);
 		if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_BLDO3OUT_VOL, reg_value))
 		{
-			printf("sunxi pmu error : unable to set bldo3\n");
+			pr_msg("sunxi pmu error : unable to set bldo3\n");
 
 			return -1;
 		}
@@ -897,7 +897,7 @@ static int axp806_set_bldo3(int set_vol, int onoff)
 	}
 	if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_OUTPUT_CTL2, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff bldo3\n");
+		pr_msg("sunxi pmu error : unable to onoff bldo3\n");
 
 		return -1;
 	}
@@ -948,7 +948,7 @@ static int axp806_set_bldo4(int set_vol, int onoff)
 		reg_value |= ((set_vol - 700)/100);
 		if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_BLDO4OUT_VOL, reg_value))
 		{
-			printf("sunxi pmu error : unable to set bldo4\n");
+			pr_msg("sunxi pmu error : unable to set bldo4\n");
 
 			return -1;
 		}
@@ -972,7 +972,7 @@ static int axp806_set_bldo4(int set_vol, int onoff)
 	}
 	if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_OUTPUT_CTL2, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff bldo4\n");
+		pr_msg("sunxi pmu error : unable to onoff bldo4\n");
 
 		return -1;
 	}
@@ -1023,7 +1023,7 @@ static int axp806_set_cldo1(int set_vol, int onoff)
 		reg_value |= ((set_vol - 700)/100);
 		if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_CLDO1OUT_VOL, reg_value))
 		{
-			printf("sunxi pmu error : unable to set cldo1\n");
+			pr_msg("sunxi pmu error : unable to set cldo1\n");
 
 			return -1;
 		}
@@ -1047,7 +1047,7 @@ static int axp806_set_cldo1(int set_vol, int onoff)
 	}
 	if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_OUTPUT_CTL2, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff cldo1\n");
+		pr_msg("sunxi pmu error : unable to onoff cldo1\n");
 
 		return -1;
 	}
@@ -1098,7 +1098,7 @@ static int axp806_set_cldo2(int set_vol, int onoff)
 		reg_value |= ((set_vol - 700)/100);
 		if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_CLDO2OUT_VOL, reg_value))
 		{
-			printf("sunxi pmu error : unable to set cldo2\n");
+			pr_msg("sunxi pmu error : unable to set cldo2\n");
 
 			return -1;
 		}
@@ -1122,7 +1122,7 @@ static int axp806_set_cldo2(int set_vol, int onoff)
 	}
 	if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_OUTPUT_CTL2, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff cldo2\n");
+		pr_msg("sunxi pmu error : unable to onoff cldo2\n");
 
 		return -1;
 	}
@@ -1182,7 +1182,7 @@ static int axp806_set_cldo3(int set_vol, int onoff)
 		reg_value |= ((set_vol - 700)/100);
 		if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_CLDO3OUT_VOL, reg_value))
 		{
-			printf("sunxi pmu error : unable to set cldo3\n");
+			pr_msg("sunxi pmu error : unable to set cldo3\n");
 
 			return -1;
 		}
@@ -1206,7 +1206,7 @@ static int axp806_set_cldo3(int set_vol, int onoff)
 	}
 	if(axp_i2c_write(AXP806_ADDR, BOOT_POWER806_OUTPUT_CTL2, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff cldo3\n");
+		pr_msg("sunxi pmu error : unable to onoff cldo3\n");
 
 		return -1;
 	}

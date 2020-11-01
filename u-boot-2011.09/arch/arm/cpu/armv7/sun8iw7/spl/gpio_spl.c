@@ -24,7 +24,6 @@
 #include <asm/arch/cpu.h>
 #include <asm/arch/gpio.h>
 #include <sys_config.h>
-#include "asm/arch/timer.h"
 /*
 ************************************************************************************************************
 *
@@ -235,63 +234,32 @@ __s32 boot_set_gpio(void  *user_gpio_list, __u32 group_count_max, __s32 set_gpio
 *    返回值  :
 *
 *    说明    :
-*				PD17: 0X01C20800 + 0x74 [6:4]: cpux freq detect
-*
-*				PD16: 0X01C20800 + 0x74 [2:0]
 *				PD15: 0X01C20800 + 0x70 [30:28]
-*				PD14: 0X01C20800 + 0x70 [26:24]
-*				PD13: 0X01C20800 + 0x70 [22:20]
-*				PD12: 0X01C20800 + 0x70 [18:16]
-*				[PD16:PD15:PD14:PD13:PD12]: dram type detect
+*				PD16: 0X01C20800 + 0x74 [2:0]
+*				PD17: 0X01C20800 + 0x74 [6:4]
+*
 *	描述	 :
 *
 ************************************************************************************************************
 */
 __u32 get_dram_type_by_gpio(void)
 {
-	//SUNXI_PIO_BASE = 0X01C20800
-	volatile __u32 value = 0;
-	volatile __u32 value_temp = 0;
 	//设置gpio为输入属性
-	value_temp = *((volatile unsigned int *)(SUNXI_PIO_BASE + 0x70));
-	value_temp &= (~(0x0f << 28));											//PD15
-	value_temp &= (~(0x0f << 24));											//PD14
-	value_temp &= (~(0x0f << 20));											//PD13
-	value_temp &= (~(0x0f << 16));											//PD12
-	*((volatile unsigned int *)(SUNXI_PIO_BASE + 0x70)) = value_temp;
+	//SUNXI_PIO_BASE = 0X01C20800
+	__u32 value;
+	value = *((volatile unsigned int *)(SUNXI_PIO_BASE + 0x70));
+	value &= (~(0x0f << 28));											//PD15
+	*((volatile unsigned int *)(SUNXI_PIO_BASE + 0x70)) = value;
 
-	__usdelay(10);
-	value_temp = *((volatile unsigned int *)(SUNXI_PIO_BASE + 0x74));
-	value_temp &= (~(0x0f << 0));											//PD16
-	*((volatile unsigned int *)(SUNXI_PIO_BASE + 0x74)) = value_temp;
-
-	__usdelay(10);
-	//设置gpio为上拉模式
-	value_temp = *((volatile unsigned int *)(SUNXI_PIO_BASE + 0x88));
-	value_temp &= (~(0x03 << 30));											//PD15
-	value_temp &= (~(0x03 << 28));											//PD14
-	value_temp &= (~(0x03 << 26));											//PD13
-	value_temp &= (~(0x03 << 24));											//PD12
-	value_temp |= ((0x01 << 30) | (0x01 << 28) | (0x01 << 26) | (0x01 << 24));
-	*((volatile unsigned int *)(SUNXI_PIO_BASE + 0x88)) = value_temp;
-
-	__usdelay(10);
-	value_temp = *((volatile unsigned int *)(SUNXI_PIO_BASE + 0x8c));
-	value_temp &= (~(0x0F << 0));											//PD16
-	value_temp |= (0x01 << 0);
-	*((volatile unsigned int *)(SUNXI_PIO_BASE + 0x8c)) = value_temp;
-	__usdelay(10);
+	value = *((volatile unsigned int *)(SUNXI_PIO_BASE + 0x74));
+	value &= (~(0x0f << 0));											//PD16
+	value &= (~(0x0f << 4));											//PD17
+	*((volatile unsigned int *)(SUNXI_PIO_BASE + 0x74)) = value;
 
 	//读取gpio数据
-	value_temp = *((volatile unsigned int *)(SUNXI_PIO_BASE + 0x7c));
-
-	__usdelay(10);
-	value  = (((value_temp >> 16) & 0x01) << 4);
-	value |= (((value_temp >> 15) & 0x01) << 3);
-	value |= (((value_temp >> 14) & 0x01) << 2);
-	value |= (((value_temp >> 13) & 0x01) << 1);
-	value |= (((value_temp >> 12) & 0x01) << 0);
-
+	value = *((volatile unsigned int *)(SUNXI_PIO_BASE + 0x7c));
+	value = value >> 15;
+	value &= 0x07;
 	return value;
 }
 

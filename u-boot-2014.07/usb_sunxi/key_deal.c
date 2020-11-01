@@ -23,9 +23,8 @@
 #include <securestorage.h>
 #include <smc.h>
 #include <u-boot/crc.h>
-#include <asm/arch/ss.h>
+#include <sunxi_crypto.h>
 #include <sunxi_board.h>
-#include <smc.h>
 
 
 #define HDCP_MAIGC		(0x5aa5a55a)
@@ -41,9 +40,10 @@
 #define	HDCP_FILE_SIZE		(352)
 #endif
 
+#ifdef CONFIG_RSSK_INIT
 #define	RSSK_SIZE_BITS		(256)
 #define	RSSK_SIZE_BYTES		(RSSK_SIZE_BITS >> 3)
-
+#endif
 
 typedef struct {
 	char  name[64];
@@ -68,26 +68,9 @@ typedef struct{
 
 static unsigned char raw_hdcp_key[HDCP_BUFFER_LEN];
 
-
-__attribute__((weak))
-int sunxi_efuse_write(void *key_buf)
-{
-	printf("call weak fun: %s\n", __func__);
-	return -1;
-}
-
-__attribute__((weak))
-int sunxi_efuse_read(void *key_name, void *read_buf, int *len)
-{
-	printf("call weak fun: %s\n", __func__);
-	return -1;
-}
-
 extern void sunxi_dump(void *addr, unsigned int size);
-#ifdef CONFIG_BURN_NORMAL_EFUSE
 extern int sunxi_efuse_write(void *key_buf);
 extern int sunxi_efuse_read(void *key_name, void *read_buf, int *len);
-#endif
 
 int hdcp_key_parse(unsigned char *keydata, int keylen)
 {
@@ -150,14 +133,16 @@ void hdcp_key_convert(unsigned char *keyi,unsigned char *keyo)
 }
 
 #ifdef CONFIG_SUNXI_HDCP_HASH
-#define ALIGN_LEN 32
 int verify_hdcp_key_sha(unsigned char *raw_md5, char *buffer_convert)
 {
-	unsigned char hash_of_hdcp[HDCP_MD5_LEN] = {0};
-	int ret = -1;
-	unsigned char key_buf[RAW_HDCP_KEY_LEN + ALIGN_LEN] = {0};
+	unsigned char hash_of_hdcp[HDCP_MD5_LEN];
+	int ret;
+	char key_buf[RAW_HDCP_KEY_LEN + 32];
 
-	unsigned char *align = (unsigned char *)((unsigned long)(key_buf + ALIGN_LEN) & (~(ALIGN_LEN - 1)));
+	memset(hash_of_hdcp, 0, HDCP_MD5_LEN);
+	memset(key_buf, 0, RAW_HDCP_KEY_LEN);
+
+	char *align = (char *)(((u32)key_buf+31)&(~31));
 	memcpy((void *)align, (void *)buffer_convert, RAW_HDCP_KEY_LEN);
 	if (sunxi_md5_calc((u8 *)hash_of_hdcp, HDCP_MD5_LEN, (u8 *)align, RAW_HDCP_KEY_LEN)) {
 		printf("sunxi_md5_calc: failed\n");
@@ -225,8 +210,7 @@ int sunxi_deal_hdcp_key_hash(char *keydata, char *buffer_convert)
 		}
 	} else {
 		if (arm_svc_efuse_write(&efuse_key_info)) {
-			printf("warning : hdcp md5 already burned : ignore hdcp md5\n");
-			return 0;
+			return -1;
 		}
 	}
 
@@ -249,14 +233,14 @@ int sunxi_deal_hdcp_key_hash(char *keydata, char *buffer_convert)
 *
 ************************************************************************************************************
 */
-extern	int sunxi_create_rssk(u8 *rssk_buf, u32 rssk_byte);
+#ifdef CONFIG_RSSK_INIT
 int sunxi_deal_rssk_key(void)
 {
 	int ret;
 	sunxi_efuse_key_info_t  efuse_key_info;
 	const char *name = "rssk";
-	unsigned char rssk_buf[RSSK_SIZE_BYTES] __aligned(64);
-	printf("%s %d\n ",__func__,__LINE__);
+	unsigned char rssk_buf[RSSK_SIZE_BYTES];
+
 	ret = sunxi_create_rssk(rssk_buf, RSSK_SIZE_BYTES);
 	if (ret < 0) {
 		printf("sunxi_create_rssk fail\n");
@@ -278,14 +262,14 @@ int sunxi_deal_rssk_key(void)
 		printf("rssk ready to burn\n");
 		ret = arm_svc_efuse_write(&efuse_key_info);
 		if (ret == 1) {
-			printf("warning: rssk has been already burned \n");
-			ret = 0;
+			printf(" rssk has been already burned \n");
 		} else if (ret < 0) {
 			return -1;
 		}
 	}
 	return 0;
 }
+#endif
 
 /*
 ************************************************************************************************************
@@ -316,16 +300,19 @@ int sunxi_deal_hdcp_key(char *keydata, int keylen)
 	hdcp_key_convert((unsigned char *)raw_hdcp_key, (unsigned char *)buffer_convert);
 #ifdef	CONFIG_SUNXI_HDCP_HASH
 	ret = sunxi_deal_hdcp_key_hash(keydata, buffer_convert);
-
 	if (ret < 0) {
 		printf("sunxi_deal_hdcp_key_hash failed\n");
 		return -1;
 	}
+#endif
+#ifdef CONFIG_RSSK_INIT
 	ret = sunxi_deal_rssk_key();
 	if (ret < 0) {
-		printf("warning : rsk already burned !!\n");
+		printf("sunxi_deal_rssk_key failed\n");
+		return -1;
 	}
 #endif
+
 	ret = sunxi_secure_object_down("hdcpkey", buffer_convert, SUNXI_HDCP_KEY_LEN,1,0);
 	if(ret<0)
 	{

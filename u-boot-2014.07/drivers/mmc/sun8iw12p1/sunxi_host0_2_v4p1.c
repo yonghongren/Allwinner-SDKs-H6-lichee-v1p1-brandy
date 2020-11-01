@@ -77,14 +77,14 @@ static int mmc_update_clk(struct sunxi_mmc_host* mmchost)
 {
 	struct mmc_reg_v4p1 *reg = (struct mmc_reg_v4p1 *)mmchost->reg;
 	unsigned int cmd;
-	unsigned timeout = 1000;
+	unsigned timeout = 100000;
 
 	writel(readl(&reg->clkcr)|(0x1<<31), &reg->clkcr);
 
 	cmd = (1U << 31) | (1 << 21) | (1 << 13);
   	writel(cmd, &reg->cmd);
 	while((readl(&reg->cmd)&0x80000000) && --timeout){
-		__msdelay(1);
+		__usdelay(1);
 	}
 	if (!timeout){
 		MMCINFO("mmc %d update clk failed\n",mmchost->mmc_no);
@@ -537,7 +537,7 @@ static void mmc_ddr_mode_onoff(struct mmc *mmc, int on)
 	rval = readl(&reg->gctrl);
 	rval &= (~(1U << 10));
 
-    /*  disable ccu clock */
+    /*disable ccu clock*/
     writel(readl(mmchost->mclkbase)&(~(1<<31)), mmchost->mclkbase);
     MMCDBG("disable mclk %x\n", readl(mmchost->mclkbase));
 
@@ -584,14 +584,15 @@ static int mmc_calibrate_delay_unit(struct sunxi_mmc_host* mmchost)
 
 	struct mmc_reg_v4p1 *reg = (struct mmc_reg_v4p1 *)mmchost->reg;
 	unsigned rval = 0;
-	unsigned clk[3] = {50*1000*1000, 100*1000*1000, 200*1000*1000};
-	unsigned period[3] = {10*1000, 5*1000, 2500}; //ps, module clk is 2xclk at init phase.
+	unsigned clk[4] = {50*1000*1000, 100*1000*1000, 150*1000*1000, 200*1000*1000};
+	/*ps, module clk is 2xclk at init phase.*/
+	unsigned period[4] = {10*1000, 5*1000, 3333, 2500};
 	unsigned result = 0;
 	int i = 0;
 
 	MMCDBG("start %s, don't access device...\n", __FUNCTION__);
 
-	for (i=0; i<3; i++)
+	for (i = 0; i < 4; i++)
 	{
 		MMCINFO("%d MHz...\n", clk[i]/1000/1000);
 		/* close card clock */
@@ -799,13 +800,13 @@ static int mmc_trans_data_by_cpu(struct mmc *mmc, struct mmc_data *data)
 	unsigned i;
 	unsigned byte_cnt = data->blocksize * data->blocks;
 	unsigned *buff;
-	unsigned timeout = 1000;
+	unsigned timeout = 100000;
 
 	if (data->flags & MMC_DATA_READ) {
 		buff = (unsigned int *)data->dest;
 		for (i=0; i<(byte_cnt>>2); i++) {
 			while(--timeout && (readl(&reg->status)&(1 << 2))){
-				__msdelay(1);
+				__usdelay(1);
 			}
 			if (timeout <= 0)
 				goto out;
@@ -816,7 +817,7 @@ static int mmc_trans_data_by_cpu(struct mmc *mmc, struct mmc_data *data)
 		buff = (unsigned int *)data->src;
 		for (i=0; i<(byte_cnt>>2); i++) {
 			while(--timeout && (readl(&reg->status)&(1 << 3))){
-				__msdelay(1);
+				__usdelay(1);
 			}
 			if (timeout <= 0)
 				goto out;

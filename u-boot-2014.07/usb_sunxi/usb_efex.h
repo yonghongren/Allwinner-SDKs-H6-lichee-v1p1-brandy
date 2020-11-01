@@ -357,7 +357,11 @@ struct multi_unseq_mem_s
 	struct unseq_mem_config  *unseq_mem;
 };
 
-#define SUNXI_EFEX_RECV_MEM_SIZE	(4*1024 * 1024)
+#if defined (CONFIG_SUNXI_SPINOR)
+#define SUNXI_EFEX_RECV_MEM_SIZE	(2 * 1024 * 1024)
+#else
+#define SUNXI_EFEX_RECV_MEM_SIZE	(4 * 1024 * 1024)
+#endif
 
 
 typedef struct
@@ -392,6 +396,9 @@ efex_trans_set_t;
 #define  SUNXI_EFEX_EXT4_UBIFS_TAG      (0x7ff0)
 
 #define  SUNXI_EFEX_FLASH_TAG           (0x8000)
+#define  SUNXI_EFEX_FLASH_BOOT0_TAG     (0x8001)
+#define  SUNXI_EFEX_FLASH_BOOT1_TAG     (0x8002)
+
 
 #define  SUNXI_EFEX_TRANS_MASK			(0x30000)
 #define  SUNXI_EFEX_TRANS_START_TAG		(0x20000)

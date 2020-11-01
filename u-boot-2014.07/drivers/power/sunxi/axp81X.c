@@ -53,7 +53,7 @@ int axp81_probe(void)
     axp_i2c_config(SUNXI_AXP_81X, AXP81X_ADDR);
 	if(axp_i2c_read(AXP81X_ADDR, BOOT_POWER81X_VERSION, &pmu_type))
 	{
-		printf("axp read error\n");
+		pr_msg("axp read error\n");
 
 		return -1;
 	}
@@ -713,7 +713,7 @@ int axp81_probe_vbus_cur_limit(void)
 	{
 		reg_value |= 0x10;
 	}
-	printf("limit to %dmA \n",current);
+	pr_msg("limit to %dmA \n",current);
 	return current;
 }
 /*
@@ -873,14 +873,14 @@ int axp81_set_power_reset(void)
 	u8 reg_value;
 	if(axp_i2c_read(AXP81X_ADDR, BOOT_POWER81X_VOFF_SET, &reg_value))
 	{
-		printf("axp81_set_power_reset: axp_i2c_read error!\n");
+		pr_msg("axp81_set_power_reset: axp_i2c_read error!\n");
 		return -1;
 	}
 	reg_value |= (1<<6);
-	printf("axp will reset the system....\n");
+	pr_msg("axp will reset the system....\n");
 	if(axp_i2c_write(AXP81X_ADDR, BOOT_POWER81X_VOFF_SET, reg_value))
 	{
-		printf("axp81_set_power_reset: axp_i2c_write error!\n");
+		pr_msg("axp81_set_power_reset: axp_i2c_write error!\n");
 		return -1;
 	}
 	return 0;
@@ -889,7 +889,7 @@ int axp81_set_power_reset(void)
 void sunxi_pmu_reset(void)
 {
 	if (uboot_spare_head.boot_data.work_mode == WORK_MODE_BOOT) {
-		printf("restart system by pmu\n");
+		pr_msg("restart system by pmu\n");
 		mdelay(2000);
 		axp81_set_power_reset();
 		while(1);

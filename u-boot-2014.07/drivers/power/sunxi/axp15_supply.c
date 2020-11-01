@@ -46,7 +46,7 @@ static int axp15_set_dcdc1(int set_vol,int onoff)
 	{
 		return -1;
 	}
-	printf("the reg_vlaue is %x",reg_value);
+	pr_msg("the reg_vlaue is %x",reg_value);
     if(set_vol > 0)
     {
         if(set_vol <1700)
@@ -79,21 +79,21 @@ static int axp15_set_dcdc1(int set_vol,int onoff)
 		}
         if(axp_i2c_read(AXP15_ADDR,BOOT_POWER15_DC1OUT_VOL,&reg_value))
         {
-        	printf("can't read dcdc1_vol!!!\n");
+        	pr_msg("can't read dcdc1_vol!!!\n");
         	return -1;
         }
 		reg_value &= ~(0x0f<<0);
 		reg_value |= tem_reg_value;
 		if(axp_i2c_write(AXP15_ADDR,BOOT_POWER15_DC1OUT_VOL,reg_value))
 		{
-			printf("can't set dcdc1_vol!!!\n");
+			pr_msg("can't set dcdc1_vol!!!\n");
 			return -1;
 		}
 		for(i = 0;i<1000;i++);
 		reg_value = 0;
         if(axp_i2c_read(AXP15_ADDR,BOOT_POWER15_DC1OUT_VOL,&reg_value))
         {
-        	printf("can't read dcdc1_vol!!!\n");
+        	pr_msg("can't read dcdc1_vol!!!\n");
         	return -1;
         }
     }
@@ -103,7 +103,7 @@ static int axp15_set_dcdc1(int set_vol,int onoff)
 	}
 	if(axp_i2c_read(AXP15_ADDR,BOOT_POWER15_OUTPUT_CTL,&reg_value))
 	{
-		printf("can't read output_ctl_reg!!\n");
+		pr_msg("can't read output_ctl_reg!!\n");
 		return -1;
 	}
 	if(onoff == 0)
@@ -116,12 +116,12 @@ static int axp15_set_dcdc1(int set_vol,int onoff)
 	}
 	if(axp_i2c_write(AXP15_ADDR,BOOT_POWER15_OUTPUT_CTL,reg_value))
 	{
-		printf("can't set dcdc1_onoff status!!\n");
+		pr_msg("can't set dcdc1_onoff status!!\n");
 		return -1;
 	}
 	if(axp_i2c_read(AXP15_ADDR,BOOT_POWER15_DC1OUT_VOL,&reg_value))
 	{
-		printf("can't read output_ctl_reg!!\n");
+		pr_msg("can't read output_ctl_reg!!\n");
 		return -1;
 	}
 	return 0;
@@ -146,12 +146,12 @@ static int axp15_set_dcdc2(int set_vol,int onoff)
         }
         if(axp_i2c_read(AXP15_ADDR,BOOT_POWER15_DC2OUT_VOL,&reg_value))
         {
-        	printf("can't read dcdc2_vol!!!\n");
+        	pr_msg("can't read dcdc2_vol!!!\n");
         	return -1;
         }
 		tmp = reg_value & 0x3f;
 		vol = tmp*25+700;
-		printf("the vol is %d\n",vol);
+		pr_msg("the vol is %d\n",vol);
 		while(vol>set_vol)
 		{
 			tmp -= 1;
@@ -168,7 +168,7 @@ static int axp15_set_dcdc2(int set_vol,int onoff)
 	        }
 	        tmp = reg_value & 0x3f;
 	        vol = tmp * 25 + 700;
-			printf("the vol is %d\n",vol);
+			pr_msg("the vol is %d\n",vol);
 		}
 		while(vol<set_vol)
 		{
@@ -186,7 +186,7 @@ static int axp15_set_dcdc2(int set_vol,int onoff)
 	        }
 	        tmp = reg_value & 0x3f;
 	        vol = tmp * 25 + 700;
-			printf("the vol is %d\n",vol);
+			pr_msg("the vol is %d\n",vol);
 		}
     }
 	if(onoff<0)
@@ -195,7 +195,7 @@ static int axp15_set_dcdc2(int set_vol,int onoff)
 	}
 	if(axp_i2c_read(AXP15_ADDR,BOOT_POWER15_OUTPUT_CTL,&reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff dcdc2\n");
+		pr_msg("sunxi pmu error : unable to onoff dcdc2\n");
 		return -1;
 	}
 	if(onoff == 0)
@@ -208,13 +208,13 @@ static int axp15_set_dcdc2(int set_vol,int onoff)
 	}
 	if(axp_i2c_write(AXP15_ADDR,BOOT_POWER15_OUTPUT_CTL,reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff dcdc2\n");
+		pr_msg("sunxi pmu error : unable to onoff dcdc2\n");
 		return -1;
 	}
 
 	if(axp_i2c_read(AXP15_ADDR,BOOT_POWER15_DC2OUT_VOL,&reg_value))
 	{
-		printf("can't read output_ctl_reg!!\n");
+		pr_msg("can't read output_ctl_reg!!\n");
 		return -1;
 	}
 	return 0;
@@ -233,10 +233,10 @@ static int axp15_set_dcdc3(int set_vol,int onoff)
         {
             set_vol = 3500;
         }
-		printf("the set_vol is %d \n",set_vol);
+		pr_msg("the set_vol is %d \n",set_vol);
         if(axp_i2c_read(AXP15_ADDR,BOOT_POWER15_DC3OUT_VOL,&reg_value))
         {
-        	printf("can't read dcdc3_vol!!!\n");
+        	pr_msg("can't read dcdc3_vol!!!\n");
         	return -1;
         }
 		reg_value &= ~0x3f;
@@ -244,14 +244,14 @@ static int axp15_set_dcdc3(int set_vol,int onoff)
 
 		if(axp_i2c_write(AXP15_ADDR,BOOT_POWER15_DC3OUT_VOL,reg_value))
 		{
-			printf("sunxi pmu error : unable to set dcdc3\n");
+			pr_msg("sunxi pmu error : unable to set dcdc3\n");
 			return -1;
 		}
 		__msdelay(100);
 
         if(axp_i2c_read(AXP15_ADDR,BOOT_POWER15_DC3OUT_VOL,&reg_value))
         {
-        	printf("can't read dcdc3_vol!!!\n");
+        	pr_msg("can't read dcdc3_vol!!!\n");
         	return -1;
         }
     }
@@ -262,7 +262,7 @@ static int axp15_set_dcdc3(int set_vol,int onoff)
 	}
 	if(axp_i2c_read(AXP15_ADDR,BOOT_POWER15_OUTPUT_CTL,&reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff dcdc3\n");
+		pr_msg("sunxi pmu error : unable to onoff dcdc3\n");
 		return -1;
 	}
 	if(onoff == 0)
@@ -275,13 +275,13 @@ static int axp15_set_dcdc3(int set_vol,int onoff)
 	}
 	if(axp_i2c_write(AXP15_ADDR,BOOT_POWER15_OUTPUT_CTL, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff dcdc3\n");
+		pr_msg("sunxi pmu error : unable to onoff dcdc3\n");
 		return -1;
 	}
 
 	if(axp_i2c_read(AXP15_ADDR,BOOT_POWER15_DC3OUT_VOL,&reg_value))
 	{
-		printf("can't read output_ctl_reg!!\n");
+		pr_msg("can't read output_ctl_reg!!\n");
 		return -1;
 	}
 	return 0;
@@ -303,14 +303,14 @@ static int axp15_set_dcdc4(int set_vol,int onoff)
         }
         if(axp_i2c_read(AXP15_ADDR,BOOT_POWER15_DC4OUT_VOL,&reg_value))
         {
-        	printf("can't read dcdc4_vol!!!\n");
+        	pr_msg("can't read dcdc4_vol!!!\n");
         	return -1;
         }
 		reg_value &= ~0x7f;
 		reg_value = ((set_vol -700)/25);
 		if(axp_i2c_write(AXP15_ADDR,BOOT_POWER15_DC4OUT_VOL,reg_value))
 		{
-			printf("sunxi pmu error : unable to set dcdc4\n\n");
+			pr_msg("sunxi pmu error : unable to set dcdc4\n\n");
 			return -1;
 		}
 
@@ -321,7 +321,7 @@ static int axp15_set_dcdc4(int set_vol,int onoff)
 	}
 	if(axp_i2c_read(AXP15_ADDR,BOOT_POWER15_OUTPUT_CTL,&reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff dcdc4\n");
+		pr_msg("sunxi pmu error : unable to onoff dcdc4\n");
 		return -1;
 	}
 	if(onoff == 0)
@@ -334,13 +334,13 @@ static int axp15_set_dcdc4(int set_vol,int onoff)
 	}
 	if(axp_i2c_write(AXP15_ADDR,BOOT_POWER15_OUTPUT_CTL,reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff dcdc4\n");
+		pr_msg("sunxi pmu error : unable to onoff dcdc4\n");
 		return -1;
 	}
 
 	if(axp_i2c_read(AXP15_ADDR,BOOT_POWER15_DC4OUT_VOL,&reg_value))
 	{
-		printf("can't read output_ctl_reg!!\n");
+		pr_msg("can't read output_ctl_reg!!\n");
 		return -1;
 	}
 	return 0;
@@ -399,7 +399,7 @@ static int axp15_set_aldo1(int set_vol, int onoff)
 		reg_value |= (tem_reg_value<<4);
 	    if(axp_i2c_write(AXP15_ADDR, BOOT_POWER15_ALDO12OUT_VOL, reg_value))
 	    {
-	    	printf("sunxi pmu error : unable to set aldo1\n");
+	    	pr_msg("sunxi pmu error : unable to set aldo1\n");
 
 	        return -1;
 	    }
@@ -423,7 +423,7 @@ static int axp15_set_aldo1(int set_vol, int onoff)
 	}
     if(axp_i2c_write(AXP15_ADDR, BOOT_POWER15_OUTPUT_CTL, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff aldo1\n");
+		pr_msg("sunxi pmu error : unable to onoff aldo1\n");
 
 		return -1;
 	}
@@ -482,7 +482,7 @@ static int axp15_set_aldo2(int set_vol, int onoff)
 		reg_value |= (tem_reg_value);
 	    if(axp_i2c_write(AXP15_ADDR, BOOT_POWER15_ALDO12OUT_VOL, reg_value))
 	    {
-	    	printf("sunxi pmu error : unable to set aldo2\n");
+	    	pr_msg("sunxi pmu error : unable to set aldo2\n");
 
 	        return -1;
 	    }
@@ -506,7 +506,7 @@ static int axp15_set_aldo2(int set_vol, int onoff)
 	}
     if(axp_i2c_write(AXP15_ADDR, BOOT_POWER15_OUTPUT_CTL, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff aldo2\n");
+		pr_msg("sunxi pmu error : unable to onoff aldo2\n");
 
 		return -1;
 	}
@@ -546,7 +546,7 @@ static int axp15_set_dldo1(int set_vol, int onoff)
 		reg_value |= ((set_vol - 700)/100);
 	    if(axp_i2c_write(AXP15_ADDR, BOOT_POWER15_DLDO1OUT_VOL, reg_value))
 	    {
-	    	printf("sunxi pmu error : unable to set dldo1\n");
+	    	pr_msg("sunxi pmu error : unable to set dldo1\n");
 
 	        return -1;
 	    }
@@ -570,7 +570,7 @@ static int axp15_set_dldo1(int set_vol, int onoff)
 	}
     if(axp_i2c_write(AXP15_ADDR, BOOT_POWER15_OUTPUT_CTL, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff dldo1\n");
+		pr_msg("sunxi pmu error : unable to onoff dldo1\n");
 
 		return -1;
 	}
@@ -604,7 +604,7 @@ static int axp15_set_dldo2(int set_vol, int onoff)
 		reg_value |= ((set_vol - 700)/100);
 	    if(axp_i2c_write(AXP15_ADDR, BOOT_POWER15_DLDO2OUT_VOL, reg_value))
 	    {
-	    	printf("sunxi pmu error : unable to set dldo2\n");
+	    	pr_msg("sunxi pmu error : unable to set dldo2\n");
 
 	        return -1;
 	    }
@@ -628,7 +628,7 @@ static int axp15_set_dldo2(int set_vol, int onoff)
 	}
     if(axp_i2c_write(AXP15_ADDR, BOOT_POWER15_OUTPUT_CTL, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff dldo2\n");
+		pr_msg("sunxi pmu error : unable to onoff dldo2\n");
 
 		return -1;
 	}
@@ -698,7 +698,7 @@ static int axp15_set_gpio2ldo(int set_vol, int onoff)
 		reg_value |= ((set_vol - 1800)/100);
 	    if(axp_i2c_write(AXP15_ADDR, BOOT_POWER15_GPIO2_LDO_MOD, reg_value))
 	    {
-	    	printf("sunxi pmu error : unable to set gpio2ldo\n");
+	    	pr_msg("sunxi pmu error : unable to set gpio2ldo\n");
 
 	        return -1;
 	    }
@@ -724,7 +724,7 @@ static int axp15_set_gpio2ldo(int set_vol, int onoff)
 	}
     if(axp_i2c_write(AXP15_ADDR, BOOT_POWER15_GPIO2_CTL, reg_value))
 	{
-		printf("sunxi pmu error : unable to onoff gpio1ldo\n");
+		pr_msg("sunxi pmu error : unable to onoff gpio1ldo\n");
 
 		return -1;
 	}

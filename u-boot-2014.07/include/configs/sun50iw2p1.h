@@ -67,16 +67,9 @@
 #define CONFIG_ARCH_SUN50IW2P1
 #define CONFIG_ARM_A53
 
-#define CONFIG_SUNXI_USER_KEY
-#define CONFIG_SUNXI_PRIVATE_KEY
 #define CONFIG_SUNXI_SECURE_STORAGE
 #define CONFIG_SUNXI_SECURE_SYSTEM
-
-#define SUNXI_SBOOT_VERSION_NO_UPDATE
-
-#define CONFIG_SUNXI_HDCP_IN_SECURESTORAGE
-#define CONFIG_SUNXI_MULTI_POWER_MODE
-
+//#define CONFIG_SUNXI_HDCP_IN_SECURESTORAGE
 
 #define CONFIG_SYS_SRAM_BASE               (0x10000)
 #define CONFIG_SYS_SRAMA1_BASE             (0x10000)
@@ -109,11 +102,10 @@
 #define SCP_SRAM_SIZE                        (CONFIG_SYS_SRAMA2_SIZE)
 #define SCP_DRAM_BASE                        (PLAT_TRUSTED_DRAM_BASE+BL31_SIZE)
 #define SCP_DRAM_SIZE                        (0x4000)
+#define SCP_CODE_DRAM_OFFSET		     (0x18000)
 
 //fdt addr for kernel
 #define CONFIG_SUNXI_FDT_ADDR                (CONFIG_SYS_SDRAM_BASE+0x04000000)
-//parameter for boot
-#define CONFIG_SUNXI_PARAMETER_ADDR			 (CONFIG_SYS_SDRAM_BASE+0x03F00000)
 //serial number
 #define CONFIG_SUNXI_SERIAL
 // the sram base address, and the stack address in stage1
@@ -160,18 +152,12 @@
 #define SUNXI_RUN_EFEX_FLAG              (0x5AA5A55A)
 #define SUNXI_RUN_EFEX_ADDR              (0x01f00000 + 0x108)
 #define DRAM_PARA_STORE_ADDR             (CONFIG_SYS_SDRAM_BASE + 0x00800000)
-#define SYS_CONFIG_MEMBASE               (CONFIG_SYS_SDRAM_BASE + 0x00010000)
+//#define SYS_CONFIG_MEMBASE               (CONFIG_SYS_SDRAM_BASE + 0x00010000)
 #define CONFIG_RELOCATE_SYSCONIFG
-
-#define CONFIG_RELOCATE_PARAMETER
 
 //#define CONFIG_SUNXI_LOGBUFFER
 #define SUNXI_DISPLAY_FRAME_BUFFER_ADDR  (CONFIG_SYS_SDRAM_BASE + 0x06400000)
 #define SUNXI_DISPLAY_FRAME_BUFFER_SIZE  0x01000000
-
-#define CONFIG_SUNXI_ESM_HDCP
-#define SUNXI_ESM_IMG_SIZE_ADDR                                 (0x42d00000)
-#define SUNXI_ESM_IMG_BUFF_ADDR                                 (0x42d00000 + 16)
 
 #define SUNXI_LOGO_COMPRESSED_LOGO_SIZE_ADDR        		(0x43000000)
 #define SUNXI_LOGO_COMPRESSED_LOGO_BUFF     			(0x43000000 + 16)
@@ -277,7 +263,7 @@
 #define CONFIG_SYS_PROMPT		"sunxi#"
 #define CONFIG_SYS_CBSIZE	256			/* Console I/O Buffer Size */
 #define CONFIG_SYS_PBSIZE	384			/* Print Buffer Size */
-#define CONFIG_SYS_MAXARGS	25			/* max number of command args */
+#define CONFIG_SYS_MAXARGS	16			/* max number of command args */
 
 /* Boot Argument Buffer Size */
 #define CONFIG_SYS_BARGSIZE			CONFIG_SYS_CBSIZE
@@ -349,10 +335,10 @@
 #define CONFIG_ANDROID_BOOT_IMAGE      /*image is android boot image*/
 #define CONFIG_USBD_HS
 #define BOARD_LATE_INIT		      /* init the fastboot partitions */
-#define CONFIG_SUNXI_KEY_BURN
+//#define CONFIG_SUNXI_KEY_BURN
 
-#define CONFIG_SUNXI_I2C_NULL
-//#define CONFIG_SUNXI_I2C
+#define CONFIG_USE_SECURE_I2C
+#define CONFIG_SUNXI_I2C
 //#define CONFIG_CPUS_I2C
 #define CONFIG_AXP_USE_I2C
 #define CONFIG_SYS_I2C_SPEED 400000
@@ -441,16 +427,9 @@
 #define CONFIG_SYS_NAND_BASE            0x00
 #endif
 
-
-
 #ifdef CONFIG_SUNXI_MODULE_DISPLAY
 #define CONFIG_SUNXI_DISPLAY
 #define CONFIG_VIDEO_SUNXI_V3
-#define ENABLE_ADVERT_PICTURE
-#define CONFIG_BOOT_GUI
-#ifdef CONFIG_BOOT_GUI
-#define UPDATE_DISPLAY_MODE
-#endif
 #endif
 
 #define PMU_SCRIPT_NAME                 "charger0"
@@ -489,19 +468,6 @@
 #endif
 
 //#define CONFIG_SYS_DCACHE_OFF
-
-/* config for homlet platform */
-#define CONFIG_ARCH_HOMELET
-#define CONFIG_BOX_STANDBY
-#define CONFIG_BOOT_PARAMETER
-
-#define CONFIG_SUNXI_IR
-#define CONFIG_SUNXI_IR_NEC_DECODE
-#define CONFIG_IR_BOOT_RECOVERY
-#define IR_BASE			(0x01f02000)
-
-
-#define USE_BOARD_CONFIG
 
 /* net support */
 //#define CONFIG_SUNXI_GETH

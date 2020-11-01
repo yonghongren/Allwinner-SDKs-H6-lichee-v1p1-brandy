@@ -60,7 +60,7 @@ int get_disp_para_mode(void)
 	int disp_para_zone = 0;
 
 	ret = script_parser_fetch("disp", "disp_para_zone", &disp_para_zone, 1);
-	if((disp_para_zone == 0) || ret) {
+	if ((disp_para_zone == 0) || ret) {
 		return -1;
 	}
 
@@ -126,6 +126,11 @@ int bootparam_get_disp_device_config(int type, int out[])
 	out[1] = (params.depth >> offset) & 0xffff;
 	out[2] = (params.color_space >> offset) & 0xffff;
 	out[3] = (params.eotf >> offset) & 0xffff;
+	out[4] =  params.resolution[0] - 0x30;
+	if (params.resolution[3] == '@')
+		out[5] = params.resolution[2] - 0x30;
+	else
+		out[5] = (params.resolution[2]-0x30)*10 + (params.resolution[3]-0x30);
 	return 0;
 }
 

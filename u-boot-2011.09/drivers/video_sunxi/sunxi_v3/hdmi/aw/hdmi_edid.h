@@ -28,6 +28,6 @@ extern __s32 ParseEDID(void);
 //extern void send_ini_sequence(void);
 extern __u32 GetIsHdmi(void);
 extern __u32 GetIsYUV(void);
-extern __s32 GetEdidInfo(void);
+
 
 #endif //__HDMI_EDID_H_

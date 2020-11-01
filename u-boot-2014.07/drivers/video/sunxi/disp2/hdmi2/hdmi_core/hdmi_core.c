@@ -78,7 +78,9 @@ static struct hdmi_sink_blacklist sink_blacklist[] = {
 
 static int hdmitx_set_phy(struct hdmi_tx_core *core, int phy);
 static u32 svd_user_config(u32 code, u32 refresh_rate);
+#ifdef DEBUG
 static void print_videoinfo(videoParams_t *pVideo);
+#endif
 static void print_audioinfo(audioParams_t *audio);
 
 static void hdmitx_sleep(int us)
@@ -352,7 +354,9 @@ u8 get_hdcp22_status_core(void)
 
 void hdmi_configure_core(struct hdmi_tx_core *core)
 {
+#ifdef DEBUG
 	print_videoinfo(&(core->mode.pVideo));
+#endif
 	print_audioinfo(&(core->mode.pAudio));
 	core->dev_func.main_config(&core->mode.pVideo, &core->mode.pAudio,
 			&core->mode.pProduct, &core->mode.pHdcp, core->hdmi_tx_phy);
@@ -418,7 +422,7 @@ static u32 svd_user_config(u32 code, u32 refresh_rate)
 
 	return 0;
 }
-
+#ifdef DEBUG
 static void print_videoinfo(videoParams_t *pVideo)
 {
 	u32 refresh_rate = dtd_get_refresh_rate(&pVideo->mDtd);
@@ -478,7 +482,7 @@ static void print_videoinfo(videoParams_t *pVideo)
 		break;
 	}
 }
-
+#endif
 
 static void print_audioinfo(audioParams_t *audio)
 {
@@ -514,8 +518,9 @@ void video_apply(struct hdmi_tx_core *core)
 		HDMI_INFO_MSG("HDMI_ERROR:Improper arguments");
 		return;
 	}
-
+#ifdef DEBUG
 	print_videoinfo(&(core->mode.pVideo));
+#endif
 	if (!core->dev_func.main_config(&core->mode.pVideo,
 		&core->mode.pAudio, &core->mode.pProduct,
 			&core->mode.pHdcp, core->hdmi_tx_phy)) {
@@ -553,6 +558,7 @@ s32 set_static_config(struct disp_device_config *config)
 	u32 data_bit = 0;
 	struct hdmi_tx_core *core = get_platform();
 	videoParams_t *pVideo = &core->mode.pVideo;
+
 	LOG_TRACE();
 
 	hdmi_reconfig_format_by_blacklist(config);
@@ -1160,6 +1166,7 @@ s32 hdmi_set_audio_para(hdmi_audio_t *audio_para)
 void register_func_to_hdmi_core(struct hdmi_dev_func func)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	core->dev_func = func;
 }
 
@@ -1167,36 +1174,42 @@ void register_func_to_hdmi_core(struct hdmi_dev_func func)
 u32 hdmi_core_get_rxsense_state(void)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	return core->dev_func.get_phy_rxsense_state();
 }
 
 u32 hdmi_core_get_phy_pll_lock_state(void)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	return core->dev_func.get_phy_pll_lock_state();
 }
 
 u32 hdmi_core_get_phy_power_state(void)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	return core->dev_func.get_phy_power_state();
 }
 
 u32 hdmi_core_get_tmds_mode(void)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	return core->dev_func.get_tmds_mode();
 }
 
 u32 hdmi_core_get_scramble_state(void)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	return core->dev_func.get_scramble_state();
 }
 
 u32 hdmi_core_get_avmute_state(void)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	return core->dev_func.get_avmute_state();
 
 }
@@ -1204,6 +1217,7 @@ u32 hdmi_core_get_avmute_state(void)
 u32 hdmi_core_get_pixelrepetion(void)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	return core->dev_func.get_pixelrepetion();
 
 }
@@ -1211,6 +1225,7 @@ u32 hdmi_core_get_pixelrepetion(void)
 u32 hdmi_core_get_color_depth(void)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	return  core->dev_func.get_color_depth();
 
 }
@@ -1234,6 +1249,7 @@ u32 hdmi_core_get_pixel_format(void)
 u32 hdmi_core_get_video_code(void)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	return core->dev_func.get_video_code();
 
 }
@@ -1241,6 +1257,7 @@ u32 hdmi_core_get_video_code(void)
 u32 hdmi_core_get_audio_layout(void)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	return core->dev_func.get_audio_layout();
 
 }
@@ -1249,6 +1266,7 @@ u32 hdmi_core_get_audio_layout(void)
 u32 hdmi_core_get_audio_channel_count(void)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	return core->dev_func.get_audio_channel_count();
 
 }
@@ -1256,6 +1274,7 @@ u32 hdmi_core_get_audio_channel_count(void)
 u32 hdmi_core_get_audio_sample_freq(void)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	return core->dev_func.get_audio_sample_freq();
 
 }
@@ -1263,6 +1282,7 @@ u32 hdmi_core_get_audio_sample_freq(void)
 u32 hdmi_core_get_audio_sample_size(void)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	return core->dev_func.get_audio_sample_size();
 
 }
@@ -1270,6 +1290,7 @@ u32 hdmi_core_get_audio_sample_size(void)
 u32 hdmi_core_get_audio_n(void)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	return core->dev_func.get_audio_n();
 
 }
@@ -1277,18 +1298,21 @@ u32 hdmi_core_get_audio_n(void)
 void hdmi_core_avmute_enable(u8 enable)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	core->dev_func.avmute_enable(enable);
 }
 
 void hdmi_core_phy_power_enable(u8 enable)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	core->dev_func.phy_power_enable(enable);
 }
 
 void hdmi_core_dvimode_enable(u8 enable)
 {
 	struct hdmi_tx_core *core = get_platform();
+
 	core->dev_func.dvimode_enable(enable);
 }
 

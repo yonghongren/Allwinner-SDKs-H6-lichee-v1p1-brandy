@@ -319,7 +319,7 @@ TftpSend(void)
 	ushort *s;
 
 	/* FIXME: to fix tftp timeout. */
-#if defined(CONFIG_SUN8IW12P1) || defined(CONFIG_SUN8IW12P1_NOR)
+#if defined(CONFIG_SUN8IW12P1)
 	udelay(5);
 #endif
 
@@ -493,13 +493,8 @@ TftpHandler(uchar *pkt, unsigned dest, IPaddr_t sip, unsigned src,
 
 				TftpBlock = (unsigned short)(block + 1);
 				update_block_number();
-				TftpTimeoutCountMax = TIMEOUT_COUNT;
-				NetSetTimeout(TftpTimeoutMSecs, TftpTimeout);
-				if (ack_ok) {
-					TftpRemotePort = src;
-					TftpState = STATE_DATA;
+				if (ack_ok)
 					TftpSend(); /* Send next data block */
-				}
 			}
 		}
 #endif

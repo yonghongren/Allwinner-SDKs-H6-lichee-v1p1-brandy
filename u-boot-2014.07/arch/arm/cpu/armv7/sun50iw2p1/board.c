@@ -27,7 +27,7 @@
 #include <asm/arch/timer.h>
 #include <asm/arch/ccmu.h>
 #include <asm/arch/clock.h>
-#include <efuse_map.h>
+#include <asm/arch/efuse.h>
 #include <asm/arch/platform.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/key.h>
@@ -120,7 +120,7 @@ int power_source_init(void)
 int sunxi_probe_securemode(void)
 {
 	int secure_mode = 0;
-    int work_mode = uboot_spare_head.boot_data.work_mode ;
+
 	secure_mode =  sid_get_security_status();
 	printf("secure enable bit: %d\n", secure_mode);
 
@@ -148,14 +148,11 @@ int sunxi_probe_securemode(void)
 
 		gd->securemode = SUNXI_NORMAL_MODE;
 		gd->bootfile_mode = SUNXI_BOOT_FILE_PKG;
-		//burn_secure_mode is used to decide burn secure bit when product
-		//so skips it when WORK_MODE_BOOT
-		if(work_mode != WORK_MODE_USB_PRODUCT && work_mode != WORK_MODE_CARD_PRODUCT)
-			return 0;
-
 		printf("normal mode: with secure monitor\n");
+
 		if (script_parser_fetch("target", "burn_secure_mode", &burn_secure_mode, 1))
 			return 0;
+
 		if(burn_secure_mode != 1)
 		{
 			return 0;
@@ -197,36 +194,5 @@ int sunxi_set_secure_mode(void)
 
 	return 0;
 }
-/*
-************************************************************************************************************
-*
-*                                             function
-*
-*    name          :
-*
-*    parmeters     :
-*
-*    return        :
-*
-*    note          :
-*
-*
-************************************************************************************************************
-*/
-int sunxi_get_securemode(void)
-{
-	int workmode =	uboot_spare_head.boot_data.work_mode;
 
-	if( WORK_MODE_BOOT	== workmode || WORK_MODE_SPRITE_RECOVERY == workmode)
-		return gd->securemode;
-	else if( WORK_MODE_USB_PRODUCT	== workmode || WORK_MODE_CARD_PRODUCT == workmode)
-		return (gd->securemode || (gd->bootfile_mode == SUNXI_BOOT_FILE_TOC));
-
-	return -1;
-}
-
-int sunxi_probe_secure_monitor(void)
-{
-	return uboot_spare_head.boot_data.monitor_exist == SUNXI_SECURE_MODE_USE_SEC_MONITOR?1:0;
-}
 

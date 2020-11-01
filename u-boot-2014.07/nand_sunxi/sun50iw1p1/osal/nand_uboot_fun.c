@@ -30,7 +30,7 @@
 #define NAND_BOOT0_BLK_START    0
 #define NAND_BOOT0_BLK_CNT		2
 #define NAND_UBOOT_BLK_START    (NAND_BOOT0_BLK_START+NAND_BOOT0_BLK_CNT)
-#define NAND_UBOOT_BLK_CNT		5
+#define NAND_UBOOT_BLK_CNT		6
 #define NAND_BOOT0_PAGE_CNT_PER_COPY     64
 
 static char nand_para_store[256];
@@ -41,8 +41,17 @@ static int nand_partition_num;
 int  mbr_burned_flag;
 PARTITION_MBR nand_mbr = {0};
 
+extern __u32 boot_mode;
+
 extern int NAND_Print(const char * str, ...);
 extern int NAND_set_boot_mode(__u32 boot);
+extern int get_uboot_next_block(void);
+extern void *NAND_Malloc(unsigned int Size);
+extern void NAND_Free(void *pAddr, unsigned int Size);
+extern int nand_set_boot_mode(int mode);
+
+
+
 __u32 NAND_GetNandCapacityLevel(void);
 
 
@@ -117,7 +126,7 @@ int NAND_LogicInit(int boot_mode)
 	printf("NB1 : enter NAND_LogicInit\n");
 
 //    ClearNandStruct();
-
+	nand_set_boot_mode(boot_mode);
 	nand_info = NandHwInit();
 
 	capacity_level = NAND_GetNandCapacityLevel();
@@ -148,7 +157,7 @@ int NAND_LogicInit(int boot_mode)
 		return -5;
 	}
 
-	if(boot_mode)
+	if(boot_mode == 1)
 	{
 		nftl_num = get_phy_partition_num(nand_info);
 		printf("NB1 : nftl num: %d \n", nftl_num);
@@ -159,7 +168,11 @@ int NAND_LogicInit(int boot_mode)
 		}
 
         nand_partition_num = 0;
-		for(i=0; i<nftl_num-1; i++)
+#if defined(CONFIG_ARCH_HOMELET)
+		for(i=0; i<1; i++)
+#else
+		for(i=0; i<((nftl_num>1)?(nftl_num-1):1); i++)
+#endif
 		{
 		    nand_partition_num++;
 			printf(" init nftl: %d \n", i);
@@ -168,6 +181,7 @@ int NAND_LogicInit(int boot_mode)
 	}
 	else
 	{
+		printf("boot_mode = %d, build all\n", boot_mode);
 		result = nftl_build_all(nand_info);
 		nand_partition_num = get_phy_partition_num(nand_info);
 	}
@@ -178,7 +192,7 @@ int NAND_LogicInit(int boot_mode)
 		return -5;
 	}
 
-   	 printf("NB1 : NAND_LogicInit ok, result = 0x%x \n",result);
+	printf("NB1 : NAND_LogicInit ok, result = 0x%x \n", result);
     return result;
 }
 
@@ -186,6 +200,10 @@ int NAND_LogicExit(void)
 {
 	printf("NB1 : NAND_LogicExit\n");
 	nftl_flush_write_cache();
+	if (!boot_mode) {
+	    printf("burn write end !!\n");
+		nftl_write_end();
+	}
 	NandHwExit();
 	g_nand_info = NULL;
     return 0;
@@ -268,7 +286,7 @@ int NAND_VersionCheck(void)
 	//init boot0_readop
 	boot0_readop->block = 0x0;
 	boot0_readop->chip = 0;
-	boot0_readop->mainbuf = (void*)malloc(32 * 1024);
+	boot0_readop->mainbuf = (void *)NAND_Malloc(32 * 1024);
     if(!boot0_readop->mainbuf)
     {
         printf("malloc memory for boot0 read operation fail\n");
@@ -328,7 +346,7 @@ int NAND_VersionCheck(void)
          version_match_flag = -1;
     }
 
-    free(boot0_readop->mainbuf);
+    NAND_Free(boot0_readop->mainbuf, 32*1024);
 
 	return version_match_flag;
 }
@@ -336,13 +354,17 @@ int NAND_VersionCheck(void)
 extern void nand_special_test(void);
 int  NAND_EraseBootBlocks(void)
 {
-    int i;
+    int i, uboot_next_block;
+
     printf("has cleared the boot blocks.\n");
+    uboot_next_block = get_uboot_next_block();
     nand_special_test();
-    for(i=0; i<7; i++)
+
+    for (i = 0; i < uboot_next_block; i++)
     {
         nand_physic_erase_block(0,i);
     }
+
 	return 0;
 }
 
@@ -353,11 +375,11 @@ int  NAND_EraseChip(void)
 }
 int  NAND_EraseChip_force(void)
 {
-    return nand_uboot_erase_all_chip(1);
+	return nand_uboot_erase_all_chip(1);
 }
 int NAND_BadBlockScan(void)
 {
- 	return 0;
+	return 0;
 }
 
 int NAND_UbootInit(int boot_mode)
@@ -366,12 +388,12 @@ int NAND_UbootInit(int boot_mode)
 	//int enable_bad_block_scan_flag = 0;
 	//uint good_block_ratio=0;
 
-	debug("NAND_UbootInit start\n");
+	printf("NAND_UbootInit start\n");
 
 	NAND_set_boot_mode(boot_mode);
     /* logic init */
 	ret |= NAND_LogicInit(boot_mode);
-	if(!boot_mode)
+	/*if(!boot_mode)*/
 	{
 		if(!flash_scaned)
 		{
@@ -380,7 +402,7 @@ int NAND_UbootInit(int boot_mode)
 		}
 	}
 
-	debug("NAND_UbootInit end: 0x%x\n", ret);
+	printf("NAND_UbootInit end: 0x%x\n", ret);
 
 	return ret;
 
@@ -414,8 +436,6 @@ int NAND_UbootProbe(void)
 
 }
 
-
-
 uint NAND_UbootRead(uint start, uint sectors, void *buffer)
 {
 	return NAND_LogicRead(start, sectors, buffer);
@@ -444,15 +464,15 @@ int NAND_Uboot_Erase(int erase_flag)
 	}
 	else
 	{
-	    //nand_super_page_test(0,0,0);
 		version_match_flag = NAND_VersionCheck();
 		printf("nand version = %x\n", version_match_flag);
 		NAND_EraseBootBlocks();
+
+		if (nand_is_blank() == 1)
+			NAND_EraseChip();
+
 		if (version_match_flag > 0)
 		{
-			//NAND_EraseChip();
-			//NAND_UpdatePhyArch();
-			//nand_erased = 1;
 			debug("nand version check fail,please select erase nand flash\n");
 			nand_erased =  -1;
 		}
@@ -489,7 +509,6 @@ int NAND_ReadBoot0(uint length, void *buffer)
     return nand_read_nboot_data(buffer,length);
 }
 
-
 int NAND_BurnUboot(uint length, void *buffer)
 {
     return nand_write_uboot_data(buffer,length);
@@ -497,14 +516,20 @@ int NAND_BurnUboot(uint length, void *buffer)
 
 int NAND_GetParam_store(void *buffer, uint length)
 {
+    boot_nand_para_t * t;
 	if(!flash_scaned)
 	{
 		printf("sunxi flash: force flash init to begin hardware scanning\n");
 		NAND_PhyInit();
+		nand_get_param((boot_nand_para_t *)nand_para_store);
 		NAND_PhyExit();
 		printf("sunxi flash: hardware scan finish\n");
 	}
 	memcpy(buffer, nand_para_store, length);
+
+	t = (boot_nand_para_t *)buffer;
+
+	printf("NAND_GetParam_store 0x%x 0x%x 0x%x 0x%x 0x%x\n",t->NandChipId[0],t->NandChipId[1],t->NandChipId[2],t->NandChipId[3],t->NandChipId[4]);
 
 	return 0;
 }

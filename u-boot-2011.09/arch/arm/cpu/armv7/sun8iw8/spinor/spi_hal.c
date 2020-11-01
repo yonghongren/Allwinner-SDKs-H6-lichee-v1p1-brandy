@@ -32,7 +32,7 @@ static u32 g_cfg_mclk = 0;
 //static sunxi_dma_setting_t *spi_rx_dma;
 //static  uint  spi_tx_dma_hd;
 //static  uint  spi_rx_dma_hd;
-#if 0
+#if 1
 #define SUNXI_DEBUG(fmt,args...)	printf(fmt ,##args)
 #else
 #define SUNXI_DEBUG(fmt,args...) do {} while(0)

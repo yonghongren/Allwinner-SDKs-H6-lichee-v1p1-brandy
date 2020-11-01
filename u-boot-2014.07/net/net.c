@@ -1310,7 +1310,7 @@ NetCksum(uchar *ptr, int len)
 	xsum = (xsum & 0xffff) + (xsum >> 16);
 	return xsum & 0xffff;
 #else
-        return ~0UL;
+	return ~0UL;
 #endif
 }
 

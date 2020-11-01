@@ -63,6 +63,10 @@
 #define CCMU_AVS_CLK_REG                   (SUNXI_CCM_BASE + 0x740)
 #define CCMU_AVS_BGR_REG                   (SUNXI_CCM_BASE + 0x74C)
 
+/*IOMMU*/
+#define CCMU_IOMMU_BGR_REG                 (SUNXI_CCM_BASE + 0x7bc)
+#define IOMMU_AUTO_GATING_REG              (SUNXI_IOMMU_BASE + 0X40)
+
 /* storage */
 #define CCMU_DRAM_CLK_REG                  (SUNXI_CCM_BASE + 0x800)
 #define CCMU_MBUS_MST_CLK_GATING_REG       (SUNXI_CCM_BASE + 0x804)

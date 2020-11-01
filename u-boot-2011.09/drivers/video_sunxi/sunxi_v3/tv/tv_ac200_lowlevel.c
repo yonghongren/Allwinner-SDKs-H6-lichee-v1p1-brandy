@@ -39,14 +39,14 @@ s32 aw1683_wr_reg(__u16 sub_addr, __u16 data)
 	pexcTmp[0] = pexcTmp[1];
 	pexcTmp[1] = excTmp;
 
-	ret = i2c_write(0x0, (uchar)0x10, (__u32)0xfe ,1 , (__u8*)&tmpData,2);
+	ret = i2c_write((uchar)0x10, (__u32)0xfe ,1 , (__u8*)&tmpData,2);
 #if DEBUG
 	printf("------write------tmpdata = 0x%x, ret1 = 0x%x\n", tmpData, ret);
 #endif
 	tmpData = sub_addr & 0xff;
 
 
-	ret = i2c_write(0x0, (uchar)CONFIG_SYS_I2C_SLAVE, tmpData ,1 , (__u8*)&data,2);
+	ret = i2c_write((uchar)CONFIG_SYS_I2C_SLAVE, tmpData ,1 , (__u8*)&data,2);
 #if DEBUG
 	printf("-------write-----tmpdata = 0x%x, ret2 = 0x%x\n", tmpData, ret);
 #endif
@@ -70,13 +70,13 @@ s32 aw1683_rd_reg(__u16 sub_addr, __u16 *data)
 	pexcTmp[0] = pexcTmp[1];
 	pexcTmp[1] = excTmp;
 
-	ret = i2c_write(0x0, (uchar)CONFIG_SYS_I2C_SLAVE, i2cFixAddr ,1 , (__u8*)&tmpData,2);
+	ret = i2c_write((uchar)CONFIG_SYS_I2C_SLAVE, i2cFixAddr ,1 , (__u8*)&tmpData,2);
 #if DEBUG
 	printf("-------read-----tmpdata1 = 0x%x, ret1 = 0x%x\n", tmpData, ret);
 #endif
 
 	tmpData = (u32)(sub_addr & 0xff);
-	ret = i2c_read(0x0, (uchar)CONFIG_SYS_I2C_SLAVE, tmpData,1,(__u8*)data, 2);
+	ret = i2c_read((uchar)CONFIG_SYS_I2C_SLAVE, tmpData,1,(__u8*)data, 2);
 #if DEBUG
 	printf("------read-----tmpdata2 = 0x%x, ret2 = 0x%x\n", tmpData, ret);
 #endif
@@ -259,7 +259,7 @@ s32 aw1683_tve_set_mode(u32 mode)
 		aw1683_wr_reg(0x413e, 0x0000);
 		aw1683_wr_reg(0x43a0, 0x0001);
 		aw1683_wr_reg(0x43a2, 0x0003);
-		aw1683_wr_reg(0x5014, 0x2148+1);
+		aw1683_wr_reg(0x5014, 0x2148);
 		aw1683_wr_reg(0x4130, 0x0380);
 		aw1683_wr_reg(0x4132, 0x2009);	//2004
 		aw1683_wr_reg(0x4000, 0x0300);

@@ -10,6 +10,8 @@ extern __lcd_panel_t dx0960be40a1_panel;
 extern __lcd_panel_t tft720x1280_panel;
 extern __lcd_panel_t S6D7AA0X01_panel;
 extern __lcd_panel_t inet_dsi_panel;
+extern __lcd_panel_t default_eink;
+extern __lcd_panel_t fx070_panel;
 
 __lcd_panel_t* panel_array[] = {
 #if defined(CONFIG_ARCH_SUN50IW3P1)
@@ -23,7 +25,6 @@ __lcd_panel_t* panel_array[] = {
 	&ili9341_panel,
 	&fd055hd003s_panel,
 	&default_panel,
-    &lh219wq1_panel,
 #else
 	&default_panel,
 	&lt070me05000_panel,
@@ -36,6 +37,9 @@ __lcd_panel_t* panel_array[] = {
 	&gg1p4062utsw_panel,
 	&vr_sharp_panel,
 	&he0801a068_panel,
+	&WilliamLcd_panel,
+	&default_eink,
+	&fx070_panel,
 
 #endif
 #endif /*endif CONFIG_ARCH_SUN50IW3P1 */

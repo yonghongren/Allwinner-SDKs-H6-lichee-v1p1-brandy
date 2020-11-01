@@ -39,7 +39,7 @@ struct spare_boot_ctrl_head
 	unsigned int  uboot_length;       // the size of uboot
 	unsigned char version[8];         // uboot version
 	unsigned char platform[8];        // platform information
-	int           reserved[1];        //stamp space, 16bytes align;
+	int           reserved[1];        //stamp space, 16bytes align
 };
 
 /******************************************************************************/
@@ -62,8 +62,8 @@ struct spare_boot_data_head
     char             			sdcard_spare_data[256];	// sdcard 额外信息
     int                         secureos_exist;
     uint                        uboot_start_sector_in_mmc;
-    int							multi_config_exist;		//多份配置开关
-    int							reserved[3];			// 保留数据位, 256bytes align
+    int							reserved[4];			// 保留数据位, 256bytes align
+
 };
 
 struct spare_boot_head_t

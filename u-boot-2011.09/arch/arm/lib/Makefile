@@ -45,7 +45,7 @@ COBJS-$(CONFIG_SYS_L2_PL310) += cache-pl310.o
 COBJS-y	+= interrupts.o
 COBJS-y	+= reset.o
 #SOBJS-y += memset.o
-#SOBJS-y += memcpy.o
+SOBJS-y += memcpy.o
 endif
 
 SRCS	:= $(GLSOBJS:.o=.S) $(GLCOBJS:.o=.c) \

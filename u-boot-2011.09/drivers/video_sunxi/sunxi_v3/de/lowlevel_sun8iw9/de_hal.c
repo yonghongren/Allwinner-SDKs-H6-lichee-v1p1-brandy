@@ -139,7 +139,6 @@ static int de_calc_overlay_scaler_para(unsigned int screen_id, unsigned char chn
 
 int de_al_lyr_apply(unsigned int screen_id, struct disp_layer_config_data *data, unsigned int layer_num)
 {
-	bool interlace_en;
 	unsigned char i,j,k,chn,vi_chn,layno;
 	unsigned char haddr[LAYER_MAX_NUM_PER_CHN][3];
 	unsigned char premul[CHN_NUM][LAYER_MAX_NUM_PER_CHN],format[CHN_NUM],premode[CHN_NUM],zoder[CHN_NUM]={0,1,2},pen[CHN_NUM];
@@ -163,8 +162,6 @@ int de_al_lyr_apply(unsigned int screen_id, struct disp_layer_config_data *data,
 		data1 ++;
 	}
 #endif
-	DE_INF("\n");
-	interlace_en = 0;
 	chn = de_feat_get_num_chns(screen_id);
 	vi_chn = de_feat_get_num_vi_chns(screen_id);
 	layno = LAYER_MAX_NUM_PER_CHN;
@@ -186,7 +183,7 @@ int de_al_lyr_apply(unsigned int screen_id, struct disp_layer_config_data *data,
 	}
 	chn_index = 0;
 	for(i=0; i<chn; i++) {
-		u32 min_zorder = chn + 1, min_zorder_chn = 0;
+		u32 min_zorder = 255, min_zorder_chn = 0;
 		bool find = false;
 		for(j=0; j<chn; j++) {
 			if((true == chn_used[j]) && (true != chn_zorder_cfg[j]
@@ -366,7 +363,7 @@ int de_al_lyr_apply(unsigned int screen_id, struct disp_layer_config_data *data,
 
 	//de_rtmx_set_colorkey(screen_id,);
 
-	de_rtmx_set_outitl(screen_id,interlace_en);
+
 
 	return 0;
 }
@@ -376,18 +373,28 @@ int de_al_mgr_apply(unsigned int screen_id, struct disp_manager_data *data)
 	struct disp_csc_config csc_cfg;
 	int color = (data->config.back_color.alpha << 24) | (data->config.back_color.red << 16)
 	| (data->config.back_color.green << 8) | (data->config.back_color.blue << 0);
-	__inf("color=0x%x, size=<%d,%d>\n", color, data->config.size.width, data->config.size.height);
-	de_rtmx_set_background_color(screen_id, color);
-	de_rtmx_set_blend_size(screen_id,data->config.size.width,data->config.size.height);
-	de_rtmx_set_display_size(screen_id, data->config.size.width,data->config.size.height);
-	de_rtmx_set_enable(screen_id, data->config.enable);
+
+	if(data->flag & MANAGER_BACK_COLOR_DIRTY)
+		de_rtmx_set_background_color(screen_id, color);
+	if(data->flag & MANAGER_SIZE_DIRTY) {
+		de_rtmx_set_blend_size(screen_id,data->config.size.width,data->config.size.height);
+		de_rtmx_set_display_size(screen_id, data->config.size.width,data->config.size.height);
+	}
+	if(data->flag & MANAGER_ENABLE_DIRTY) {
+		de_rtmx_set_enable(screen_id, data->config.enable);
+		de_rtmx_mux(screen_id, data->config.disp_device);
+		de_rtmx_set_outitl(screen_id,data->config.interlace);
+	}
 
 	//FIXME
 	csc_cfg.in_fmt = DISP_CSC_TYPE_RGB;
 	csc_cfg.in_mode = DISP_BT601;
 
 	csc_cfg.out_fmt = (DISP_CSC_TYPE_RGB == data->config.cs)?DE_RGB:DE_YUV;
-	csc_cfg.out_mode = DISP_BT601;
+	if((data->config.size.width < 1280) && (data->config.size.height < 720))
+	  csc_cfg.out_mode = DISP_BT601;
+	else
+	  csc_cfg.out_mode = DISP_BT709;
 	csc_cfg.out_color_range = data->config.color_range;
 	csc_cfg.brightness = 50;
 	csc_cfg.contrast = 50;
@@ -407,13 +414,7 @@ int de_al_mgr_sync(unsigned int screen_id)
 int de_al_mgr_update_regs(unsigned int screen_id)
 {
 	int ret = 0;
-	{
-		static u32 count = 0;
-		if(count < 10) {
-			count ++;
-			__inf("disp %d\n", screen_id);
-		}
-	}
+
 	de_rtmx_update_regs(screen_id);
 	de_vsu_update_regs(screen_id);
 	de_gsu_update_regs(screen_id);
@@ -427,6 +428,11 @@ int de_al_mgr_update_regs(unsigned int screen_id)
 int de_al_query_irq(unsigned int screen_id)
 {
 	return de_rtmx_query_irq(screen_id);
+}
+
+int de_al_enable_irq(unsigned int screen_id, unsigned en)
+{
+	return de_rtmx_enable_irq(screen_id, en);
 }
 
 int de_al_init(disp_bsp_init_para *para)

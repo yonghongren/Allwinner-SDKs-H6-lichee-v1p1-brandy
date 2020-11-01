@@ -10,8 +10,12 @@
 
 static int suspend;
 struct tv_info_t g_tv_info;
+#if defined(CONFIG_ARCH_SUN8IW7P1)
+static unsigned int cali[4] = {512, 512, 512, 512};
+#else
 static unsigned int cali[4] = {625, 625, 625, 625};
-static unsigned int offset[4] = {0, 0, 0, 0};
+#endif /*endif CONFIG_ARCH_SUN8IW7P1 */
+static int offset[4] = {0, 0, 0, 0};
 extern s32 disp_set_tv_func(struct disp_tv_func * func);
 extern uintptr_t disp_getprop_regbase(char *main_name,
 					char *sub_name, u32 index);
@@ -358,18 +362,18 @@ static struct disp_video_timings video_timing[] = {
 
 #define TVE_CHECK_PARAM(sel) \
 	do { if (sel >= TVE_DEVICE_NUM) {\
-		printf("%s, sel(%d) is out of range\n", __func__, sel);\
+		pr_msg("%s, sel(%d) is out of range\n", __func__, sel);\
 		return -1;\
 		} \
 	} while (0)
 
-/* #define TVDEBUG */
+/*#define TVDEBUG*/
 #if defined(TVDEBUG)
-#define TV_DBG(fmt, arg...)   printf("%s()%d - "fmt, __func__, __LINE__, ##arg)
+#define TV_DBG(fmt, arg...)   pr_msg("%s()%d "fmt, __func__, __LINE__, ##arg)
 #else
 #define TV_DBG(fmt, arg...)
 #endif
-#define TV_ERR(fmt, arg...)   printf("%s()%d - "fmt, __func__, __LINE__, ##arg)
+#define TV_ERR(fmt, arg...)   pr_msg("%s()%d "fmt, __func__, __LINE__, ##arg)
 
 #if defined(CONFIG_SWITCH) || defined(CONFIG_ANDROID_SWITCH)
 static struct task_struct *tve_task;
@@ -454,26 +458,22 @@ s32 tv_detect_disable(u32 sel)
 #else
 void tv_report_hpd_work(u32 sel, u32 hpd)
 {
-	printf("no report hpd work,you need support the switch class!\n");
 }
 
 s32 tv_detect_thread(void *parg)
 {
-	printf("no report hpd work,you need support the switch class!\n");
 	return -1;
 }
 
 s32 tv_detect_enable(u32 sel)
 {
 	tve_low_dac_autocheck_enable(sel);
-	printf("no report hpd work,you need support the switch class!\n");
 	return -1;
 }
 
 s32 tv_detect_disable(u32 sel)
 {
 	tve_low_dac_autocheck_disable(sel);
-	printf("no report hpd work,you need support the switch class!\n");
 	return -1;
 }
 #endif
@@ -510,7 +510,7 @@ static int tve_top_clk_enable(void)
 
 	ret = clk_prepare_enable(g_tv_info.clk);
 	if (0 != ret) {
-		printf("fail to enable tve's top clk!\n");
+		TV_ERR("fail to enable tve's top clk!\n");
 		return ret;
 	}
 
@@ -529,7 +529,7 @@ static int tve_clk_enable(u32 sel)
 
 	ret = clk_prepare_enable(g_tv_info.screen[sel].clk);
 	if (0 != ret) {
-		printf("fail to enable tve%d's clk!\n", sel);
+		TV_ERR("fail to enable tve%d's clk!\n", sel);
 		return ret;
 	}
 
@@ -549,7 +549,8 @@ static void tve_clk_config(u32 sel, u32 tv_mode)
 	int ret = 0;
 	bool find = false;
 	unsigned long rate = 0, prate = 0;
-	unsigned long parent_rate[] = {216000000, 297000000, 240000000};
+	unsigned long parent_rate[] = {216000000, 297000000, 240000000,
+				       432000000};
 	bool rate_exact = false;
 	unsigned long round;
 
@@ -562,7 +563,7 @@ static void tve_clk_config(u32 sel, u32 tv_mode)
 		info++;
 	}
 	if (!find) {
-		printf("tv have no mode(%d)!\n", tv_mode);
+		TV_ERR("tv have no mode(%d)!\n", tv_mode);
 		return;
 	}
 
@@ -576,7 +577,7 @@ static void tve_clk_config(u32 sel, u32 tv_mode)
 	}
 	if (!prate) {
 		prate = 984000000;
-		printf("not find suitable parent rate, set max rate.\n");
+		TV_ERR("not find suitable parent rate, set max rate.\n");
 	}
 
 	TV_DBG("parent count = %d, prate=%lu, rate=%lu, tv_mode=%d\n",
@@ -589,91 +590,117 @@ static void tve_clk_config(u32 sel, u32 tv_mode)
 	if (!rate_exact) {
 		ret = clk_set_rate(g_tv_info.screen[sel].clk->parent, prate);
 		if (ret)
-			printf("fail to set rate(%ld) fo tve%d's pclk!\n",
+			TV_ERR("fail to set rate(%ld) fo tve%d's pclk!\n",
 			    prate, sel);
 	}
 	ret = clk_set_rate(g_tv_info.screen[sel].clk, rate);
 	if (ret)
-		printf("fail to set rate(%ld) fo tve%d's clock!\n", rate, sel);
+		TV_ERR("fail to set rate(%ld) fo tve%d's clock!\n", rate, sel);
+}
+
+/**
+ * @name       :__get_offset
+ * @brief      :get offset of dac cali value
+ * @param[IN]  :main_key:string of dts node
+ * @param[IN]  :i:index of dac_offset
+ * @return     :offset of dac cali
+ */
+static s32 __get_offset(char *main_key, u32 i)
+{
+	char sub_key[20] = {0};
+	s32 value = 0;
+	int ret = 0;
+
+	if (!main_key)
+		return 0;
+
+	snprintf(sub_key, sizeof(sub_key), "dac_offset%d", i);
+
+	ret = disp_sys_script_get_item(main_key, sub_key, &value, 1);
+	if (ret >= 0) {
+		/* Sysconfig can not use signed params, however,
+		 * dac_offset as a signed param which ranges from
+		 * -100 to 100, is maping sysconfig params from
+		 * 0 to 200.
+		*/
+		if ((value > 200) || (value < 0))
+			TV_ERR("dac offset is out of range.\n");
+		else
+			return value - 100;
+	}
+	return 0;
 }
 
 static s32 tv_inside_init(int sel)
 {
-	s32 i = 0, ret = 0;
-	u32 sid = 0;
+	s32 i = 0, ret = 0, value = 0;
+	u32 cali_value = 0, dac_no = 0, interface = 0;
 	char main_key[20];
 	char sub_key[20];
 
 	sprintf(main_key, "tv%d", sel);
 
+	ret = disp_sys_script_get_item(main_key, "interface", &value, 1);
+	interface = value;
+
 #if defined(CONFIG_SWITCH) || defined(CONFIG_ANDROID_SWITCH)
-		unsigned int interface = 0;
 
-		ret = of_property_read_u32(pdev->dev.of_node, "interface",
-						&interface);
-		if (ret < 0)
-			pr_err("get tv interface failed!\n");
-
-		if (interface == DISP_TV_CVBS) {
-			snprintf(switch_name, sizeof(switch_name),
-				"tve%d_cvbs", sel);
-			switch_dev[sel].name = switch_name;
-		} else if (interface == DISP_TV_YPBPR) {
-			snprintf(switch_name, sizeof(switch_name),
-				"tve%d_ypbpr", sel);
-			switch_dev[sel].name = switch_name;
-		} else if (interface == DISP_TV_SVIDEO) {
-			snprintf(switch_name, sizeof(switch_name),
-				"tve%d_svideo", sel);
-			switch_dev[sel].name = switch_name;
-		} else if (interface == DISP_VGA) {
-			snprintf(switch_name, sizeof(switch_name),
-				"tve%d_vga", sel);
-			switch_dev[sel].name = switch_name;
-		}
-		switch_dev_register(&switch_dev[sel]);
+	if (interface == DISP_TV_CVBS) {
+		snprintf(switch_name, sizeof(switch_name), "tve%d_cvbs", sel);
+		switch_dev[sel].name = switch_name;
+	} else if (interface == DISP_TV_YPBPR) {
+		snprintf(switch_name, sizeof(switch_name), "tve%d_ypbpr", sel);
+		switch_dev[sel].name = switch_name;
+	} else if (interface == DISP_TV_SVIDEO) {
+		snprintf(switch_name, sizeof(switch_name), "tve%d_svideo", sel);
+		switch_dev[sel].name = switch_name;
+	} else if (interface == DISP_VGA) {
+		snprintf(switch_name, sizeof(switch_name), "tve%d_vga", sel);
+		switch_dev[sel].name = switch_name;
+	}
+	switch_dev_register(&switch_dev[sel]);
 #endif
 #if defined(TVE_TOP_SUPPORT)
-		tve_top_clk_enable();
+	tve_top_clk_enable();
 #endif
-		/* get mapping dac */
-		for (i = 0; i < DAC_COUNT; i++) {
-			int value;
-			sprintf(sub_key, "dac_src%d", i);
-			ret = disp_sys_script_get_item(main_key, sub_key, &value, 1);
-			if (ret != 1) {
-			} else {
-				g_tv_info.screen[sel].dac_no[i] = value;
-				g_tv_info.screen[sel].dac_num++;
-			}
-
-			sprintf(sub_key, "dac_type%d", i);
-			ret = disp_sys_script_get_item(main_key,
-							sub_key, &value, 1);
-			if (ret != 1) {
-				printf("tv%d have no type%d\n", sel, i);
-				/* if do'not config type, set disabled status */
-				g_tv_info.screen[sel].dac_type[i] = 7;
-			} else {
-				g_tv_info.screen[sel].dac_type[i] = value;
-			}
+	/* get mapping dac */
+	for (i = 0; i < DAC_COUNT; i++) {
+		sprintf(sub_key, "dac_src%d", i);
+		ret = disp_sys_script_get_item(main_key, sub_key, &value, 1);
+		if (ret == 1) {
+			g_tv_info.screen[sel].dac_no[i] = value;
+			g_tv_info.screen[sel].dac_num++;
+			dac_no = value;
 		}
 
-		sid = tve_low_get_sid(0x10);
-		if (0 == sid)
-			g_tv_info.screen[sel].sid = 0x200;
-		else
-			g_tv_info.screen[sel].sid = sid;
+		sprintf(sub_key, "dac_type%d", i);
+		ret = disp_sys_script_get_item(main_key, sub_key, &value, 1);
+		if (ret != 1) {
+			TV_ERR("tv%d have no type%d\n", sel, i);
+			/* if do'not config type, set disabled status */
+			g_tv_info.screen[sel].dac_type[i] = 7;
+		} else {
+			g_tv_info.screen[sel].dac_type[i] = value;
+		}
+		cali_value = tve_low_get_sid(dac_no);
+		if (0 != cali_value) {
+			if (interface == DISP_VGA)
+				cali[dac_no] = (cali_value >> 16) & 0xffff;
+			else
+				cali[dac_no] = cali_value & 0xffff;
+		}
+		offset[dac_no] = __get_offset(main_key, i);
+	}
 
-		tve_low_set_reg_base(sel, g_tv_info.screen[sel].base_addr);
-		tve_clk_init(sel);
-		tve_clk_config(sel, g_tv_info.screen[sel].tv_mode);
-		tve_clk_enable(sel);
-		tve_low_init(sel, &g_tv_info.screen[sel].dac_no[0],
-				cali, offset, g_tv_info.screen[sel].dac_type,
-				g_tv_info.screen[sel].dac_num);
+	tve_low_set_reg_base(sel, g_tv_info.screen[sel].base_addr);
+	tve_clk_init(sel);
+	tve_clk_config(sel, g_tv_info.screen[sel].tv_mode);
+	tve_clk_enable(sel);
+	tve_low_init(sel, &g_tv_info.screen[sel].dac_no[0], cali, offset,
+		     g_tv_info.screen[sel].dac_type,
+		     g_tv_info.screen[sel].dac_num);
 
-		tv_detect_enable(sel);
+	tv_detect_enable(sel);
 	return 0;
 }
 
@@ -698,7 +725,7 @@ static int tv_top_init(int sel)
 								"reg", 0);
 
 	if (!g_tv_info.base_addr) {
-		printf("unable to map tve common registers\n");
+		TV_ERR("unable to map tve common registers\n");
 		ret = -EINVAL;
 		goto err_iomap;
 	}
@@ -707,7 +734,7 @@ static int tv_top_init(int sel)
 	g_tv_info.clk = of_clk_get(node_offset, 0);
 
 	if (IS_ERR(g_tv_info.clk)) {
-		printf("fail to get clk for tve common module!\n");
+		TV_ERR("fail to get clk for tve common module!\n");
 		goto err_iomap;
 	}
 
@@ -726,10 +753,17 @@ static int tv_probe(int sel)
 	char main_key[20];
 	int index = 0;
 	int node_offset = 0;
-
-	printf("%s:000\n", __func__);
+	int ret = 0;
+	int value = 0;
+	TV_ERR("\n");
 
 	sprintf(main_key, "tv%d", sel);
+
+	ret = disp_sys_script_get_item(main_key, "boot_mask", &value, 1);
+	if (ret == 1 && value == 1) {
+		TV_ERR("skip tv%d in boot.\n", sel);
+		return -1;
+	}
 
 	if (!g_tv_info.tv_number)
 		memset(&g_tv_info, 0, sizeof(struct tv_info_t));
@@ -748,7 +782,7 @@ static int tv_probe(int sel)
 								main_key,
 								"reg", index);
 	if (!g_tv_info.screen[sel].base_addr) {
-		printf("fail to get addr for tv%d!\n", sel);
+		TV_ERR("fail to get addr for tv%d!\n", sel);
 		goto err_iomap;
 	}
 
@@ -756,7 +790,7 @@ static int tv_probe(int sel)
 	of_periph_clk_config_setup(node_offset);
 	g_tv_info.screen[sel].clk = of_clk_get(node_offset, index);
 	if (!g_tv_info.screen[sel].clk) {
-		printf("fail to get clk for tve%d's!\n", sel);
+		TV_ERR("fail to get clk for tve%d's!\n", sel);
 		goto err_iomap;
 	}
 
@@ -786,13 +820,6 @@ static int tv_probe(int sel)
 
 	return 0;
 err_iomap:
-	/*
-	if (g_tv_info.base_addr)
-		iounmap((char __iomem *)g_tv_info.base_addr);
-
-	if (g_tv_info.screen[sel].base_addr)
-		iounmap((char __iomem *)g_tv_info.screen[sel].base_addr);
-	*/
 	return -EINVAL;
 }
 
@@ -800,24 +827,14 @@ s32 tv_init(void)
 {
 	s32 i = 0, ret = 0;
 	char main_key[20];
-//	char str[10];
 	int value = 0;
 
-	for (i = 0; i < 2; i++) {
-		printf("%s:\n", __func__);
+	for (i = 0; i < TVE_DEVICE_NUM; i++) {
 		sprintf(main_key, "tv%d", i);
 
-/*		ret = disp_sys_script_get_item(main_key, "status", (int*)str, 2);
-		if (ret != 2) {
-			printf("fetch tv%d err.\n", i);
-			continue;
-		}
-		if (0 != strcmp(str, "okay"))
-			continue;
-*/
 		ret = disp_sys_script_get_item(main_key, "used", &value, 1);
 		if (ret != 1) {
-			printf("fetch tv%d err.\n", i);
+			TV_ERR("fetch tv%d err.\n", i);
 			continue;
 		}
 		if (1 != value)
@@ -828,7 +845,6 @@ s32 tv_init(void)
 
 	return 0;
 }
-
 
 s32 tv_exit(void)
 {
@@ -926,7 +942,7 @@ s32 tv_enable(u32 sel)
 			__pin_config(sel, "active");
 		tve_clk_config(sel, g_tv_info.screen[sel].tv_mode);
 		tve_low_set_tv_mode(sel, g_tv_info.screen[sel].tv_mode,
-					g_tv_info.screen[sel].sid);
+					*cali);
 		tve_low_dac_enable(sel);
 		tve_low_open(sel);
  		g_tv_info.screen[sel].enable = 1;
@@ -1016,4 +1032,3 @@ s32 tv_hot_plugging_detect (u32 state)
 	}
 	return 0;
 }
-

@@ -63,10 +63,9 @@
 /* AXP806 */
 #define   BOOT_POWER806_VERSION         	   			(0x03)
 #define   BOOT_POWER806_DCDOUT_VOL          			(0x15)
-#define   DUMMY_AXP                                     (1)
 
-static struct sunxi_twi_reg *i2c  = NULL;
-//static int axp_type = 0;
+
+static  struct sunxi_twi_reg *i2c  = NULL;
 
 static __s32 i2c_sendbyteaddr(__u32 byteaddr)
 {
@@ -568,38 +567,18 @@ static int set_dcdcd_voltage(int vol)
 
 int set_ddr_voltage(int vol)
 {
-	if( axp_type == DUMMY_AXP)
+
+	i2c_init_cpus(CONFIG_SYS_I2C_SPEED, CONFIG_SYS_I2C_SLAVE);
+
+	if( !axp_probe())
+	{
+		return set_dcdcd_voltage(vol);
+	}
+	else
 	{
 		printf("axp not exist\n");
 		return 0;
 	}
-	else
-	{
-		i2c_init_cpus(CONFIG_SYS_I2C_SPEED, CONFIG_SYS_I2C_SLAVE);
-		if( !axp_probe())
-		{
-			return set_dcdcd_voltage(vol);
-		}
-		else
-		{
-			printf("axp not exist\n");
-			return 0;
-		}
-	}
-}
-
-int pmu_init(u8 power_mode)
-{
-	if( power_mode == DUMMY_AXP)
-	{
-		axp_type = DUMMY_AXP;
-	}
-	else
-	{
-		axp_type = 0;
-	}
-
-	return axp_type;
 }
 #endif
 

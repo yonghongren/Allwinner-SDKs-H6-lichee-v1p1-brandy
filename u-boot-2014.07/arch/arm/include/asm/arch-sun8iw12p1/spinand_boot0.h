@@ -24,17 +24,17 @@
 #define SECTOR_SIZE              512U
 #define SCT_SZ_WIDTH             9U
 
-#define NAND_OP_TRUE            (0)      //define the successful return value
-#define NAND_OP_FALSE           (-1)     //define the failed return value
-#define ERR_TIMEOUT             14       //hardware timeout
-#define ERR_ECC                 12       //too much ecc error
-#define ERR_NANDFAIL            13       //nand flash program or erase fail
+#define NAND_OP_TRUE            (0)      /*define the successful return value*/
+#define NAND_OP_FALSE           (-1)     /*define the failed return value*/
+#define ERR_TIMEOUT             14       /*hardware timeout*/
+#define ERR_ECC                 12       /*too much ecc error*/
+#define ERR_NANDFAIL            13       /*nand flash program or erase fail*/
 #define SPINAND_BAD_BLOCK       1
 #define SPINAND_GOOD_BLOCK      0
 
 
-#define NAND_TWO_PLANE_SELECT          (1<<7) //nand flash need plane select for addr
-#define NAND_ONEDUMMY_AFTER_RANDOMREAD (1<<8) //nand flash need a dummy Byte after random fast read
+#define NAND_TWO_PLANE_SELECT          (1<<7) /*nand flash need plane select for addr*/
+#define NAND_ONEDUMMY_AFTER_RANDOMREAD (1<<8) /*nand flash need a dummy Byte after random fast read*/
 
 extern __u32 SPN_BLOCK_SIZE;
 extern __u32 SPN_BLK_SZ_WIDTH;
@@ -52,4 +52,4 @@ extern __s32 SpiNand_PhyExit(void);
 extern __s32 SpiNand_Read( __u32 sector_num, void *buffer, __u32 N );
 extern __s32 SpiNand_Check_BadBlock(__u32 block_num);
 
-#endif     //  ifndef __basic_nf_func_h
+#endif     /*  ifndef __basic_nf_func_h*/

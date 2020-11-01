@@ -24,10 +24,6 @@
 #include <asm/arch/efuse_map.h>
 #include <malloc.h>
 
-#include <smc.h>
-#include <asm/arch/efuse.h>
-DECLARE_GLOBAL_DATA_PTR;
-
 //*****************************************************************************
 //	u32 sid_read_key(u32 key_index)
 //  Description:
@@ -67,7 +63,7 @@ u32 sid_set_burned_flag(int bit_offset)
 *
 ************************************************************************************************************
 */
-static int sunxi_efuse_write_ns(void *key_buf)
+int sunxi_efuse_write(void *key_buf)
 {
 	sunxi_efuse_key_info_t  *key_list = NULL;
 	unsigned char *key_data;
@@ -221,7 +217,7 @@ static int sunxi_efuse_write_ns(void *key_buf)
 *
 ************************************************************************************************************
 */
-static int sunxi_efuse_read_ns(void *key_name, void *read_buf)
+int sunxi_efuse_read(void *key_name, void *read_buf)
 {
 	efuse_key_map_t *key_map = key_imformatiom;
 	unsigned int key_start_addr;								// 每一笔数据的开始地址
@@ -229,7 +225,12 @@ static int sunxi_efuse_read_ns(void *key_name, void *read_buf)
 	char *check_buf;
 	unsigned int *p_check_buf;
 	unsigned int key_data_remain_size; 				//剩下字节数
+	//char *p_key_name;
+	u32 dst_buf = 0;
 	
+	//p_key_name = (char *)key_name;
+
+	//map_ns_memory((pa_t)key_name, (va_t *)(&p_key_name), sizeof(p_key_name));
 
 	// 查字典，被允许的key才能被查看
 	for (; key_map != NULL; key_map++)
@@ -273,9 +274,11 @@ static int sunxi_efuse_read_ns(void *key_name, void *read_buf)
 		return -1;
 	}
 
+	//烧写key
 	key_start_addr = key_map->key_index;
 	key_data_remain_size = key_map->store_max_bit / 8;
 
+	//map_ns_memory((pa_t)read_buf, (va_t *)&dst_buf, key_data_remain_size);
 
 	check_buf = (char *)malloc((key_data_remain_size + 3) & (~3));
 	if(check_buf == NULL)
@@ -294,36 +297,10 @@ static int sunxi_efuse_read_ns(void *key_name, void *read_buf)
 		key_start_addr += 4;
 	}
 	sunxi_dump(check_buf, key_map->store_max_bit / 8);
-	memcpy((void *)read_buf, check_buf, key_map->store_max_bit / 8);
+	memcpy((void *)dst_buf, check_buf, key_map->store_max_bit / 8);
 
+	//unmap_ns_memory((va_t)dst_buf, key_map->store_max_bit/8);
 
 	return 0;
-}
-
-/*
- * Generic efuse read/write API for u-boot
- */
-int sunxi_efuse_read(void *key_name, void *read_buf)
-{
-	if( gd->securemode == SUNXI_NORMAL_MODE )
-		return smc_efuse_readl(key_name, read_buf);
-	else if( gd->securemode == SUNXI_SECURE_MODE )
-		return sunxi_efuse_read_ns(key_name,read_buf);
-	else {
-		printf("Wrong status to read efuse\n");		
-		return -1 ;
-	}
-}
-
-int sunxi_efuse_write(void *key_buf)
-{
-	if( gd->securemode == SUNXI_NORMAL_MODE )
-		return smc_efuse_writel(key_buf);
-	else if( gd->securemode == SUNXI_SECURE_MODE )
-		return sunxi_efuse_write_ns(key_buf);
-	else {
-		printf("Wrong status to read efuse\n");		
-		return -1 ;
-	}
 }
 

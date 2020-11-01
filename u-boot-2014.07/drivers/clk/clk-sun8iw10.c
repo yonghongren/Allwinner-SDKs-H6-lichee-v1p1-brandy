@@ -163,11 +163,11 @@ static int get_factors_pll_video0(u32 rate, u32 parent_rate,
 	if (!factor)
 		return -1;
 
-	printf("%s:rate = %d, pllvideo0_max = %d\n", __func__, rate, pllvideo0_max);
+	pr_msg("%s:rate = %d, pllvideo0_max = %d\n", __func__, rate, pllvideo0_max);
 	tmp_rate = rate>pllvideo0_max ? pllvideo0_max : rate;
 	do_div(tmp_rate, 1000000);
 	index = tmp_rate;
-	printf("index = %d\n", index);
+	pr_msg("index = %d\n", index);
 	if (sunxi_clk_com_ftr_sr(&sunxi_clk_factor_pll_video0, factor,
 				factor_pllvideo0_tbl, index,
 				sizeof(factor_pllvideo0_tbl)
@@ -483,7 +483,7 @@ struct factor_init_data sunxi_factos[] = {
 		.name		= "pll_cpu",
 		.parent_names	= pll_24m_parents,
 		.num_parents	= 1,
-		.flags		= CLK_IGNORE_DISABLE | CLK_GET_RATE_NOCACHE,
+		.flags		= CLK_GET_RATE_NOCACHE,
 		.reg		= PLL_CPU,
 		.lock_reg	= PLL_CPU,
 		.lock_bit	= LOCKBIT(28),
@@ -499,7 +499,7 @@ struct factor_init_data sunxi_factos[] = {
 		.name		= "pll_audio",
 		.parent_names	= pll_24m_parents,
 		.num_parents	= 1,
-		.flags		= CLK_IGNORE_DISABLE,
+		.flags		= 0,
 		.reg		= PLL_AUDIO,
 		.lock_reg	= PLL_AUDIO,
 		.lock_bit	= LOCKBIT(28),
@@ -515,7 +515,7 @@ struct factor_init_data sunxi_factos[] = {
 		.name		= "pll_video0",
 		.parent_names	= pll_24m_parents,
 		.num_parents	= 1,
-		.flags		= CLK_IGNORE_DISABLE,
+		.flags		= 0,
 		.reg		= PLL_VIDEO0,
 		.lock_reg	= PLL_VIDEO0,
 		.lock_bit	= LOCKBIT(28),
@@ -531,7 +531,7 @@ struct factor_init_data sunxi_factos[] = {
 		.name		= "pll_ddr0",
 		.parent_names	= pll_24m_parents,
 		.num_parents	= 1,
-		.flags		= CLK_IGNORE_DISABLE | CLK_GET_RATE_NOCACHE,
+		.flags		= CLK_GET_RATE_NOCACHE,
 		.reg		= PLL_DDR0,
 		.lock_reg	= PLL_DDR0,
 		.lock_bit	= LOCKBIT(28),
@@ -547,7 +547,7 @@ struct factor_init_data sunxi_factos[] = {
 		.name		= "pll_periph0",
 		.parent_names	= pll_24m_parents,
 		.num_parents	= 1,
-		.flags		= CLK_IGNORE_DISABLE,
+		.flags		= 0,
 		.reg		= PLL_PERIPH0,
 		.lock_reg	= PLL_PERIPH0,
 		.lock_bit	= LOCKBIT(28),
@@ -563,7 +563,7 @@ struct factor_init_data sunxi_factos[] = {
 		.name		= "pll_periph1",
 		.parent_names	= pll_24m_parents,
 		.num_parents	= 1,
-		.flags		= CLK_IGNORE_DISABLE,
+		.flags		= 0,
 		.reg		= PLL_PERIPH1,
 		.lock_reg	= PLL_PERIPH1,
 		.lock_bit	= LOCKBIT(28),
@@ -579,7 +579,7 @@ struct factor_init_data sunxi_factos[] = {
 		.name		= "pll_video1",
 		.parent_names	= pll_24m_parents,
 		.num_parents	= 1,
-		.flags		= CLK_IGNORE_DISABLE,
+		.flags		= 0,
 		.reg		= PLL_VIDEO1,
 		.lock_reg	= PLL_VIDEO1,
 		.lock_bit	= LOCKBIT(28),
@@ -595,7 +595,7 @@ struct factor_init_data sunxi_factos[] = {
 		.name		= "pll_24m",
 		.parent_names	= hosc_parents,
 		.num_parents	= 1,
-		.flags		= CLK_IGNORE_DISABLE | CLK_GET_RATE_NOCACHE,
+		.flags		= CLK_GET_RATE_NOCACHE,
 		.reg		= PLL_24M,
 		.lock_reg	= PLL_24M,
 		.lock_bit	= LOCKBIT(28),
@@ -611,7 +611,7 @@ struct factor_init_data sunxi_factos[] = {
 		.name		= "pll_de",
 		.parent_names	= pll_24m_parents,
 		.num_parents	= 1,
-		.flags		= CLK_IGNORE_DISABLE,
+		.flags		= 0,
 		.reg		= PLL_DE,
 		.lock_reg	= PLL_DE,
 		.lock_bit	= LOCKBIT(28),
@@ -627,7 +627,7 @@ struct factor_init_data sunxi_factos[] = {
 		.name		= "pll_ddr1",
 		.parent_names	= pll_24m_parents,
 		.num_parents	= 1,
-		.flags		= CLK_IGNORE_DISABLE | CLK_GET_RATE_NOCACHE,
+		.flags		= CLK_GET_RATE_NOCACHE,
 		.reg		= PLL_DDR1,
 		.lock_reg	= PLL_DDR1,
 		.lock_bit	= LOCKBIT(28),
@@ -956,7 +956,7 @@ void  init_clocks(void)
         periph->periph->priv_regops = NULL;
 		sunxi_clk_register_periph(periph, sunxi_clk_base);
     }
-	printf("%s: finish init_clocks.\n",__func__);
+	pr_msg("%s: finish init_clocks.\n",__func__);
 }
 
 

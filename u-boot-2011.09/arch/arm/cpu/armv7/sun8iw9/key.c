@@ -28,6 +28,7 @@
 #include <asm/arch/key.h>
 #include <asm/arch/sys_proto.h>
 #include <pmu.h>
+#include <sys_config.h>
 
 int sunxi_key_init(void)
 {
@@ -62,10 +63,19 @@ int sunxi_key_exit(void)
 
 int sunxi_key_read(void)
 {
+#ifdef CONFIG_FPGA
+    return -1;
+#else
 	u32 ints;
 	int key = -1;
+	int keyen_flag = 0;
     struct sunxi_lradc *sunxi_key_base = (struct sunxi_lradc *)SUNXI_LRADC_BASE;
 
+       if( !script_parser_fetch("key_detect_en","keyen_flag",&keyen_flag,1) )
+       {
+           if(!keyen_flag)
+               return -1;
+       }
 	ints = sunxi_key_base->ints;
 	/* clear the pending data */
 	sunxi_key_base->ints |= (ints & 0x1f);
@@ -96,6 +106,7 @@ int sunxi_key_read(void)
 //#endif
 
 	return key;
+#endif
 }
 
 int do_key_test(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])

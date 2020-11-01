@@ -30,7 +30,6 @@ COBJS	+= timer_spl.o
 COBJS	+= gpio_spl.o
 COBJS	+= serial_spl.o
 COBJS	+= clock_spl.o
-COBJS-$(CONFIG_BOOT0_POWER)	+= power.o
 #COBJS	+= ../dram/mctl_hal.o
 
 #COBJS-$(CONFIG_XXXX)	+= xxxx.o

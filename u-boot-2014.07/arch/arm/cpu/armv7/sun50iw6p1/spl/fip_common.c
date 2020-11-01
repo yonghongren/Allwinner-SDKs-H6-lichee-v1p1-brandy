@@ -170,10 +170,6 @@ int load_fip(int *use_monitor)
 			sunxi_deassert_arisc();
 		}
 #endif
-		else if(strncmp(toc1_item->name, ITEM_PARAMETER_NAME, sizeof(ITEM_PARAMETER_NAME)) == 0)
-		{
-			toc1_flash_read(toc1_item->data_offset/512, (toc1_item->data_len+511)/512, (void *)(CONFIG_SUNXI_PARAMETER_ADDR));
-		}
 		else if(strncmp(toc1_item->name, ITEM_LOGO_NAME, sizeof(ITEM_LOGO_NAME)) == 0) {
 			*(uint *)(SUNXI_LOGO_COMPRESSED_LOGO_SIZE_ADDR) = toc1_item->data_len;
 			toc1_flash_read(toc1_item->data_offset/512, (toc1_item->data_len+511)/512, (void *)SUNXI_LOGO_COMPRESSED_LOGO_BUFF);
@@ -193,11 +189,9 @@ int load_fip(int *use_monitor)
 		else if(strncmp(toc1_item->name, ITEM_SOCCFG_NAME, sizeof(ITEM_SOCCFG_NAME)) == 0)
 		{
 			toc1_flash_read(toc1_item->data_offset/512, (toc1_item->data_len+511)/512, (void *)CONFIG_SOCCFG_STORE_IN_DRAM_BASE);
+		} else if (strncmp(toc1_item->name, ITEM_PARAMETER_NAME, sizeof(ITEM_PARAMETER_NAME)) == 0) {
+			toc1_flash_read(toc1_item->data_offset/512, (toc1_item->data_len+511)/512, (void *)(CONFIG_SUNXI_PARAMETER_ADDR));
 		}
-                else if(strncmp(toc1_item->name, ITEM_ESM_IMG_NAME, sizeof(ITEM_ESM_IMG_NAME)) == 0) {
-                        *(uint *)(SUNXI_ESM_IMG_SIZE_ADDR) = toc1_item->data_len;
-                        toc1_flash_read(toc1_item->data_offset/512, (toc1_item->data_len+511)/512, (void *)SUNXI_ESM_IMG_BUFF_ADDR);
-                }
 #ifdef USE_BOARD_CONFIG
 		else if(strncmp(toc1_item->name, ITEM_BDCFG_NAME, sizeof(ITEM_BDCFG_NAME)) == 0)
 		{

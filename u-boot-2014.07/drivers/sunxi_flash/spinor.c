@@ -31,6 +31,9 @@
 #include "sys_config.h"
 #include "sys_partition.h"
 #include "flash_interface.h"
+#include <sunxi_board.h>
+#include <private_boot0.h>
+#include <private_toc.h>
 
 
 
@@ -128,7 +131,7 @@ int spinor_init_for_boot(int workmode, int spino)
 	sunxi_flash_write_pt = sunxi_flash_spinor_write;
 	sunxi_flash_size_pt  = sunxi_flash_spinor_size;
 	sunxi_flash_flush_pt = sunxi_flash_spinor_flush;
-	tick_printf("sunxi spinor flash init ok\n");
+	tick_printf("sunxi flash init ok\n");
 	return ret;
 
 }
@@ -138,7 +141,7 @@ int  spinor_init_for_sprite(int workmode)
 	{
 		return -1;
 	}
-	printf("try nor successed \n");
+	pr_msg("try nor successed \n");
 	sunxi_sprite_init_pt  = sunxi_flash_spinor_init;
 	sunxi_sprite_exit_pt  = sunxi_flash_spinor_exit;
 	sunxi_sprite_read_pt  = sunxi_flash_spinor_read;
@@ -149,7 +152,43 @@ int  spinor_init_for_sprite(int workmode)
 	//sunxi_sprite_datafinish_pt = sunxi_flash_spinor_datafinish;
 	debug("sunxi sprite has installed spi function\n");
 
-	uboot_spare_head.boot_data.storage_type = STORAGE_NOR;
+	set_boot_storage_type(STORAGE_NOR);
 	return 0;
 }
+
+int spinor_get_boot0_size(uint *length , void *addr)
+{
+	int ret = 0;
+	unsigned char buffer[4 * 1024];
+
+	memset((void *)buffer, 0x0, sizeof(buffer));
+	ret = spinor_read(0, 1, buffer);
+	if (ret < 0) {
+		pr_msg("%s : read boot0_head is error\n", __func__);
+		return -1;
+	}
+
+    if (SUNXI_NORMAL_MODE == sunxi_get_securemode()) {
+		boot0_file_head_t    *boot0  = (boot0_file_head_t *)buffer;
+		if (strncmp((const char *)boot0->boot_head.magic, BOOT0_MAGIC, MAGIC_SIZE)) {
+				pr_msg("%s : boot0 magic is error\n", __func__);
+				boot0_file_head_t    *boot0  = (boot0_file_head_t *)addr;
+				*length = boot0->boot_head.length;
+				return 0;
+		}
+		*length = boot0->boot_head.length;
+	} else {
+		toc0_private_head_t  *toc0   = (toc0_private_head_t *)buffer;
+		if (strncmp((const char *)toc0->magic, TOC0_MAGIC, MAGIC_SIZE)) {
+				pr_msg("%s : boot0 magic is error\n", __func__);
+				toc0_private_head_t  *toc0   = (toc0_private_head_t *)addr;
+				*length = toc0->length;
+				return 0;
+		}
+		*length = toc0->length;
+	}
+
+    return 1;
+}
+
 

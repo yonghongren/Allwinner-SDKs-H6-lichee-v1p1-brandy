@@ -104,15 +104,11 @@ int saveenv(void)
 	u32     start;
 
 	printf("saveenv storage_type = %d\n", get_boot_storage_type());
-#if defined(DISABLE_SUNXI_MBR) && defined(CONFIG_SUN8IW12P1_NOR)
-	start = 0x00;
-#else
 	start = sunxi_partition_get_offset_byname(CONFIG_SUNXI_ENV_PARTITION);
 	if(!start){
 		printf("fail to find part named %s\n", CONFIG_SUNXI_ENV_PARTITION);
 		return -1;
 	}
-#endif
 
 	ret = env_export(env_new);
 	if(ret)
@@ -135,16 +131,13 @@ static void flash_env_relocate_spec(int workmode)
 	}
 	else
 	{
-#if defined(DISABLE_SUNXI_MBR) && defined(CONFIG_SUN8IW12P1_NOR)
-		start = 0x00;
-#else
 		start = sunxi_partition_get_offset_byname(CONFIG_SUNXI_ENV_PARTITION);
 		if(!start){
 			printf("fail to find part named %s\n", CONFIG_SUNXI_ENV_PARTITION);
 			use_default();
 			return;
 		}
-#endif
+
 		if(!sunxi_flash_read(start, CONFIG_ENV_SIZE/512, buf))
 		{
 			use_default();

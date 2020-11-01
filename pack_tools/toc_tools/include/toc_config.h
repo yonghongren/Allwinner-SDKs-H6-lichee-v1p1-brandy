@@ -44,4 +44,13 @@ typedef struct {
 	char cert[MAX_PATH];
 }
 toc_key_item_descriptor_t;
+
+typedef struct aw_nvc_extension_t {
+	int oid;
+	int nvc;
+} aw_nvc_ext_t;
+
+#define AW_EXTENSION_NVC_OID	0x1
+
+
 #endif  /*__TOC_CONFIG__H__*/

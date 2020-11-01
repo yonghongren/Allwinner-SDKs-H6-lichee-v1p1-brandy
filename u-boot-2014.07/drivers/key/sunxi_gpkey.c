@@ -37,6 +37,7 @@
 __attribute__((section(".data")))
 static int keyen_flag = 1;
 
+
 int sunxi_key_init(void)
 {
 	uint reg_val = 0;

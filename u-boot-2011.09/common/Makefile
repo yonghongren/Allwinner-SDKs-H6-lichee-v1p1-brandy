@@ -199,7 +199,6 @@ COBJS-y += cmd_burn.o
 COBJS-y += cmd_sunxi_signature.o
 COBJS-y += cmd_modify_sysconfig.o
 COBJS-y += cmd_recovery.o
-COBJS-y += cmd_aw_fat.o
 endif
 
 COBJS	:= $(sort $(COBJS-y))

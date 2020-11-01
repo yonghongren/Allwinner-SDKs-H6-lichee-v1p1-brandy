@@ -188,8 +188,6 @@ static int package_cmd(
 		resp_buf = malloc(SZ_8K);
 		if(!cmd_buf || !resp_buf){
 			printf("smc load sst out of memory\n");
-            free(cmd_buf);
-            free(resp_buf);
 			return -1 ;
 		}
 
@@ -370,7 +368,6 @@ static int sst_cmd_update_object(
 	name_buf = malloc(strnlen(name, 64));
 	if(!cmd || !name_buf){
 		printf("sst_cmd_binding_store out of memory\n");
-        free(name_buf);
 		return -1 ;
 	}
 	memset(cmd, 0, sizeof(*cmd));

@@ -70,6 +70,7 @@ typedef struct sbrom_toc1_head_info
 	u32  version_main;	//only one byte
 	u32  version_sub;   //two bytes
 	u32  reserved[3];	//reserved for future
+
 	u32  end;
 }
 sbrom_toc1_head_info_t;
@@ -104,16 +105,16 @@ typedef struct sbrom_toc0_config
                 							// 0-23放nand，24-31存放卡0，32-39放卡2
                 							// 40-49存放spi
 	char   				storage_data[384];  // 0-159,存储nand信息；160-255,存放卡信息
-	unsigned int        secure_dram_mbytes; //
-	unsigned int        drm_start_mbytes;   //
-	unsigned int        drm_size_mbytes;    //
-	unsigned int        boot_cpu;           //
-	special_gpio_cfg    a15_power_gpio;     //the gpio config is to a15 extern power enable gpio
-	unsigned int        next_exe_pa;
-    unsigned int        secure_without_OS;  //secure boot without semelis
-    unsigned char       debug_mode;         //1:turn on printf; 0 :turn off printf
-	unsigned char       power_mode;         //1:use dummy axp;  1 :use axp
-	unsigned char       reserve[2];
+	unsigned int       secure_dram_mbytes; //
+	unsigned int       drm_start_mbytes;   //
+	unsigned int       drm_size_mbytes;    //
+	unsigned int       boot_cpu;           //
+	special_gpio_cfg    a15_power_gpio;  //the gpio config is to a15 extern power enable gpio
+	unsigned int       next_exe_pa;
+	unsigned int       secure_without_OS;   //secure boot without semelis
+	unsigned char       debug_mode;         //1:turn on printf; 0 :turn off printf
+	unsigned char       power_mode;          /* 0:axp , 1: dummy pmu  */
+	unsigned char       reserver[2];
 	unsigned int		card_work_mode;
 	unsigned int      	res[2];   			// 总共1024字节
 
@@ -148,19 +149,17 @@ typedef struct SBROM_TOC0_ITEM_info {
 	u32 end;
 }  SBROM_TOC0_ITEM_info_t;
 
-#define ITEM_PARAMETER_NAME             "parameter"
-#define ITEM_SCP_NAME             "scp"
-#define ITEM_MONITOR_NAME         "monitor"
-#define ITEM_UBOOT_NAME           "u-boot"
-#define ITEM_LOGO_NAME            "logo"
-#define ITEM_DTB_NAME             "dtb"
-#define ITEM_SOCCFG_NAME          "soc-cfg"
-#define ITEM_BDCFG_NAME           "board-cfg"
-#define ITEM_BDCFG_FEX_NAME        "board-fex"
-#define ITEM_ESM_IMG_NAME          "esm-img"
-#define ITEM_SHUTDOWNCHARGE_LOGO_NAME   "shutdowncharge"
-#define ITEM_ANDROIDCHARGE_LOGO_NAME    "androidcharge"
-
+#define ITEM_OPTEE_NAME			"optee"
+#define ITEM_PARAMETER_NAME		"parameter"
+#define ITEM_SCP_NAME			"scp"
+#define ITEM_MONITOR_NAME		"monitor"
+#define ITEM_UBOOT_NAME			"u-boot"
+#define ITEM_LOGO_NAME			"logo"
+#define ITEM_DTB_NAME			"dtb"
+#define ITEM_SOCCFG_NAME		"soc-cfg"
+#define ITEM_BDCFG_NAME			"board-cfg"
+#define ITEM_SHUTDOWNCHARGE_LOGO_NAME	"shutdowncharge"
+#define ITEM_ANDROIDCHARGE_LOGO_NAME	"androidcharge"
 #define ITEM_EMMC_FW_NAME		"emmc-fw"
 #define ITEM_NAME_SBROMSW_KEY		0x010303
 

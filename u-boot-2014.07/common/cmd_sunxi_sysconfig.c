@@ -146,7 +146,7 @@ static uint deal_with_gpio_data(script_sub_key_t *sub_key,script_gpio_set_t* poi
 	write_flag += value;
 
 	printf("DRV_LEVEL :%d",point->drv_level);
-	if(judge_num(&point->drv_level) == FORCE_EXIT)
+	if(judge_num(&point->drv_level) == FORCE_EXIT) 
 		value = judge_num(&point->pull);
 	if(value == FORCE_EXIT)
 		goto end_err;
@@ -341,3 +341,7 @@ U_BOOT_CMD(
 	"save sys_config into flash if you execute command setcfg",
 	"savecfg"
 );
+
+
+
+

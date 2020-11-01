@@ -507,51 +507,11 @@ int NAND_LogicInit(int boot_mode)
 		printf("NB1 : nand_info_init fail\n");
 		return -5;
 	}
-#if defined(CONFIG_ARCH_HOMELET)
+
 	if(boot_mode == 1)
 	{
 		nftl_num = get_phy_partition_num(nand_info);
 		printf("boot_mode 1: nftl num: %d \n", nftl_num);
-		if((nftl_num<1)||(nftl_num>5))
-		{
-			printf("NB1 : nftl num: %d error \n", nftl_num);
-			return -1;
-		}
-
-        nand_partition_num = 0;
-		//for(i=0; i<nftl_num-1; i++)
-		for(i=0; i<1; i++)
-		{
-		    nand_partition_num++;
-			printf(" init nftl: %d \n", i);
-			result = nftl_build_one(nand_info, i);
-		}
-	}
-	else if(boot_mode==2)
-	{
-//		nftl_num = get_phy_partition_num(nand_info);
-//		printf("boot_mode 2: nftl num: %d \n", nftl_num);
-//		if((nftl_num<1)||(nftl_num>5))
-//		{
-//			printf("NB1 : nftl num: %d error \n", nftl_num);
-//			return -1;
-//		}
-//
-//        nand_partition_num = 0;
-//		for(i=0; i<nftl_num; i++)
-//		{
-//		    nand_partition_num++;
-//			printf(" init nftl: %d \n", i);
-//			result = nftl_build_one(nand_info, i);
-//		}
-		printf("boot_mode 2: nftl_build_all\n");
-		result = nftl_build_all(nand_info);
-		nand_partition_num = get_phy_partition_num(nand_info);
-#else
-	if(boot_mode)
-	{
-		nftl_num = get_phy_partition_num(nand_info);
-		printf("NB1 : nftl num: %d \n", nftl_num);
 		if((nftl_num<1)||(nftl_num>5))
 		{
 			printf("NB1 : nftl num: %d error \n", nftl_num);
@@ -565,7 +525,6 @@ int NAND_LogicInit(int boot_mode)
 			printf(" init nftl: %d \n", i);
 			result = nftl_build_one(nand_info, i);
 		}
-#endif
 	}
 	else
 	{
@@ -892,22 +851,12 @@ int  NAND_EraseBootBlocks(void)
 {
 
     struct boot_physical_param  para;
-	unsigned int  i,read_retry_type,read_retry_mode;
+	int  i;
 	int  ret;
-	int  last_boot_block = 7;
-	
-	read_retry_type = NAND_GetReadRetryType();
-	read_retry_mode = (read_retry_type>>16)&0xff;
-
 
 	printf("Ready to erase boot blocks.\n");
-	
-	if((read_retry_mode == 0x32)||(read_retry_mode == 0x33)||(read_retry_mode == 0x34)||(read_retry_mode == 0x35))
-	{
-	    last_boot_block = NAND_BOOT0_BLK_START + NAND_BOOT0_BLK_CNT;
-	}
 
-	for( i = 0;  i < last_boot_block;  i++ )
+	for( i = 0;  i < 7;  i++ )
 	{
 		para.chip = 0;
 		para.block = i;
@@ -976,7 +925,7 @@ int  NAND_EraseChip(void)
         printf("erase chip %u \n", chip);
 		if(i==0)
 		{
-			if((read_retry_mode == 0x32)||(read_retry_mode == 0x33)||(read_retry_mode == 0x34)||(read_retry_mode == 0x35))
+			if((read_retry_mode == 0x32)||(read_retry_mode == 0x33))
 			{
 				if((NAND_GetBlankBlockFlag()) == 1)
 				{
@@ -1014,18 +963,6 @@ int  NAND_EraseChip(void)
 			{
 				bad_block_flag = 0;
 				//1y nm new flash:force erase
-			}
-			else if(((read_retry_mode == 0x34)||(read_retry_mode == 0x35))&&((NAND_GetBlankBlockFlag()) == 1))
-			{
-				bad_block_flag = 0;
-				
-				para_read.page = 0;
-				ret = PHY_SimpleCheckBadBlock_Sandisk_2CH(& para_read);
-				if (ret != 0)
-				{
-					bad_block_flag = 1;
-					printf("find a bad block %u\n", para_read.block);
-				}
 			}
 			else
 			{
@@ -1418,7 +1355,7 @@ int NAND_UbootInit(int boot_mode)
 	printf("NAND_UbootInit start\n");
 		
 	NAND_set_boot_mode(boot_mode);
-
+	
     /* logic init */
 	ret |= NAND_LogicInit(boot_mode);
 	if(!boot_mode)
@@ -1492,7 +1429,13 @@ int NAND_Uboot_Erase(int erase_flag)
 	{
 		printf("erase by flag %d\n", erase_flag);
 		NAND_EraseBootBlocks();
-		NAND_EraseChip();
+		if((read_retry_mode == 0x32)||(read_retry_mode == 0x33))
+		{
+			if(Nand_erase_flag == 0)
+				NAND_EraseChip();
+		}
+		else
+			NAND_EraseChip();
 		NAND_UpdatePhyArch();
 		nand_erased = 1;
 	}
@@ -1501,7 +1444,7 @@ int NAND_Uboot_Erase(int erase_flag)
 		version_match_flag = NAND_VersionCheck();
 		printf("nand version = %x\n", version_match_flag);
 		NAND_EraseBootBlocks();
-		if((read_retry_mode == 0x32)||(read_retry_mode == 0x33)||(read_retry_mode == 0x34)||(read_retry_mode == 0x35))
+		if((read_retry_mode == 0x32)||(read_retry_mode == 0x33))
 		{
 			if((Nand_erase_flag == 0)&&((NAND_GetBlankBlockFlag()) == 1))
 				NAND_EraseChip();
@@ -1539,7 +1482,7 @@ __s32  burn_boot0_1k_mode_secure( __u32 read_retry_type, __u32 length, __u32 Boo
     struct boot_physical_param  para;
 	struct boot_ndfc_cfg cfg;
 
-    printf("burn_boot0_1k_mode_secure!\n");
+    printf("burn boot0 normal mode!\n");
 
     for(i=0;i<32;i++)
         oob_buf[i] = 0xff;
@@ -1557,7 +1500,7 @@ __s32  burn_boot0_1k_mode_secure( __u32 read_retry_type, __u32 length, __u32 Boo
 		printf("get flash page size error!\n");
 		goto error;
 	}
-	/* ?? page count */
+	/* 检查 page count */
 	pages_per_block = NAND_GetPageCntPerBlk();
 	/*if(pages_per_block%64)
 	{
@@ -1570,7 +1513,7 @@ __s32  burn_boot0_1k_mode_secure( __u32 read_retry_type, __u32 length, __u32 Boo
 		for( i = NAND_BOOT0_BLK_START;  i < (NAND_BOOT0_BLK_START + NAND_BOOT0_BLK_CNT);  i++ )
 	    {
 
-			/* ??? */
+			/* 擦除块 */
 			para.chip  = 0;
 			para.block = i;
 			if( PHY_SimpleErase( &para ) <0 )
@@ -1613,7 +1556,7 @@ __s32  burn_boot0_1k_mode_secure( __u32 read_retry_type, __u32 length, __u32 Boo
 	    {
 	        printf("boot0 %x \n", i);
 
-			/* ??? */
+			/* 擦除块 */
 			para.chip  = 0;
 			para.block = i;
 			if( PHY_SimpleErase( &para ) <0 )
@@ -1622,7 +1565,7 @@ __s32  burn_boot0_1k_mode_secure( __u32 read_retry_type, __u32 length, __u32 Boo
 	    		//continue;
 	    	}
 
-	        /* ?????boot0?? */
+	        /* 在块中烧写boot0备份 */
 	        for( j = 0;  j < copies_per_block;  j++ )
 	       	{
 
@@ -1698,7 +1641,7 @@ __s32  burn_boot0_lsb_mode_secure(__u32 read_retry_type,  __u32 length, __u32 Bo
 	}
 	NFC_LSBEnable(0, read_retry_type);
 
-	/* ?? page count */
+	/* 检查 page count */
 	page_size = NAND_GetPageSize();
 	if(page_size %1024)
 	{
@@ -1735,7 +1678,7 @@ __s32  burn_boot0_lsb_mode_secure(__u32 read_retry_type,  __u32 length, __u32 Bo
 	{
 	 	printf("down boot0 %x \n", i);
 
-		/* ??? */
+		/* 擦除块 */
 		para.chip  = 0;
 		para.block = i;
 		if( PHY_SimpleErase( &para ) <0 )
@@ -1842,7 +1785,7 @@ __s32  burn_boot0_lsb_FF_mode_secure(__u32 read_retry_type,  __u32 length, __u32
 		goto error;
 	}
 
-	/* ?? page count */
+	/* 检查 page count */
 	page_size = NAND_GetPageSize();
 
 	if(page_size %1024)
@@ -1879,7 +1822,7 @@ __s32  burn_boot0_lsb_FF_mode_secure(__u32 read_retry_type,  __u32 length, __u32
 	{
 	 	printf("pagetab boot0 %x \n", i);
 
-		/* ??? */
+		/* 擦除块 */
 		para.chip  = 0;
 		para.block = i;
 		if( PHY_SimpleErase( &para ) <0 )
@@ -1992,7 +1935,7 @@ __s32  burn_boot0_1k_lsb_mode_secure(__u32 read_retry_type,  __u32 length, __u32
 		goto error;
 	}
 
-	/* ?? page count */
+	/* 检查 page count */
 	page_size = NAND_GetPageSize();
 
 	if(page_size %1024)
@@ -2029,7 +1972,7 @@ __s32  burn_boot0_1k_lsb_mode_secure(__u32 read_retry_type,  __u32 length, __u32
 	{
 	 	printf("pagetab boot0 %x \n", i);
 
-		/* ??? */
+		/* 擦除块 */
 		para.chip  = 0;
 		para.block = i;
 		if( PHY_SimpleErase( &para ) <0 )
@@ -2180,7 +2123,7 @@ __s32  burn_boot0_lsb_FF_mode_8K(__u32 read_retry_type,  __u32 length, __u32 Boo
 		goto error;
 	}
 
-	/* ?? page count */
+	/* 检查 page count */
 	page_size = NAND_GetPageSize();
 	{
 		if(page_size %1024)
@@ -2198,7 +2141,7 @@ __s32  burn_boot0_lsb_FF_mode_8K(__u32 read_retry_type,  __u32 length, __u32 Boo
 	{
 	 	printf("pagetab boot0 %x \n", i);
 
-		/* ??? */
+		/* 擦除块 */
 		para.chip  = 0;
 		para.block = i;
 		if( PHY_SimpleErase( &para ) <0 )
@@ -2311,7 +2254,7 @@ __s32  burn_boot0_lsb_FF_mode(__u32 read_retry_type, __u32 Boot0_buf )
 	}
 
 
-	/* ?? page count */
+	/* 检查 page count */
 	page_size = NAND_GetPageSize();
 	{
 		if(page_size %1024)
@@ -2329,7 +2272,7 @@ __s32  burn_boot0_lsb_FF_mode(__u32 read_retry_type, __u32 Boot0_buf )
     {
         printf("down boot0 %x \n", i);
 
-		/* ??? */
+		/* 擦除块 */
 		para.chip  = 0;
 		para.block = i;
 		if( PHY_SimpleErase( &para ) <0 )
@@ -2338,7 +2281,7 @@ __s32  burn_boot0_lsb_FF_mode(__u32 read_retry_type, __u32 Boot0_buf )
     		//continue;
     	}
 
-        /* ?????boot0??, lsb mode?,???????2?page */
+        /* 在块中烧写boot0备份, lsb mode下，每个块只能写前2个page */
 		for( k = 0;  k < 5;  k++ )
 		{
 			if(k<2)
@@ -2396,7 +2339,7 @@ __s32  burn_boot0_lsb_FF_mode(__u32 read_retry_type, __u32 Boot0_buf )
 
         printf("verify boot0 %x \n", i);
 
-        /* ?????boot0??, lsb mode?,???????2?page */
+        /* 在块中烧写boot0备份, lsb mode下，每个块只能写前2个page */
 		for( j = 0;  j < 2;  j++ )
 		{
 			para.chip  = 0;
@@ -2462,7 +2405,7 @@ __s32  burn_boot0_lsb_mode(__u32 read_retry_type, __u32 Boot0_buf )
 
 
 
-	/* ?? page count */
+	/* 检查 page count */
 	page_size = NAND_GetPageSize();
 	{
 		if(page_size %1024)
@@ -2471,7 +2414,7 @@ __s32  burn_boot0_lsb_mode(__u32 read_retry_type, __u32 Boot0_buf )
 			goto error;
 		}
 	}
-	/* ?? page count */
+	/* 检查 page count */
 	if(page_size == 8192*2) //change for h27ucg8t2btr 16k pagesize
 		page_size = 8192;
 
@@ -2480,7 +2423,7 @@ __s32  burn_boot0_lsb_mode(__u32 read_retry_type, __u32 Boot0_buf )
     {
         printf("down boot0 %x \n", i);
 
-		/* ??? */
+		/* 擦除块 */
 		para.chip  = 0;
 		para.block = i;
 		if( PHY_SimpleErase( &para ) <0 )
@@ -2489,7 +2432,7 @@ __s32  burn_boot0_lsb_mode(__u32 read_retry_type, __u32 Boot0_buf )
     		//continue;
     	}
 
-        /* ?????boot0??, lsb mode?,???????4?page */
+        /* 在块中烧写boot0备份, lsb mode下，每个块只能写前4个page */
 		for( k = 0;  k < 4;  k++ )
 		{
 			para.chip  = 0;
@@ -2519,7 +2462,7 @@ __s32  burn_boot0_lsb_mode(__u32 read_retry_type, __u32 Boot0_buf )
 
         printf("verify boot0 %x \n", i);
 
-        /* ?????boot0??, lsb mode?,???????4?page */
+        /* 在块中烧写boot0备份, lsb mode下，每个块只能写前4个page */
 		for( k = 0;  k < 4;  k++ )
 		{
 			para.chip  = 0;
@@ -2568,7 +2511,7 @@ __s32  burn_boot0_1k_mode( __u32 read_retry_type, __u32 Boot0_buf )
 		goto error;
 	}
 
-	/* ?? page count */
+	/* 检查 page count */
 	pages_per_block = NAND_GetPageCntPerBlk();
 	/*if(pages_per_block%64)
 	{
@@ -2584,7 +2527,7 @@ __s32  burn_boot0_1k_mode( __u32 read_retry_type, __u32 Boot0_buf )
     {
         printf("boot0 %x \n", i);
 
-		/* ??? */
+		/* 擦除块 */
 		para.chip  = 0;
 		para.block = i;
 		if( PHY_SimpleErase( &para ) <0 )
@@ -2593,7 +2536,7 @@ __s32  burn_boot0_1k_mode( __u32 read_retry_type, __u32 Boot0_buf )
     		//continue;
     	}
 
-        /* ?????boot0?? */
+        /* 在块中烧写boot0备份 */
         for( j = 0;  j < copies_per_block;  j++ )
        	{
 
@@ -2664,7 +2607,7 @@ __s32  burn_boot0_1k_lsb_mode(__u32 read_retry_type,  __u32 length, __u32 Boot0_
 		goto error;
 	}
 
-	/* ?? page count */
+	/* 检查 page count */
 	page_size = NAND_GetPageSize();
 	{
 		if(page_size %1024)
@@ -2682,7 +2625,7 @@ __s32  burn_boot0_1k_lsb_mode(__u32 read_retry_type,  __u32 length, __u32 Boot0_
 	{
 	 	printf("pagetab boot0 %x \n", i);
 
-		/* ??? */
+		/* 擦除块 */
 		para.chip  = 0;
 		para.block = i;
 		if( PHY_SimpleErase( &para ) <0 )
@@ -2849,7 +2792,7 @@ __s32 burn_uboot_in_one_blk(__u32 UBOOT_buf, __u32 length)
 	}
 
 
-	/* ?? page count */
+	/* 检查 page count */
 	page_size = NAND_GetPageSize();
 	{
 		if(page_size %1024)
@@ -2859,7 +2802,7 @@ __s32 burn_uboot_in_one_blk(__u32 UBOOT_buf, __u32 length)
 		}
 	}
 
-	/* ?? page count */
+	/* 检查 page count */
 	pages_per_block = NAND_GetPageCntPerBlk();
 	/*if(pages_per_block%64)
 	{
@@ -2869,7 +2812,7 @@ __s32 burn_uboot_in_one_blk(__u32 UBOOT_buf, __u32 length)
 
 	printf("pages_per_block: 0x%x\n", pages_per_block);
 
-	/* ????????page */
+	/* 计算每个备份所需page */
 	/*if(length%page_size)
 	{
 		printf("uboot length check error!\n");
@@ -2893,7 +2836,7 @@ __s32 burn_uboot_in_one_blk(__u32 UBOOT_buf, __u32 length)
     {
         printf("uboot %x \n", i);
 
-		/* ??? */
+		/* 擦除块 */
 		para.chip  = 0;
 		para.block = i;
 		if( PHY_SimpleErase( &para ) <0 )
@@ -2902,7 +2845,7 @@ __s32 burn_uboot_in_one_blk(__u32 UBOOT_buf, __u32 length)
     		//continue;
     	}
 
-        /* ?????boot0??, lsb mode?,???????4?page */
+        /* 在块中烧写boot0备份, lsb mode下，每个块只能写前4个page */
 		for( k = 0;  k < pages_per_copy;  k++ )
 		{
 			para.chip  = 0;
@@ -2991,7 +2934,7 @@ __s32 burn_uboot_in_one_blk_lsb_mode(__u32 UBOOT_buf, __u32 length)
 	}
 
 
-	/* ?? page count */
+	/* 检查 page count */
 	page_size = NAND_GetPageSize();
 	{
 		if(page_size %1024)
@@ -3001,7 +2944,7 @@ __s32 burn_uboot_in_one_blk_lsb_mode(__u32 UBOOT_buf, __u32 length)
 		}
 	}
 
-	/* ?? page count */
+	/* 检查 page count */
 	pages_per_block = NAND_GetPageCntPerBlk();
 	/*if(pages_per_block%64)
 	{
@@ -3011,7 +2954,7 @@ __s32 burn_uboot_in_one_blk_lsb_mode(__u32 UBOOT_buf, __u32 length)
 
 	printf("pages_per_block: 0x%x\n", pages_per_block);
 
-	/* ????????page */
+	/* 计算每个备份所需page */
 	/*if(length%page_size)
 	{
 		printf("uboot length check error!\n");
@@ -3035,7 +2978,7 @@ __s32 burn_uboot_in_one_blk_lsb_mode(__u32 UBOOT_buf, __u32 length)
     {
         printf("uboot %x \n", i);
 
-		/* ??? */
+		/* 擦除块 */
 		para.chip  = 0;
 		para.block = i;
 		if( PHY_SimpleErase( &para ) <0 )
@@ -3120,7 +3063,7 @@ __s32 burn_uboot_in_many_blks(__u32 UBOOT_buf, __u32 length)
 	}
 
 
-	/* ?? page count */
+	/* 检查 page count */
 	page_size = NAND_GetPageSize();
 	{
 		if(page_size %1024)
@@ -3130,7 +3073,7 @@ __s32 burn_uboot_in_many_blks(__u32 UBOOT_buf, __u32 length)
 		}
 	}
 
-	/* ?? page count */
+	/* 检查 page count */
 	pages_per_block = NAND_GetPageCntPerBlk();
 	/*if(pages_per_block%64)
 	{
@@ -3138,7 +3081,7 @@ __s32 burn_uboot_in_many_blks(__u32 UBOOT_buf, __u32 length)
 		goto error;
 	}*/
 
-	/* ????????page */
+	/* 计算每个备份所需page */
 	/*if(length%page_size)
 	{
 		printf("uboot length check error!\n");
@@ -3161,7 +3104,7 @@ __s32 burn_uboot_in_many_blks(__u32 UBOOT_buf, __u32 length)
     {
         printf("uboot %x \n", i);
 
-		/* ??? */
+		/* 擦除块 */
 		para.chip  = 0;
 		para.block = i;
 		if( PHY_SimpleErase( &para ) <0 )
@@ -3170,7 +3113,7 @@ __s32 burn_uboot_in_many_blks(__u32 UBOOT_buf, __u32 length)
     		continue;
     	}
 
-        /* ?????boot0??, lsb mode?,???????4?page */
+        /* 在块中烧写boot0备份, lsb mode下，每个块只能写前4个page */
 		for( k = 0;  k < pages_per_block;  k++ )
 		{
 			para.chip  = 0;
@@ -3223,7 +3166,7 @@ __s32 burn_uboot_in_many_blks_lsb_mode(__u32 UBOOT_buf, __u32 length)
 	}
 
 
-	/* ?? page count */
+	/* 检查 page count */
 	page_size = NAND_GetPageSize();
 	{
 		if(page_size %1024)
@@ -3233,7 +3176,7 @@ __s32 burn_uboot_in_many_blks_lsb_mode(__u32 UBOOT_buf, __u32 length)
 		}
 	}
 
-	/* ?? page count */
+	/* 检查 page count */
 	pages_per_block = NAND_GetPageCntPerBlk();
 	/*if(pages_per_block%64)
 	{
@@ -3241,7 +3184,7 @@ __s32 burn_uboot_in_many_blks_lsb_mode(__u32 UBOOT_buf, __u32 length)
 		goto error;
 	}*/
 
-	/* ????????page */
+	/* 计算每个备份所需page */
 	/*if(length%page_size)
 	{
 		printf("uboot length check error!\n");
@@ -3257,7 +3200,7 @@ __s32 burn_uboot_in_many_blks_lsb_mode(__u32 UBOOT_buf, __u32 length)
     {
         printf("uboot %x \n", i);
 
-		/* ??? */
+		/* 擦除块 */
 		para.chip  = 0;
 		para.block = i;
 		if( PHY_SimpleErase( &para ) <0 )
@@ -3303,7 +3246,7 @@ int NAND_BurnUboot(uint length, void *buffer)
 //	int blk_index, page_index;
 	__u32 page_size, pages_per_block, block_size,lsb_page_type;
 
-	/* ?? page count */
+	/* 检查 page count */
 	
 	lsb_page_type = NAND_GetLsbpagetype();
 	page_size = NAND_GetPageSize();
@@ -3315,7 +3258,7 @@ int NAND_BurnUboot(uint length, void *buffer)
 		}
 	}
 
-	/* ?? page count */
+	/* 检查 page count */
 	pages_per_block = NAND_GetPageCntPerBlk();
 	/*if(pages_per_block%64)
 	{

@@ -23,15 +23,21 @@
  */
 
 #include <common.h>
+#include <asm/armv7.h>
 #include <asm/io.h>
 #include <pmu.h>
 #include <asm/arch/timer.h>
+#include <asm/arch/ccmu.h>
 #include <asm/arch/key.h>
+#include <asm/arch/cpu.h>
 #include <asm/arch/clock.h>
+#include <asm/arch/efuse.h>
+#include <asm/arch/cpu.h>
 #include <asm/arch/sys_proto.h>
 #include <boot_type.h>
 #include <sys_partition.h>
 #include <sys_config.h>
+#include <smc.h>
 /* The sunxi internal brom will try to loader external bootloader
  * from mmc0, nannd flash, mmc2.
  * We check where we boot from by checking the config
@@ -175,7 +181,6 @@ int power_source_init(void)
 	tick_printf("PMU: pll1 %d Mhz,PLL6=%d Mhz\n", pll1,sunxi_clock_get_pll6());
     printf("AXI=%d Mhz,AHB=%d Mhz, APB1=%d Mhz \n", sunxi_clock_get_axi(),sunxi_clock_get_ahb(),sunxi_clock_get_apb1());
 
-
     axp_set_charge_vol_limit();
     axp_set_all_limit();
     axp_set_hardware_poweron_vol();
@@ -184,8 +189,164 @@ int power_source_init(void)
 
 	power_limit_init();
 
+    return 0;
+}
+/*
+************************************************************************************************************
+*
+*                                             function
+*
+*    name          : power_off
+*
+*    parmeters     :
+*
+*    return        :
+*
+*    note          : power off system
+*
+*
+************************************************************************************************************
+*/
+int power_off(void)
+{
 	return 0;
 }
+/*
+************************************************************************************************************
+*
+*                                             function
+*
+*    name          :
+*
+*    parmeters     :
+*
+*    return        :
+*
+*    note          :
+*
+*
+************************************************************************************************************
+*/
+void sunxi_set_fel_flag(void)
+{
+	writel(SUNXI_RUN_EFEX_FLAG, RTC_GENERAL_PURPOSE_REG(2));
+}
+/*
+************************************************************************************************************
+*
+*                                             function
+*
+*    name          :
+*
+*    parmeters     :
+*
+*    return        :
+*
+*    note          :
+*
+*
+************************************************************************************************************
+*/
+void sunxi_clear_fel_flag(void)
+{
+	writel(0, RTC_GENERAL_PURPOSE_REG(0));
+}
+/*
+************************************************************************************************************
+*
+*                                             function
+*
+*    name          :
+*
+*    parmeters     :
+*
+*    return        :
+*
+*    note          :
+*
+*
+************************************************************************************************************
+*/
+#ifdef CONFIG_SUNXI_SECURE_SYSTEM
+int sunxi_probe_securemode(void)
+{
+	uint reg_val;
 
+	writel(0xffff, CONFIG_SYS_SRAMA2_BASE);
+	reg_val = readl(CONFIG_SYS_SRAMA2_BASE);
+	if(!reg_val)  //读到数据全是0，那么只能是使能secure的normal模式
+	{
+		if(uboot_spare_head.boot_data.secureos_exist == 1)	//如果是1，由sbromsw传递，表示存在安全系统，否则没有
+		{
+			gd->securemode = SUNXI_SECURE_MODE_WITH_SECUREOS;
+			printf("normal mode: with secureos\n");
+		}
+		else
+		{
+			gd->securemode = SUNXI_SECURE_MODE_NO_SECUREOS;		//不存在安全系统
+			printf("normal mode: no secureos\n");
+		}
+	}
+	else		 //读到数据非0，那么只能是未使能secure
+	{
+            if(uboot_spare_head.boot_data.secureos_exist == 0 )
+            {
+                printf("SUNXI_SECURE_MODE  \n");
+                gd->securemode = SUNXI_SECURE_MODE;
+            }
+            else
+            {
+                printf("SUNXI_NORMAL_MODE   \n");
+		gd->securemode = SUNXI_NORMAL_MODE;
+            }
+	    printf("already secure mode\n");
+	}
 
+	return 0;
+}
+/*
+************************************************************************************************************
+*
+*                                             function
+*
+*    name          :
+*
+*    parmeters     :
+*
+*    return        :
+*
+*    note          :
+*
+*
+************************************************************************************************************
+*/
+int sunxi_set_secure_mode(void)
+{
+	int mode;
+    int secure_bit = 0;
+	if(gd->securemode == SUNXI_NORMAL_MODE)
+	{
+		printf("normal mode\n");
+        if(!script_parser_fetch("platform","secure_bit",&secure_bit,1))
+        {
+            if(secure_bit == 1)
+            {
+                printf("/*===ready to burn secure bit==== */\n");
+                gd->securemode = SUNXI_SECURE_MODE_NO_SECUREOS;
+				mode = sid_probe_security_mode();
+				if(!mode)
+				{
+					sid_set_security_mode();
+				}
+                printf("burn secure bit success \n");
+            }
+        }
+	}
 
+	return 0;
+}
+int sunxi_get_securemode(void)
+{
+	return gd->securemode;
+}
+#endif

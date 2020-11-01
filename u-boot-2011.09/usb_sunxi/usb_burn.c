@@ -24,6 +24,7 @@
 #include "usb_base.h"
 #include <scsi.h>
 #include <asm/arch/dma.h>
+#include <asm/arch/timer.h>
 #include <sys_partition.h>
 #include <boot_type.h>
 #include "usb_burn.h"
@@ -46,12 +47,12 @@ static  int sunxi_usb_pburn_status = SUNXI_USB_PBURN_IDLE;
 
 static  pburn_trans_set_t  trans_data;
 #define DATA_BUFFER_MAX_SIZE					(4*1024*1024)
-
+#ifdef  CONFIG_SUNXI_SECURE_STORAGE
 static  u8 *private_data_ext_buff_step = NULL;
 static u8 *private_data_ext_buff = NULL;
+#endif
 
-
-static int burn_part_result_state=ERR_NO_SUCCESS; 
+static int burn_part_result_state=ERR_NO_SUCCESS;
 
 long long burn_part_bytes = 0;
 
@@ -118,7 +119,7 @@ static int __usb_set_address(struct usb_device_request *req)
 
 	address = req->wValue & 0x7f;
 	printf("set address 0x%x\n", address);
-
+        __usdelay(10);
 	sunxi_udc_set_address(address);
 
 	return SUNXI_USB_REQ_SUCCESSED;
@@ -434,12 +435,11 @@ static int __sunxi_pburn_send_status(void *buffer, unsigned int buffer_size)
 *
 ************************************************************************************************************
 */
+#ifdef CONFIG_SUNXI_SECURE_STORAGE
 int __sunxi_burn_key(u8 *buff, uint buff_len)
 {
 	sunxi_usb_burn_main_info_t *key_main = (sunxi_usb_burn_main_info_t *)buff;
 	sunxi_usb_burn_key_info_t  *key_list;
-	int ret;
-
 #ifdef CONFIG_SUNXI_SECURE_SYSTEM
 	sunxi_efuse_key_info_t      efuse_key_info;
 #endif
@@ -455,14 +455,12 @@ int __sunxi_burn_key(u8 *buff, uint buff_len)
 	}
 	key_count = key_main->count;
 	printf("key_count=%d\n", key_count);
-#ifdef CONFIG_SUNXI_SECURE_STORAGE
 	if(sunxi_secure_storage_init())
 	{
 		printf("%s secure storage init failed\n", __func__);
 
 		return -1;
 	}
-#endif
 	for(;key_count>0;key_count--, key_list++)
 	{
 		key_list = (sunxi_usb_burn_key_info_t *)p_buff;
@@ -499,15 +497,26 @@ int __sunxi_burn_key(u8 *buff, uint buff_len)
 				}
 			}
 
-			if(sunxi_efuse_write(&efuse_key_info))
-			{
-				return -1;
-			}
+			if(gd->securemode == SUNXI_SECURE_MODE_WITH_SECUREOS)
+            {
+            	if(smc_efuse_writel(&efuse_key_info))
+	        	{
+		        	return -1;
+	        	}
+            }
+            else if(gd->securemode == SUNXI_SECURE_MODE)
+            {
+	            if(sunxi_efuse_write(&efuse_key_info))
+	            {
+	                return -1;
+	            }
+            }
 		}
 		else
 #endif
 		{
 #ifdef CONFIG_SUNXI_HDCP_IN_SECURESTORAGE
+			int ret;
 
 			if(!strcmp("hdcpkey", key_list->name))
 			{
@@ -522,52 +531,25 @@ int __sunxi_burn_key(u8 *buff, uint buff_len)
 			else
 #endif
 			{
-#ifdef CONFIG_SUNXI_SECURE_STORAGE
 				sunxi_secure_object_set(key_list->name,
 										key_list->if_crypt,
 										key_list->if_replace,
 										0,0,0 ); /*set secure storage feature*/
 
-				printf("write key to secure storage\n");
-				ret = sunxi_secure_object_write(key_list->name, (char *)key_list->key_data, key_list->len);
-				if(ret)
+				if(sunxi_secure_object_write(key_list->name, (char *)key_list->key_data, key_list->len))
 				{
-					printf("write key to secure storage failed\n");
 					return -1;
 				}
-
-#ifdef CONFIG_SUNXI_BURN_SECURE_STORAGE_AND_PRIVATE
-				ret = save_user_private_data(key_list->name, (char *)key_list->key_data, key_list->len);
-				if(ret < 0)
-				{
-					printf("write key to private failed\n");
-					return -1;
-				}
-				else if(ret == 1)	//烧写的key数据长度过大,无法存储在private分区 
-				{
-					printf("the fuck thing had happened\n");
-				}
-#endif
-
-#else
-				ret = save_user_private_data(key_list->name, (char *)key_list->key_data, key_list->len);
-				if(ret)
-				{
-					printf("write key to private failed\n");
-					return -1;
-				}
-#endif
 			}
 		}
 	}
-#ifdef CONFIG_SUNXI_SECURE_STORAGE
 	if(sunxi_secure_storage_exit())
 	{
 		printf("sunxi_secure_storage_exit err\n");
 
 		return -1;
 	}
-#endif
+
 	return 0;
 }
 
@@ -603,13 +585,12 @@ int __sunxi_read_key_by_name(void *buffer, uint buff_len, int *read_len)
 		printf("the memory input or output is NULL\n");
 		return -1;
 	}
-#ifdef CONFIG_SUNXI_SECURE_STORAGE
+
 	if(sunxi_secure_storage_init())
 	{
 		printf("%s secure storage init failed\n", __func__);
 		return -1;
 	}
-#endif
 
 	key_info = (sunxi_usb_burn_key_info_t *)buffer;
 
@@ -651,34 +632,13 @@ int __sunxi_read_key_by_name(void *buffer, uint buff_len, int *read_len)
 	else
 #endif
 	{
-#ifdef CONFIG_SUNXI_SECURE_STORAGE
-		printf("read key form securestorage\n");
 		ret = sunxi_secure_object_read(key_info->name, data_buff, sizeof(sunxi_usb_burn_key_info_t), &key_data_len);
-		if(ret < 0)
-		{
-			printf("read %s form securestorage failed\n", key_info->name);
-#ifdef CONFIG_SUNXI_BURN_SECURE_STORAGE_AND_PRIVATE
-			printf("read key form private\n");
-			memset(data_buff, 0, 4096);
-			ret = read_private_key_by_name(key_info->name, data_buff, sizeof(sunxi_usb_burn_key_info_t), &key_data_len);
-			if(ret < 0)
-			{
-				printf("read %s form private failed\n", key_info->name);
-				return -1;
-			}
-#else
-			return -1;
-#endif
-		}
-#else
-		printf("read key form private\n");
-		ret = read_private_key_by_name(key_info->name, data_buff, sizeof(sunxi_usb_burn_key_info_t), &key_data_len);
 		if(ret < 0)
 		{
 			printf("read %s failed\n", key_info->name);
 			return -1;
 		}
-#endif
+
 		//组装读取出来的key数据
 		key_info->len = key_data_len;
 	    memcpy((void *)(key_info->key_data), (void *)data_buff, key_data_len);
@@ -686,122 +646,7 @@ int __sunxi_read_key_by_name(void *buffer, uint buff_len, int *read_len)
 	}
 	return 0;
 }
-
-/*
-************************************************************************************************************
-*
-*                                             function
-*
-*    name          :	__sunxi_read_key_by_name
-*
-*    parmeters     :
-*
-*    return        :
-*
-*    note          :
-*
-*
-************************************************************************************************************
-*/
-int __sunxi_erase_key(void)
-{
-	int ret;
-#ifdef CONFIG_SUNXI_SECURE_STORAGE
-	ret = sunxi_secure_storage_init();
-	if(ret < 0)
-	{
-		printf("secure storage init err\n");
-		return -1;
-	}
-
-	ret = sunxi_secure_storage_erase_all();
-	if(ret < 0)
-	{
-		printf("erase secure storage failed\n");
-		return -1;
-	}
-
-	printf("erase securestorage success\n");
-	sunxi_secure_storage_exit();
 #endif
-
-	ret = erase_all_private_data();
-	if(ret < 0)
-	{
-		printf("erase private data failed\n");
-		return -1;
-	}
-
-	return 0;
-}
-
-
-/*
-************************************************************************************************************
-*
-*                                             function
-*
-*    name          :	__sunxi_read_key_by_name
-*
-*    parmeters     :
-*
-*    return        :
-*
-*    note          :
-*
-*
-************************************************************************************************************
-*/
-int __sunxi_burn_flag(void)
-{
-	int ret;
-#ifdef CONFIG_SUNXI_SECURE_STORAGE
-	ret = sunxi_secure_storage_init();
-	if(ret < 0)
-	{
-		printf("secure storage init err\n");
-		return -1;
-	}
-
-	if(sunxi_secure_storage_write("key_burned_flag", "key_burned", strlen("key_burned")))
-	{
-		printf("save burned flag to securestorage failed\n");
-		return -1;
-	}
-
-	printf("save burned flag to securestorage success\n");
-	sunxi_secure_storage_exit();
-
-#else
-
-	char buffer[512];
-	uint private_start, private_len;
-
-	private_start = sunxi_partition_get_offset_byname("private");
-	private_len   = sunxi_partition_get_size_byname("private");
-
-	if((!private_start) || (!private_len))
-	{
-		printf("private no exist\n");
-		return -1;
-	}
-
-	memset(buffer, 0, 512);
-
-	strcpy(buffer, "key_burned");
-	ret = sunxi_flash_write(private_start + private_len - (8192+512)/512, 1, buffer);
-	if(!ret)
-	{
-		printf("save burned flag to private failed\n");
-		return -1;
-	}
-	sunxi_flash_flush();
-	printf("save burned flag to private success\n");
-#endif
-
-	return 0;
-}
-
 /*
 ************************************************************************************************************
 *
@@ -1230,6 +1075,7 @@ static int sunxi_pburn_state_loop(void  *buffer)
 
 			switch(cbw->CBWCDB[0])
 	  		{
+#ifdef  CONFIG_SUNXI_SECURE_STORAGE
 				case 0xf0:			//自定义命令，用于烧录用户数据
 	  				sunxi_usb_dbg("usb burn secure storage data\n");
 	  				printf("usb command = %d\n", cbw->CBWCDB[1]);
@@ -1347,7 +1193,7 @@ static int sunxi_pburn_state_loop(void  *buffer)
 //						}
 //						break;
 
-						case 4:				//关闭usb
+						case 4:				//?乇誹sb
 						{
 							__usb_handshake_ext_t  *handshake = (__usb_handshake_ext_t *)trans_data.base_send_buffer;
 
@@ -1360,8 +1206,6 @@ static int sunxi_pburn_state_loop(void  *buffer)
 							sunxi_udc_send_data((void *)trans_data.act_send_buffer, trans_data.send_size);
 
 		  					csw.bCSWStatus = 0;
-
-							sunxi_flash_flush();
 
 							if(private_data_ext_buff)
 							{
@@ -1385,17 +1229,24 @@ static int sunxi_pburn_state_loop(void  *buffer)
 
 		  					csw.bCSWStatus = 0;
 
-							ret = __sunxi_burn_flag();
+							ret = sunxi_secure_storage_init();
 							if(ret < 0)
 							{
-								printf("sunxi burn flag failed\n");
+								printf("secure storage init err\n");
 								csw.bCSWStatus = -1;
+								break;
 							}
+		  					sunxi_usb_pburn_status = SUNXI_USB_PBURN_SEND_DATA;
+		  					if(sunxi_secure_storage_write("key_burned_flag", "key_burned", strlen("key_burned")))
+		  					{
+		  						printf("save burned flag err\n");
 
-							sunxi_usb_pburn_status = SUNXI_USB_PBURN_SEND_DATA;
+		  						csw.bCSWStatus = -1;
+		  					}
+		  					sunxi_secure_storage_exit();
 						}
 						break;
-#ifdef CONFIG_SUNXI_SECURE_STORAGE
+
 						case 6:		//huk
 						{
 							u8  huk[32];
@@ -1425,7 +1276,7 @@ static int sunxi_pburn_state_loop(void  *buffer)
 		  					sunxi_usb_pburn_status = SUNXI_USB_PBURN_SEND_DATA;
 						}
 						break;
-#endif
+
 						case 7:		//read key one by one
 						{
 							int ret;
@@ -1455,7 +1306,7 @@ static int sunxi_pburn_state_loop(void  *buffer)
 						}
 						break;
 
-						case 8:			//erase all key
+						case 8:			//erase all key in securestorage
 						{
 							int ret;
 							__usb_handshake_ext_t  *handshake = (__usb_handshake_ext_t *)trans_data.base_send_buffer;
@@ -1468,10 +1319,19 @@ static int sunxi_pburn_state_loop(void  *buffer)
 							trans_data.act_send_buffer = (uint)trans_data.base_send_buffer;
 							trans_data.send_size = min(cbw->dCBWDataTransferLength, sizeof(__usb_handshake_ext_t));
 
-							ret = __sunxi_erase_key();
+							ret = sunxi_secure_storage_init();
 							if(ret < 0)
 							{
-								printf("sunxi erase key failed\n");
+								printf("secure storage init err\n");
+								strcpy(handshake->magic, "usb_erase_failed");
+								handshake->err_no = ERR_NO_ERASE_KEY_FAILED;
+								break;
+							}
+
+							ret = sunxi_secure_storage_erase_all();
+							if(ret < 0)
+							{
+								printf("erase secure storage failed\n");
 								strcpy(handshake->magic, "usb_erase_failed");
 								handshake->err_no = ERR_NO_ERASE_KEY_FAILED;
 								break;
@@ -1479,13 +1339,15 @@ static int sunxi_pburn_state_loop(void  *buffer)
 
 							strcpy(handshake->magic, "usb_erase_success");
 							handshake->err_no = ERR_NO_SUCCESS;
-							printf("sunxi erase all key success\n");
+							sunxi_secure_storage_exit();
+							printf("secure storage erase all success\n");
 						}
 						break;
 					default:
 						break;
 	  			}
 	  			break;
+#endif
 
 	  			case 0xf3:			//自定义命令，用于烧录用户数据
 	  				sunxi_usb_dbg("usb burn private\n");
@@ -1640,6 +1502,8 @@ static int sunxi_pburn_state_loop(void  *buffer)
 						break;
 	  				}
 
+					break;
+
 	  			case 0xf7:		//自定义命令字，烧录分区数据
 	  				sunxi_usb_dbg("usb burn partition\n");
 	  				sunxi_usb_dbg("usb command = %d\n", cbw->CBWCDB[1]);
@@ -1736,7 +1600,7 @@ static int sunxi_pburn_state_loop(void  *buffer)
 							sunxi_udc_send_data((void *)trans_data.act_send_buffer, trans_data.send_size);
 
 		  					csw.bCSWStatus = 0;
-							sunxi_flash_flush();
+
 		  					sunxi_usb_pburn_status = SUNXI_USB_PBURN_EXIT;
 
 						}

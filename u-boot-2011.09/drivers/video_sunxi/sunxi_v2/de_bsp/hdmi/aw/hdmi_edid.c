@@ -282,8 +282,6 @@ static __s32 Parse_AudioData_Block(__u8 *pbuf,__u8 size)
 static __s32 Parse_HDMI_VSDB(__u8 * pbuf,__u8 size)
 {
 	__u8 index = 8;
-	__u8 vic_len = 0;
-	__u8 i;
 
 	/* check if it's HDMI VSDB */
 	if((pbuf[0] ==0x03) &&	(pbuf[1] ==0x0c) &&	(pbuf[2] ==0x00)) {
@@ -313,13 +311,6 @@ static __s32 Parse_HDMI_VSDB(__u8 * pbuf,__u8 size)
 
 	if( ((pbuf[index]&0x60) ==1) || ((pbuf[index]&0x60) ==2) )
 		__inf("3D_multi_present\n");
-
-	vic_len = pbuf[index+1]>>5;
-	for(i=0; i<vic_len; i++) {
-		/* HDMI_VIC for extended resolution transmission */
-		Device_Support_VIC[pbuf[index+1+1+i] + 0x100] = 1;
-		__inf("Parse_HDMI_VSDB: VIC %d support\n", pbuf[index+1+1+i]);
-	}
 
 	index += (pbuf[index+1]&0xe0) + 2;
 	if(index > (size+1) )

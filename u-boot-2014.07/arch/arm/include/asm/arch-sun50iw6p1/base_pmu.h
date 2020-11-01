@@ -36,7 +36,7 @@ int pmu_init(u8 power_mode);
 int set_ddr_voltage(int set_vol);
 int set_pll_voltage(int set_vol);
 uint sid_read_key(uint key_index);
-
+extern void get_cpus_vdd_gpio(u8 reserve0, u8 reserve1);
 
 #endif  /* __BASE_PMU_H_ */
 

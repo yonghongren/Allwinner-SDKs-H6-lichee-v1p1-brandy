@@ -18,6 +18,7 @@ struct disp_device_private_data {
 	u32 irq_no;
 
 	struct clk *clk;
+	struct clk *clk_parent;
 };
 
 static u32 hdmi_used = 0;
@@ -62,6 +63,9 @@ static s32 hdmi_clk_init(struct disp_device *hdmi)
 	    return DIS_FAIL;
 	}
 
+	if (hdmip->clk)
+		hdmip->clk_parent = clk_get_parent(hdmip->clk);
+
 	return 0;
 }
 
@@ -77,53 +81,96 @@ static s32 hdmi_clk_exit(struct disp_device *hdmi)
 	return 0;
 }
 
+#if defined(CONFIG_ARCH_SUN8IW6P1) || defined(CONFIG_ARCH_SUN8IW12P1)
 static s32 hdmi_clk_config(struct disp_device *hdmi)
 {
 	struct disp_device_private_data *hdmip = disp_hdmi_get_priv(hdmi);
-	struct clk *parent_clk;
-	unsigned long rate = 0, round_rate = 0;
-	long rate_diff = 0;
-	unsigned long parent_rate = 0, parent_round_rate = 0;
-	long parent_rate_diff = 0;
-	unsigned int div = 1;
+	unsigned long rate = 0;
+
+	if (!hdmi || !hdmip) {
+		DE_WRN("hdmi clk init null hdl!\n");
+		return DIS_FAIL;
+	}
+	rate = hdmip->video_info->pixel_clk *
+	       (hdmip->video_info->pixel_repeat + 1);
+
+	if (hdmip->clk_parent) {
+		if (hdmip->video_info->vic == HDMI480P ||
+		    hdmip->video_info->vic == HDMI576P)
+			clk_set_rate(hdmip->clk_parent, 297000000);
+		else
+			clk_set_rate(hdmip->clk_parent, 594000000);
+	}
+	if (hdmip->clk)
+		clk_set_rate(hdmip->clk, rate);
+
+	return 0;
+}
+#else
+static bool hdmi_is_divide_by(unsigned long dividend,
+			       unsigned long divisor)
+{
+	bool divide = false;
+	unsigned long temp;
+
+	if (divisor == 0)
+		goto exit;
+
+	temp = dividend / divisor;
+	if (dividend == (temp * divisor))
+		divide = true;
+
+exit:
+	return divide;
+}
+
+static s32 hdmi_clk_config(struct disp_device *hdmi)
+{
+	struct disp_device_private_data *hdmip = disp_hdmi_get_priv(hdmi);
+	unsigned long rate = 0, rate_set = 0;
+	unsigned long rate_round, rate_parent;
+	int i;
 
 	if (!hdmi || !hdmip) {
 	    DE_WRN("hdmi clk init null hdl!\n");
 	    return DIS_FAIL;
 	}
-
-	parent_clk =  clk_get_parent(hdmip->clk);
-	if (!parent_clk) {
-		DE_WRN("can not get hdmi prent clk!\n");
-		return DIS_FAIL;
-	}
-	rate = hdmip->video_info->pixel_clk * (hdmip->video_info->pixel_repeat + 1);
+	rate = hdmip->video_info->pixel_clk *
+			(hdmip->video_info->pixel_repeat + 1);
 	if (hdmip->config.format == DISP_CSC_TYPE_YUV420)
 		rate /= 2;
+	rate_parent = clk_get_rate(hdmip->clk_parent);
+	if (!hdmi_is_divide_by(rate_parent, rate)) {
+		if (hdmi_is_divide_by(297000000, rate))
+			clk_set_rate(hdmip->clk_parent, 297000000);
+		else if (hdmi_is_divide_by(594000000, rate))
+			clk_set_rate(hdmip->clk_parent, 594000000);
+	}
 
-	round_rate = clk_round_rate(hdmip->clk, rate);
-	rate_diff = (long)(round_rate - rate);
-	if ((rate_diff > 5000000) || (rate_diff < -5000000)) {
-		for (div = 1; (rate * div) <= 600000000; div++) {
-			parent_rate = rate * div;
-			parent_round_rate = clk_round_rate(parent_clk,
-							   parent_rate);
-			parent_rate_diff = (long)(parent_round_rate - parent_rate);
-			if ((parent_rate_diff < 5000000)
-				&& (parent_rate_diff > -5000000)) {
-				clk_set_rate(parent_clk, parent_rate);
+	if (hdmip->clk) {
+		clk_set_rate(hdmip->clk, rate);
+		rate_set = clk_get_rate(hdmip->clk);
+	}
+
+	if (hdmip->clk && (rate_set != rate)) {
+		for (i = 1; i < 10; i++) {
+			rate_parent = rate * i;
+			rate_round = clk_round_rate(hdmip->clk_parent,
+							rate_parent);
+			if (rate_round == rate_parent) {
+				clk_set_rate(hdmip->clk_parent, rate_parent);
 				clk_set_rate(hdmip->clk, rate);
 				break;
 			}
 		}
-		if ((rate * div) > 600000000)
-			clk_set_rate(hdmip->clk, rate);
-	} else {
-		clk_set_rate(hdmip->clk, rate);
+		if (i == 10)
+			DE_WRN("clk_set_rate fail.need %ldhz, but get %ldhz\n",
+					rate, rate_set);
 	}
 
 	return 0;
 }
+#endif
 
 static s32 hdmi_clk_enable(struct disp_device *hdmi)
 {
@@ -202,7 +249,8 @@ static s32 hdmi_calc_judge_line(struct disp_device *hdmi)
 	return 0;
 }
 
-static s32 disp_hdmi_set_func(struct disp_device*  hdmi, struct disp_device_func * func)
+static s32 disp_hdmi_set_func(struct disp_device *hdmi,
+				struct disp_device_func *func)
 {
 	struct disp_device_private_data *hdmip = disp_hdmi_get_priv(hdmi);
 
@@ -316,13 +364,15 @@ s32 disp_hdmi_enable(struct disp_device* hdmi)
 	mutex_lock(&hdmi_mlock);
 	if (hdmip->enabled == 1)
 		goto exit;
-	memcpy(&hdmi->timings, hdmip->video_info, sizeof(struct disp_video_timings));
+	memcpy(&hdmi->timings, hdmip->video_info,
+				sizeof(struct disp_video_timings));
 	hdmi_calc_judge_line(hdmi);
 
 	if (mgr->enable)
 		mgr->enable(mgr);
 
-	disp_sys_register_irq(hdmip->irq_no,0,disp_hdmi_event_proc,(void*)hdmi,0,0);
+	disp_sys_register_irq(hdmip->irq_no, 0, disp_hdmi_event_proc,
+							(void *)hdmi, 0, 0);
 	disp_sys_enable_irq(hdmip->irq_no);
 
 	ret = hdmi_clk_enable(hdmi);
@@ -374,13 +424,15 @@ static s32 disp_hdmi_sw_enable(struct disp_device* hdmi)
 		return DIS_FAIL;
 	}
 	mutex_lock(&hdmi_mlock);
-	memcpy(&hdmi->timings, hdmip->video_info, sizeof(struct disp_video_timings));
+	memcpy(&hdmi->timings, hdmip->video_info,
+					sizeof(struct disp_video_timings));
 	hdmi_calc_judge_line(hdmi);
 
 	if (mgr->sw_enable)
 		mgr->sw_enable(mgr);
 
-	disp_sys_register_irq(hdmip->irq_no,0,disp_hdmi_event_proc,(void*)hdmi,0,0);
+	disp_sys_register_irq(hdmip->irq_no, 0, disp_hdmi_event_proc,
+							(void *)hdmi, 0, 0);
 	disp_sys_enable_irq(hdmip->irq_no);
 
 	spin_lock_irqsave(&hdmi_data_lock, flags);
@@ -433,7 +485,8 @@ static s32 disp_hdmi_disable(struct disp_device* hdmi)
 		mgr->disable(mgr);
 
 	disp_sys_disable_irq(hdmip->irq_no);
-	disp_sys_unregister_irq(hdmip->irq_no, disp_hdmi_event_proc,(void*)hdmi);
+	disp_sys_unregister_irq(hdmip->irq_no, disp_hdmi_event_proc,
+							(void *)hdmi);
 
 exit:
 	mutex_unlock(&hdmi_mlock);
@@ -518,7 +571,8 @@ static s32 disp_hdmi_set_detect(struct disp_device* hdmi, bool hpd)
 	mutex_lock(&hdmi_mlock);
 	if ((1 == hdmip->enabled) && (true == hpd)) {
 		if (hdmip->hdmi_func.get_video_timing_info) {
-			hdmip->hdmi_func.get_video_timing_info(&(hdmip->video_info));
+			hdmip->hdmi_func.get_video_timing_info(
+							&(hdmip->video_info));
 			if (hdmip->video_info == NULL) {
 				DE_WRN("video info is null\n");
 				hdmip->hpd = hpd;
@@ -551,6 +605,37 @@ static s32 disp_hdmi_check_support_mode(struct disp_device* hdmi, u32 mode)
 	return hdmip->hdmi_func.mode_support(mode);
 }
 
+static s32 disp_hdmi_get_work_mode(struct disp_device *hdmi)
+{
+	struct disp_device_private_data *hdmip = disp_hdmi_get_priv(hdmi);
+
+	if ((NULL == hdmi) || (NULL == hdmip)) {
+		DE_WRN("hdmi set func null  hdl!\n");
+		return DIS_FAIL;
+	}
+
+	if (!hdmip->hdmi_func.get_work_mode)
+		return -1;
+
+	return hdmip->hdmi_func.get_work_mode();
+}
+
+static s32 disp_hdmi_get_support_mode(struct disp_device *hdmi, u32 init_mode)
+{
+	struct disp_device_private_data *hdmip = disp_hdmi_get_priv(hdmi);
+
+	if ((NULL == hdmi) || (NULL == hdmip)) {
+		DE_WRN("hdmi set func null  hdl!\n");
+		return DIS_FAIL;
+	}
+
+	if (hdmip->hdmi_func.get_support_mode == NULL)
+		return -1;
+
+	return hdmip->hdmi_func.get_support_mode(init_mode);
+}
+
+
 static s32 disp_hdmi_get_input_csc(struct disp_device* hdmi)
 {
 	struct disp_device_private_data *hdmip = disp_hdmi_get_priv(hdmi);
@@ -578,22 +663,6 @@ static s32 disp_hdmi_get_input_color_range(struct disp_device* hdmi)
 		return DISP_COLOR_RANGE_0_255;
 	else
 		return DISP_COLOR_RANGE_16_235;
-}
-
-static s32 disp_hdmi_get_edid(struct disp_device *hdmi, uintptr_t *edid_addr)
-{
-	struct disp_device_private_data *hdmip = disp_hdmi_get_priv(hdmi);
-	s32 ret = -1;
-
-	if ((hdmi == NULL) || (hdmip == NULL)) {
-		DE_WRN("hdmi or hdmip is hdl!\n");
-		return DIS_FAIL;
-	}
-
-	if (hdmip->hdmi_func.get_edid)
-		ret = hdmip->hdmi_func.get_edid(edid_addr);
-
-	return ret;
 }
 
 static s32 disp_hdmi_suspend(struct disp_device* hdmi)
@@ -779,7 +848,15 @@ exit:
 
 s32 disp_init_hdmi(disp_bsp_init_para * para)
 {
+	int ret = 0;
+	int value = 0;
 	hdmi_used = 1;
+
+	ret = disp_sys_script_get_item("hdmi", "boot_mask", &value, 1);
+	if (ret == 1 && value == 1) {
+		pr_msg("skip hdmi in boot.\n");
+		return -1;
+	}
 
 	if (hdmi_used) {
 		u32 num_devices;
@@ -795,17 +872,22 @@ s32 disp_init_hdmi(disp_bsp_init_para * para)
 
 		num_devices = bsp_disp_feat_get_num_devices();
 		for (hwdev_index=0; hwdev_index<num_devices; hwdev_index++) {
-			if (bsp_disp_feat_is_supported_output_types(hwdev_index, DISP_OUTPUT_TYPE_HDMI))
+			if (bsp_disp_feat_is_supported_output_types(hwdev_index,
+							DISP_OUTPUT_TYPE_HDMI))
 				num_devices_support_hdmi ++;
 		}
-		hdmis = (struct disp_device *)kmalloc(sizeof(struct disp_device) * num_devices_support_hdmi, GFP_KERNEL | __GFP_ZERO);
+		hdmis = (struct disp_device *)kmalloc(sizeof(struct disp_device)
+				* num_devices_support_hdmi,
+				GFP_KERNEL | __GFP_ZERO);
 		if (NULL == hdmis) {
 			DE_WRN("malloc memory fail!\n");
 			return DIS_FAIL;
 		}
 
-		hdmi_private = (struct disp_device_private_data *)kmalloc(sizeof(struct disp_device_private_data)\
-		* num_devices_support_hdmi, GFP_KERNEL | __GFP_ZERO);
+		hdmi_private = (struct disp_device_private_data *)kmalloc(
+					sizeof(struct disp_device_private_data)\
+					* num_devices_support_hdmi,
+					GFP_KERNEL | __GFP_ZERO);
 		if (NULL == hdmi_private) {
 			DE_WRN("malloc memory fail!\n");
 			return DIS_FAIL;
@@ -813,7 +895,9 @@ s32 disp_init_hdmi(disp_bsp_init_para * para)
 
 		disp = 0;
 		for (hwdev_index=0; hwdev_index<num_devices; hwdev_index++) {
-			if (!bsp_disp_feat_is_supported_output_types(hwdev_index, DISP_OUTPUT_TYPE_HDMI)) {
+			if (!bsp_disp_feat_is_supported_output_types(
+						hwdev_index,
+						DISP_OUTPUT_TYPE_HDMI)) {
 			    continue;
 			}
 
@@ -831,7 +915,8 @@ s32 disp_init_hdmi(disp_bsp_init_para * para)
 			hdmip->config.bits = DISP_DATA_8BITS;
 			hdmip->config.eotf = DISP_EOTF_GAMMA22;
 			hdmip->config.cs = DISP_UNDEF;
-			hdmip->irq_no = para->irq_no[DISP_MOD_LCD0 + hwdev_index];
+			hdmip->irq_no = para->irq_no[DISP_MOD_LCD0 +
+								hwdev_index];
 			hdmip->clk = para->mclk[DISP_MOD_LCD0 + hwdev_index];
 
 			hdmi->set_manager = disp_device_set_manager;
@@ -855,6 +940,8 @@ s32 disp_init_hdmi(disp_bsp_init_para * para)
 			hdmi->get_static_config = disp_hdmi_get_static_config;
 			hdmi->set_dynamic_config = disp_hdmi_set_dynamic_config;
 			hdmi->check_config_dirty = disp_hdmi_check_config_dirty;
+			hdmi->get_support_mode = disp_hdmi_get_support_mode;
+			hdmi->get_work_mode = disp_hdmi_get_work_mode;
 			hdmi->get_input_csc = disp_hdmi_get_input_csc;
 			hdmi->get_input_color_range =
 			    disp_hdmi_get_input_color_range;
@@ -863,7 +950,6 @@ s32 disp_init_hdmi(disp_bsp_init_para * para)
 			hdmi->detect = disp_hdmi_detect;
 			hdmi->set_detect = disp_hdmi_set_detect;
 			hdmi->get_status = disp_hdmi_get_status;
-			hdmi->get_edid = disp_hdmi_get_edid;
 			hdmi->get_fps = disp_hdmi_get_fps;
 
 			hdmi->init(hdmi);

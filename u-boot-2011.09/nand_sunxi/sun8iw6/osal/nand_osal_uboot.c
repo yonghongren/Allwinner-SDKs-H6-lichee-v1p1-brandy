@@ -31,8 +31,8 @@
 //#define get_wvalue(addr)	(*((volatile unsigned long  *)(addr)))
 //#define put_wvalue(addr, v)	(*((volatile unsigned long  *)(addr)) = (unsigned long)(v))
 #define  NAND_DRV_VERSION_0		0x2
-#define  NAND_DRV_VERSION_1		0x28
-#define  NAND_DRV_DATE			0x20160719
+#define  NAND_DRV_VERSION_1		0x26
+#define  NAND_DRV_DATE			0x20151230
 #define  NAND_DRV_TIME			0x1048
 
 

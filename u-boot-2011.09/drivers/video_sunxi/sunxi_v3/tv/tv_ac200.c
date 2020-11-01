@@ -16,7 +16,7 @@
 #define DE_LCD_CLK "lcd0"
 #define DE_LCD_CLK_SRC "pll_video0"
 
-static char modules_name[32] = {0};
+static char modules_name[16] = {0};
 static disp_tv_mode g_tv_mode = DISP_TV_MOD_PAL;
 static char key_name[20] = "tv_ac200_para";
 
@@ -115,7 +115,7 @@ static int  tv_i2c_init(void)
         tv_i2c_used = value;
         if(tv_i2c_used == 1)
         {
-            i2c_init(0x0, CONFIG_SYS_I2C_SPEED,CONFIG_SYS_I2C_SLAVE);         //cpus twi0 for cvbs
+            i2c_init(CONFIG_SYS_I2C_SPEED,CONFIG_SYS_I2C_SLAVE);         //cpus twi0 for cvbs
         }
     }
     return 0;
@@ -332,12 +332,22 @@ int tv_ac200_init(void)
 	int ret;
 	int value;
 	disp_vdevice_init_data init_data;
-	printf("============tv_ac200_init==========\n");
+	printf("============tv_init==========\n");
 	tv_suspend_status = 0;
 	ret = disp_sys_script_get_item(key_name, "tv_used", &value, 1);
 	if(1 == ret) {
 		tv_used = value;
  		if(tv_used) {
+
+			ret = disp_sys_script_get_item(key_name, "tv_module_name", (int*)modules_name, 32/sizeof(int));
+			if(2 == ret) {
+				ret = strcmp(modules_name, "tv_ac200");
+				if (ret) {
+					printf("tv driver is not tv_ac200! module_name = %s.\n", modules_name);
+					return -1;
+				}
+			}
+
 			tv_parse_config();
 			tv_pin_config(1);
 			ret = disp_sys_script_get_item(key_name, "tv_power", (int*)tv_power, 32/sizeof(int));

@@ -52,9 +52,7 @@
 #define CONFIG_TARGET_NAME      sun8iw11p1
 #endif
 
-//add for avoid jenkins build error
-#define SUNXI_ESM_IMG_SIZE_ADDR                                 (0x42e00000)
-#define SUNXI_ESM_IMG_BUFF_ADDR                                 (0x42e00000 + 16)
+
 
 #define CONFIG_SYS_GENERIC_BOARD
 
@@ -99,7 +97,6 @@
 // the sram base address, and the stack address in stage1
 #define CONFIG_SYS_INIT_RAM_ADDR	     0x0000
 #define CONFIG_SYS_INIT_RAM_SIZE	     0x00007ff0
-
 
 #define CONFIG_SYS_INIT_SP_OFFSET \
 	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
@@ -149,6 +146,7 @@
 //#define CONFIG_SUNXI_LOGBUFFER
 #define SUNXI_DISPLAY_FRAME_BUFFER_ADDR  (CONFIG_SYS_SDRAM_BASE + 0x06400000)
 #define SUNXI_DISPLAY_FRAME_BUFFER_SIZE  0x01000000
+
 
 /*
 * define const value
@@ -332,8 +330,7 @@
 #define CONFIG_ANDROID_BOOT_IMAGE      /*image is android boot image*/
 #define CONFIG_USBD_HS
 #define BOARD_LATE_INIT		      /* init the fastboot partitions */
-#define CONFIG_SUNXI_PRIVATE_KEY
-#define CONFIG_SUNXI_USER_KEY  /*read keys from secure storage or private*/
+//#define CONFIG_SUNXI_KEY_BURN
 #define CONFIG_SUNXI_I2C
 #define CONFIG_CPUX_I2C
 #define CONFIG_AXP_USE_I2C
@@ -341,8 +338,6 @@
 #define CONFIG_SYS_I2C_SLAVE 0x10
 
 #define CONFIG_SUNXI_KEY_SUPPORT
-
-#define CONFIG_BACKUP_PARTITION
 
 /*-----------------------------------------------------------------------
  * Stack sizes
@@ -361,8 +356,6 @@
  *module support: sdmmc&&nand platform | spinor platform  
  ****************************************/
 #ifndef CONFIG_SUN8IW11P1_NOR
-#define CONFIG_SUNXI_KEY_BURN
-#define CONFIG_SUNXI_SECURE_STORAGE
 #define CONFIG_SUNXI_MODULE_SPRITE
 #define CONFIG_SUNXI_MODULE_NAND
 #define CONFIG_SUNXI_MODULE_SDMMC
@@ -373,20 +366,8 @@
 #define CONFIG_SUNXI_MODULE_HDMI
 #define CONFIG_SUNXI_MODULE_TV
 #else
-//#define CONFIG_SPINOR_BURN_KEY//burn_key
-#define CONFIG_CMD_SUNXI_EFEX
 #define CONFIG_SUNXI_MODULE_SPINOR
 #define CONFIG_SUNXI_MODULE_AXP
-#define CONFIG_TINYJPEG_DECODER
-#define CONFIG_SUNXI_LOAD_JPEG
-#define BOOTLOGO_PARTITION_NAME "boot_logo"
-#define CONFIG_SUNXI_SPINOR_PLATFORM
-#ifdef CONFIG_SPINOR_BURN_KEY
-#define CONFIG_SUNXI_KEY_BURN
-#define CONFIG_SUNXI_MODULE_USB
-#define CONFIG_SUNXI_MODULE_SPRITE
-#define CONFIG_SUNXI_MODULE_SDMMC
-#endif
 #endif
 
 
@@ -401,23 +382,23 @@
 #define CONFIG_CMD_RUN			/* run a command */
 #define CONFIG_CMD_BOOTD		/* boot the default command */
 #define CONFIG_CMD_FDT
-#define CONFIG_CMD_MEMORY
 
 #ifndef CONFIG_SUN8IW11P1_NOR
 #define CONFIG_CMD_FAT			/* with this we can access bootfs in nand */
 #define CONFIG_CMD_IRQ
 #define CONFIG_CMD_ELF
+#define CONFIG_CMD_MEMORY
 #define CONFIG_CMD_FASTBOOT
 #define CONFIG_CMD_SUNXI_SPRITE
 #define CONFIG_CMD_SUNXI_TIMER
 #define CONFIG_CMD_SUNXI_EFEX
 #define CONFIG_CMD_SUNXI_SHUTDOWN
 #define CONFIG_CMD_SUNXI_BMP
-#define CONFIG_CMD_SUNXI_MEMTEST
-#endif
-
 #ifdef CONFIG_SUNXI_KEY_BURN
 #define CONFIG_CMD_SUNXI_BURN
+#endif
+#define CONFIG_CMD_SUNXI_MEMTEST
+
 #endif
 
 //#define CONFIG_AUTO_UPDATE
@@ -455,7 +436,6 @@
 #ifdef CONFIG_SUNXI_MODULE_DISPLAY
 #define CONFIG_SUNXI_DISPLAY
 #define CONFIG_VIDEO_SUNXI_V3
-#define CONFIG_BOOT_GUI
 #endif
 
 #ifdef CONFIG_SUNXI_MODULE_AXP
@@ -467,16 +447,10 @@
 #define FDT_PATH_REGU                   "regulator0"
 #endif
 
-//#define CONFIG_SPINOR_LARGE_UBOOT
-
 #ifdef CONFIG_SUNXI_MODULE_SPINOR
 #define CONFIG_SUNXI_SPI
 #define CONFIG_SUNXI_SPINOR
-#ifndef CONFIG_SPINOR_LARGE_UBOOT
 #define CONFIG_SPINOR_LOGICAL_OFFSET        ((512 - 16) * 1024/512)
-#else
-#define CONFIG_SPINOR_LOGICAL_OFFSET        ((1024 - 16) * 1024/512)
-#endif
 #define UBOOT_START_SECTOR_IN_SPINOR        (24*1024/512)
 #define SPINOR_STORE_BUFFER_SIZE            (2<<20)
 #define CONFIG_STORAGE_MEDIA_SPINOR
@@ -512,13 +486,12 @@
 //#define CONFIG_SYS_DCACHE_OFF
 
 /* net support */
-#define CONFIG_SUNXI_GETH
+//#define CONFIG_SUNXI_GETH
 #ifdef CONFIG_SUNXI_GETH
 #define CONFIG_SUNXI_EXT_PHY
 #define CONFIG_CMD_NET
 #define CONFIG_CMD_PING
 #define CONFIG_CMD_MII
-#define CONFIG_CMD_TFTPPUT
 //#define CONFIG_ETHADDR 	72:D6:05:4F:B9:3B
 //#define CONFIG_IPADDR   	192.168.200.254
 //#define CONFIG_SERVERIP      	192.168.200.20

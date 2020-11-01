@@ -121,7 +121,6 @@ s32 tcon1_hdmi_color_remap(u32 sel, u32 onoff);
 s32 tcon1_yuv_range(u32 sel, u32 onoff);
 u32 tcon0_get_cpu_tri2_start_delay(u32 sel);
 s32 rgb_src_sel(u32 src);
-s32 tcon1_black_src(u32 sel, u32 on_off, u32 color);
 s32 dsi_src_sel(u32 sel, u32 src);
 
 #if defined(SUPPORT_DSI)
@@ -131,5 +130,6 @@ extern __u32 tcon_div;
 extern s32 disp_delay_us(u32 us);
 extern s32 disp_delay_ms(u32 ms);
 extern int de_get_clk_rate(void);
+s32 edp_de_attach(u32 edp_index, u32 de_index);
 
 #endif

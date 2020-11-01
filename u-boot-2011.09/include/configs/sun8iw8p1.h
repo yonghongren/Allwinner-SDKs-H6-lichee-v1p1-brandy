@@ -38,8 +38,6 @@
 #define UBOOT_PLATFORM		    "1.0.0"
 
 #define CONFIG_TARGET_NAME      sun8iw8p1
-#define ALIGN_SIZE_8K
-
 /*
  * High Level Configuration Options
  */
@@ -79,7 +77,7 @@
  * Size of malloc() pool
  * 1MB = 0x100000, 0x100000 = 1024 * 1024
  */
-#define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + (4 << 20))
+#define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + (10 << 20))
 
 
 
@@ -108,15 +106,13 @@
 
 #define DRAM_PARA_STORE_ADDR		     (CONFIG_SYS_SDRAM_BASE + 0x00800000)
 
-#define MEM_ADD_SIZE                     (SZ_1M * 2)
+#define SYS_CONFIG_MEMBASE               (CONFIG_SYS_SDRAM_BASE + 0x03000000)
 
-#define SYS_CONFIG_MEMBASE               (CONFIG_SYS_SDRAM_BASE + SZ_32M - SZ_1M - MEM_ADD_SIZE )
 #define CONFIG_SMALL_MEMSIZE
 #define CONFIG_SUNXI_LOGBUFFER
 #define CONFIG_READ_LOGO_FOR_KERNEL
-
-#define SUNXI_DISPLAY_FRAME_BUFFER_ADDR             ((CONFIG_SYS_SDRAM_BASE + SZ_32M -SZ_1M *3 - MEM_ADD_SIZE  ))
-#define SUNXI_DISPLAY_FRAME_BUFFER_SIZE             (SZ_512K * 3 )
+#define SUNXI_DISPLAY_FRAME_BUFFER_ADDR  (CONFIG_SYS_SDRAM_BASE + 0x06400000)
+#define SUNXI_DISPLAY_FRAME_BUFFER_SIZE  0x01000000
 
 #define FEL_BASE                         0xFFFF0020
 /*
@@ -169,6 +165,7 @@
 ***************************************************************/
 //#define CONFIG_SUNXI_RSB
 #define CONFIG_SUNXI_I2C
+#define CONFIG_PMU_USE_I2C
 #define CONFIG_SYS_I2C_SPEED 400000
 #define CONFIG_SYS_I2C_SLAVE 0x68
 #define CONFIG_USE_IRQ
@@ -181,17 +178,12 @@
 #define CONFIG_SUNXI_DISPLAY
 
 #define CONFIG_SUNXI_AXP
-#define POWER_CONFIG_SUNXI_I2C	//axp communication bus
 #define CONFIG_SUNXI_AXP20
-#define CONFIG_SUNXI_AXP15
 #define CONFIG_SUNXI_AXP_MAIN        PMU_TYPE_20X
 #define PMU_SCRIPT_NAME                 "pmu1_para"
 //#define CONFIG_SUNXI_AXP_CONFIG_ONOFF
 
 //#define CONFIG_SUNXI_SCRIPT_REINIT
-
-#define CONFIG_BOOT0_I2C
-#define CONFIG_BOOT0_POWER
 
 #define BOARD_LATE_INIT				/* init the fastboot partitions */
 
@@ -244,6 +236,24 @@
 //#define USE_EMMC_USER_WHEN_USE_BOOT_PART //use eMMC boot and user part at the same time,if you want to use it,use USE_EMMC_BOOT_PART at the same time
 
 #define CONFIG_DOS_PARTITION
+
+/* net support */
+//#define CONFIG_CMD_NET
+//#define CONFIG_NET_MULTI
+//#define CONFIG_CMD_PING
+//#define CONFIG_CMD_NFS
+/*
+ * Reducing the ARP timeout from default 5000UL to 1UL we speed up the
+ * initial TFTP transfer or PING, etc, should the user wish one, significantly.
+ */
+#define CONFIG_ARP_TIMEOUT	1UL
+
+/* USB SUSPORT */
+#define CONFIG_USB_ETHER
+#define CONFIG_USB_ETH_RNDIS
+#define CONFIG_USB_SUNXI_UDC0
+#define CONFIG_USB_GADGET_DUALSPEED
+
 /*
  * Miscellaneous configurable options
  */
@@ -299,7 +309,7 @@
  * if not, below CONFIG_ENV_ADDR and CONFIG_ENV_SIZE will be where to store env.
  * */
 #define CONFIG_ENV_ADDR				(53 << 20)  /* 16M */
-#define CONFIG_ENV_SIZE				(64 << 10)	/* 64KB */
+#define CONFIG_ENV_SIZE				(128 << 10)	/* 128KB */
 #define CONFIG_CMD_SAVEENV
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
@@ -334,5 +344,22 @@
 #define CONFIG_CMD_RUN			/* run a command */
 #define CONFIG_CMD_BOOTD		/* boot the default command */
 
+/* Configuaration of Network and net-driver */
+#define CONFIG_CMD_NET
+#define CONFIG_NET_MULTI
+#define CONFIG_SUNXI_GETH
+
+#define CONFIG_CMD_NFS         /* NFS support                  */
+#define CONFIG_CMD_DHCP                /* DHCP Support                 */
+#define CONFIG_CMD_MII         /* MII support                  */
+#define CONFIG_ETHADDR         02:AC:BD:3F:29:0E       /* Ethernet hardware address    */
+#define CONFIG_CMD_PING
+//
+//#define CONFIG_IPADDR	192.168.0.23
+//#define CONFIG_SERVERIP	192.168.0.20
+//#define CONFIG_NETMASK	255.255.255.0
+//#define CONFIG_GATEWAYIP 192.168.0.1
+#define CONFIG_BOOTFILE uImage
+#define CONFIG_LOADADDR        0x40008000
 
 #endif /* __CONFIG_H */

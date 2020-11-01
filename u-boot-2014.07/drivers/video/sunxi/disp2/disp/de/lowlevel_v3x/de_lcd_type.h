@@ -416,10 +416,10 @@ union tcon_ceu_coef_add_reg_t {
 union tcon_ceu_coef_rang_reg_t {
 	u32 dwval;
 	struct {
-		u32 max:10;
-		u32 res0:6;
-		u32 min:10;
-		u32 res1:6;
+		u32 max:8;
+		u32 res0:8;
+		u32 min:8;
+		u32 res1:8;
 	} bits;
 };
 
@@ -723,6 +723,18 @@ struct __de_lcd_top_dev_t {
 };
 /* edit by lrx---end */
 #endif
+
+enum cpu_mode {
+	MODE_18BIT = 0,
+	MODE0_16BIT = 2,
+	MODE1_16BIT = 4,
+	MODE2_16BIT = 6,
+	MODE3_16BIT = 8,
+	MODE_9BIT = 10,
+	MODE_8BIT_256K = 12,
+	MODE_8BIT_65K = 14,
+	MODE_DSI = 1,
+};
 
 struct __de_lcd_dev_t {
 	/* 0x00 - 0x0c */

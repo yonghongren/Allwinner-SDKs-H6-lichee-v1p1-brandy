@@ -28,7 +28,6 @@
 #include <sys_config.h>
 #include <smc.h>
 #include <fdt_support.h>
-#include <power/sunxi/pmu.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -824,282 +823,211 @@ __s32  gpio_write_one_pin_value(ulong p_handler, __u32 value_to_gpio, const char
     return EGPIO_FAIL;
 }
 
-
-static int gpio_set_axpgpio_value(int pmu_type, int port_num, int level)
-{
-	int ret =  0;
-
-	if(port_num == 0)
-	{
-		ret = axp_set_supply_status(pmu_type, PMU_SUPPLY_GPIO0, 0, level);
-	}
-	else if (port_num == 1)
-	{
-		ret = axp_set_supply_status(pmu_type, PMU_SUPPLY_GPIO1, 0, level);
-	}
-
-	if(ret)
-	{
-		printf("set axp gpio failed\n");
-		return -1;
-	}
-
-	return 0;
-}
-#define PORT_TYPE_AXP    0xffff
 int gpio_request_early(void  *user_gpio_list, __u32 group_count_max, __s32 set_gpio)
 {
 	user_gpio_set_t    *tmp_user_gpio_data, *gpio_list;
-	__u32				first_port;                      //保存真正有效的GPIO的个数
-	__u32               tmp_group_func_data = 0;
-	__u32               tmp_group_pull_data = 0;
-	__u32               tmp_group_dlevel_data = 0;
-	__u32               tmp_group_data_data = 0;
+	__u32				first_port;                      
+	__u32               tmp_group_func_data;
+	__u32               tmp_group_pull_data;
+	__u32               tmp_group_dlevel_data;
+	__u32               tmp_group_data_data;
 	__u32               data_change = 0;
-//	__u32			   *tmp_group_port_addr;
-	volatile __u32     *tmp_group_func_addr = NULL,   *tmp_group_pull_addr = NULL;
-	volatile __u32     *tmp_group_dlevel_addr = NULL, *tmp_group_data_addr = NULL;
-	__u32  				port, port_num, pre_port_num, port_num_func, port_num_pull;
-	__u32  				pre_port = 0x7fffffff, pre_port_num_func = 0x7fffffff;
-    __u32  				pre_port_num_pull = 0x7fffffff;
+	//	__u32			   *tmp_group_port_addr;
+	volatile __u32     *tmp_group_func_addr,   *tmp_group_pull_addr;
+	volatile __u32     *tmp_group_dlevel_addr, *tmp_group_data_addr;
+	__u32  				port, port_num, port_num_func, port_num_pull;
+	__u32  				pre_port, pre_port_num_func;
+	__u32  				pre_port_num_pull;
 	__s32               i, tmp_val;
 
-   	gpio_list = (user_gpio_set_t *)user_gpio_list;
 
-    for(first_port = 0; first_port < group_count_max; first_port++)
-    {
-        tmp_user_gpio_data = gpio_list + first_port;
-        port     = tmp_user_gpio_data->port;                         //读出用户设置的端口值
-	    port_num = tmp_user_gpio_data->port_num;                     //读出用户设置的端口gpio号
-	    pre_port_num = port_num;
-	    if(!port)
-	    {
-	    	continue;
-	    }
+	debug("gpio: conut=%d, set gpio = %d\n", group_count_max, set_gpio);
+		gpio_list = (user_gpio_set_t *)user_gpio_list;
 
-		port_num_func = (port_num >> 3);                            //该GPIO对应的控制寄存器号码
-		port_num_pull = (port_num >> 4);                            //该GPIO对应的pull寄存器号码
-	    if(port == PORT_TYPE_AXP) //端口是axp类型
+	for(first_port = 0; first_port < group_count_max; first_port++)
+	{
+		tmp_user_gpio_data = gpio_list + first_port;
+		port     = tmp_user_gpio_data->port;                        
+		port_num = tmp_user_gpio_data->port_num;                  
+		if(!port)
 		{
-			tmp_group_data_data = tmp_user_gpio_data->data & 1;
-			data_change = 1;
-
-			pre_port          = port;
-	        pre_port_num_func = port_num_func;
-	        pre_port_num_pull = port_num_pull;
+			continue;
 		}
-		else//端口是cpux和cpus类型
-		{
-		
-			tmp_group_func_addr    = PIO_REG_CFG(port, port_num_func);   //更新功能寄存器地址
-			tmp_group_pull_addr    = PIO_REG_PULL(port, port_num_pull);  //更新pull寄存器
-			tmp_group_dlevel_addr  = PIO_REG_DLEVEL(port, port_num_pull);//更新level寄存器
-			tmp_group_data_addr    = PIO_REG_DATA(port);                 //更新data寄存器
-			
-	        tmp_group_func_data    = GPIO_REG_READ(tmp_group_func_addr);
-	        tmp_group_pull_data    = GPIO_REG_READ(tmp_group_pull_addr);
-	        tmp_group_dlevel_data  = GPIO_REG_READ(tmp_group_dlevel_addr);
-	        tmp_group_data_data    = GPIO_REG_READ(tmp_group_data_addr);
+		port_num_func = (port_num >> 3);
+		port_num_pull = (port_num >> 4);
 
-	        pre_port          = port;
-	        pre_port_num_func = port_num_func;
-	        pre_port_num_pull = port_num_pull;
-	        //根据set_gpio的值决定是否更新data寄存器
-	        tmp_val = (port_num - (port_num_func << 3)) << 2;
-	        tmp_group_func_data &= ~(0x07 << tmp_val);
-	        if(set_gpio)
-	        {
-				tmp_group_func_data |= (tmp_user_gpio_data->mul_sel & 0x07) << tmp_val;
-	        }
-	        //根据pull的值决定是否更新pull寄存器
-	        tmp_val = (port_num - (port_num_pull << 4)) << 1;
-	        if(tmp_user_gpio_data->pull >= 0)
-	        {
-				tmp_group_pull_data &= ~(                           0x03  << tmp_val);
-				tmp_group_pull_data |=  (tmp_user_gpio_data->pull & 0x03) << tmp_val;
-	        }
-	        //根据driver level的值决定是否更新driver level寄存器
-	        if(tmp_user_gpio_data->drv_level >= 0)
-	        {
-				tmp_group_dlevel_data &= ~(                                0x03  << tmp_val);
-				tmp_group_dlevel_data |=  (tmp_user_gpio_data->drv_level & 0x03) << tmp_val;
-	        }
-	        //根据用户输入以及功能分配决定是否更新data寄存器
-	        if(tmp_user_gpio_data->mul_sel == 1)
-	        {
-	            if(tmp_user_gpio_data->data >= 0)
-	            {
-					tmp_val = tmp_user_gpio_data->data & 1;
-	                tmp_group_data_data &= ~(1 << port_num);
-	                tmp_group_data_data |= tmp_val << port_num;
-	                data_change = 1;
-	            }
-	        }
+		tmp_group_func_addr    = PIO_REG_CFG(port, port_num_func);  
+		tmp_group_pull_addr    = PIO_REG_PULL(port, port_num_pull); 
+		tmp_group_dlevel_addr  = PIO_REG_DLEVEL(port, port_num_pull);
+		tmp_group_data_addr    = PIO_REG_DATA(port);
+
+		tmp_group_func_data    = GPIO_REG_READ(tmp_group_func_addr);
+		tmp_group_pull_data    = GPIO_REG_READ(tmp_group_pull_addr);
+		tmp_group_dlevel_data  = GPIO_REG_READ(tmp_group_dlevel_addr);
+		tmp_group_data_data    = GPIO_REG_READ(tmp_group_data_addr);
+
+		pre_port          = port;
+		pre_port_num_func = port_num_func;
+		pre_port_num_pull = port_num_pull;
+
+		tmp_val = (port_num - (port_num_func << 3)) << 2;
+		tmp_group_func_data &= ~(0x07 << tmp_val);
+		if(set_gpio)
+		{
+			tmp_group_func_data |= (tmp_user_gpio_data->mul_sel & 0x07) << tmp_val;
 		}
 
-        break;
+		tmp_val = (port_num - (port_num_pull << 4)) << 1;
+		if(tmp_user_gpio_data->pull >= 0)
+		{
+			tmp_group_pull_data &= ~(                           0x03  << tmp_val);
+			tmp_group_pull_data |=  (tmp_user_gpio_data->pull & 0x03) << tmp_val;
+		}
+
+		if(tmp_user_gpio_data->drv_level >= 0)
+		{
+			tmp_group_dlevel_data &= ~(                                0x03  << tmp_val);
+			tmp_group_dlevel_data |=  (tmp_user_gpio_data->drv_level & 0x03) << tmp_val;
+		}
+
+		if(tmp_user_gpio_data->mul_sel == 1)
+		{
+		    if(tmp_user_gpio_data->data >= 0)
+		    {
+		    	tmp_val = tmp_user_gpio_data->data & 1;
+		        tmp_group_data_data &= ~(1 << port_num);
+		        tmp_group_data_data |= tmp_val << port_num;
+		        data_change = 1;
+		    }
+		}
+		debug("---name = %s, port = %d,portnum=%d,mul_sel=%d,pull=%d drive= %d, data=%d\n",
+					tmp_user_gpio_data->gpio_name,
+					tmp_user_gpio_data->port,
+					tmp_user_gpio_data->port_num,
+					tmp_user_gpio_data->mul_sel,
+					tmp_user_gpio_data->pull,
+					tmp_user_gpio_data->drv_level,
+					tmp_user_gpio_data->data);
+	
+
+		break;
 	}
-	//检查是否有数据存在
+
 	if(first_port >= group_count_max)
 	{
 	    return -1;
 	}
-	//保存用户数据
+
 	for(i = first_port + 1; i < group_count_max; i++)
 	{
-		tmp_user_gpio_data = gpio_list + i;                 //gpio_set依次指向用户的每个GPIO数组成员
-	    port     = tmp_user_gpio_data->port;                //读出端口数值
-	    port_num = tmp_user_gpio_data->port_num;            //读出端口中的某一个GPIO
-	    if(!port)
-	    {
-	    	break;
-	    }
-        port_num_func = (port_num >> 3);
-        port_num_pull = (port_num >> 4);
-
-        if((port_num_pull != pre_port_num_pull) || (port != pre_port) || (pre_port == PORT_TYPE_AXP))    //当前GPIO的端口号或pull寄存器号或之前的GPIO为axp类型
-        {
-            if(pre_port == PORT_TYPE_AXP)//上一个处理的GPIO为axp类型
-            {
-				if(data_change)
-				{
-					data_change = 0;
-					gpio_set_axpgpio_value(0, pre_port_num, tmp_group_data_data);//将更新前一个axp GPIO的data值
-				}
-            }
-            else//上一个处理的GPIO为cpux和cpus类型
-            {
-				GPIO_REG_WRITE(tmp_group_func_addr, tmp_group_func_data);     //更新前一个GPIO的func寄存器
-				GPIO_REG_WRITE(tmp_group_pull_addr, tmp_group_pull_data);     //更新前一个GPIO的pull寄存器
-				GPIO_REG_WRITE(tmp_group_dlevel_addr, tmp_group_dlevel_data); //更新前一个GPIO的level寄存器
-				if(data_change)
-				{
-					data_change = 0;
-					GPIO_REG_WRITE(tmp_group_data_addr, tmp_group_data_data); //更新前一个GPIO的data寄存器
-				}
-            }
-			if(port == PORT_TYPE_AXP)//现在处理的GPIO为axp类型
-			{
-				tmp_group_data_data = tmp_user_gpio_data->data & 1;//取出用户设置的axp gpio值
-				data_change = 1;//设置状态，等待下次更新数据
-			}
-			else//现在处理的GPIO为cpux和cpus类型
-			{		
-				tmp_group_func_addr    = PIO_REG_CFG(port, port_num_func);   //更新功能寄存器地址
-				tmp_group_pull_addr    = PIO_REG_PULL(port, port_num_pull);  //更新pull寄存器
-				tmp_group_dlevel_addr  = PIO_REG_DLEVEL(port, port_num_pull);//更新level寄存器
-				tmp_group_data_addr    = PIO_REG_DATA(port);                 //更新data寄存器
-			
-	            tmp_group_func_data    = GPIO_REG_READ(tmp_group_func_addr);//获得现在GPIO的func寄存器值
-	            tmp_group_pull_data    = GPIO_REG_READ(tmp_group_pull_addr);//获得现在GPIO的pull寄存器值
-	            tmp_group_dlevel_data  = GPIO_REG_READ(tmp_group_dlevel_addr);//获得现在GPIO的level寄存器值
-	            tmp_group_data_data    = GPIO_REG_READ(tmp_group_data_addr);//获得现在GPIO的data寄存器值
-			}
-        }
-        else if(pre_port_num_func != port_num_func)//如果发现当前GPIO和前一个GPIO不共用一个func寄存器
-        {
-            if(pre_port == PORT_TYPE_AXP)//上一个处理的GPIO为axp类型
-            {
-				gpio_set_axpgpio_value(0, pre_port_num, tmp_group_data_data);//将上一个GPIO的设置值写回寄存器
-            }
-            else//上一个处理的GPIO为cpux和cpus类型
-            {
-				GPIO_REG_WRITE(tmp_group_func_addr, tmp_group_func_data);    //将上一个GPIO的func设置值写回func寄存器
-            }
-
-			if(port == PORT_TYPE_AXP)//现在处理的GPIO为axp类型
-			{
-				tmp_group_data_data = tmp_user_gpio_data->data & 1;//取出用户设置的axp gpio值
-			}
-			else//现在处理的GPIO为cpux和cpus类型类型
-			{
-				tmp_group_func_addr    = PIO_REG_CFG(port, port_num_func);   
-	            tmp_group_func_data    = GPIO_REG_READ(tmp_group_func_addr);//获得现在GPIO的data寄存器值
-			}
-        }
-		//保存当前硬件寄存器数据
-        pre_port_num_pull = port_num_pull;                      //设置当前GPIO成为前一个GPIO
-        pre_port_num_func = port_num_func;
-        pre_port          = port;
-		pre_port_num	  = port_num;
-        if(port == PORT_TYPE_AXP)//当前的GPIO为axp类型
-        {
-        	if(tmp_user_gpio_data->data >= 0)//获得用户的设置信息，更新状态，等待下次写入寄存器
-            {
-            	tmp_group_data_data = tmp_user_gpio_data->data & 1;
-                data_change = 1;
-            }
-        }
-        else//当前的GPIO为cpux和cpus类型
-        {
-        	//获取用户设置的GOIO func设置值
-	        tmp_val = (port_num - (port_num_func << 3)) << 2;
-	        if(tmp_user_gpio_data->mul_sel >= 0)
-	        {
-				tmp_group_func_data &= ~(                              0x07  << tmp_val);
-				if(set_gpio)
-				{
-					tmp_group_func_data |=  (tmp_user_gpio_data->mul_sel & 0x07) << tmp_val;
-				}
-			}
-	        //获取用户设置的GOIO pull设置值
-	        tmp_val = (port_num - (port_num_pull << 4)) << 1;
-	        if(tmp_user_gpio_data->pull >= 0)
-	        {
-				tmp_group_pull_data &= ~(                           0x03  << tmp_val);
-				tmp_group_pull_data |=  (tmp_user_gpio_data->pull & 0x03) << tmp_val;
-	        }
-	        //获取用户设置的GOIO level设置值
-	        if(tmp_user_gpio_data->drv_level >= 0)
-	        {
-				tmp_group_dlevel_data &= ~(                                0x03  << tmp_val);
-				tmp_group_dlevel_data |=  (tmp_user_gpio_data->drv_level & 0x03) << tmp_val;
-	        }
-	        //获取用户设置的GOIO func设置值
-	        if(tmp_user_gpio_data->mul_sel == 1)
-	        {
-				if(tmp_user_gpio_data->data >= 0)
-	            {
-					tmp_val = tmp_user_gpio_data->data & 1;
-	                tmp_group_data_data &= ~(1 << port_num);
-	                tmp_group_data_data |= tmp_val << port_num;
-	                data_change = 1;
-	            }
-	        }
-        }
-    }
-    //处理循环最后一个数据
-	if(port == PORT_TYPE_AXP)//最后一个GPIO为axp类型
-	{
-		if(data_change)
+		tmp_user_gpio_data = gpio_list + i;
+		port     = tmp_user_gpio_data->port;
+		port_num = tmp_user_gpio_data->port_num;
+		debug("+++name = %s, port = %d,portnum=%d,mul_sel=%d,pull=%d drive= %d, data=%d\n",
+				tmp_user_gpio_data->gpio_name,
+				tmp_user_gpio_data->port,
+				tmp_user_gpio_data->port_num,
+				tmp_user_gpio_data->mul_sel,
+				tmp_user_gpio_data->pull,
+				tmp_user_gpio_data->drv_level,
+				tmp_user_gpio_data->data);
+		if(!port)
 		{
-			data_change = 0;
-			gpio_set_axpgpio_value(0, port_num, tmp_group_data_data);//将用户设置写入到寄存器
+			break;
 		}
-	}
-	else//最后一个GPIO为cpux和cpus类型
-	{
-		if(tmp_group_func_addr)                         //只要更新过寄存器地址，就可以对硬件赋值
-		{                                              
-			GPIO_REG_WRITE(tmp_group_func_addr,   tmp_group_func_data);   //将用户func设置值回写功能寄存器
-			GPIO_REG_WRITE(tmp_group_pull_addr,   tmp_group_pull_data);   //将用户pull设置值回写pull寄存器
-			GPIO_REG_WRITE(tmp_group_dlevel_addr, tmp_group_dlevel_data); //将用户level设置值回写driver level寄存器
+		port_num_func = (port_num >> 3);
+		port_num_pull = (port_num >> 4);
+
+		if((port_num_pull != pre_port_num_pull) || (port != pre_port))
+		{
+			GPIO_REG_WRITE(tmp_group_func_addr, tmp_group_func_data);
+			GPIO_REG_WRITE(tmp_group_pull_addr, tmp_group_pull_data); 
+			GPIO_REG_WRITE(tmp_group_dlevel_addr, tmp_group_dlevel_data);
 			if(data_change)
 			{
-				GPIO_REG_WRITE(tmp_group_data_addr, tmp_group_data_data); //将用户data设置值回写data寄存器
+				data_change = 0;
+				GPIO_REG_WRITE(tmp_group_data_addr, tmp_group_data_data);
 			}
+
+			tmp_group_func_addr    = PIO_REG_CFG(port, port_num_func); 
+			tmp_group_pull_addr    = PIO_REG_PULL(port, port_num_pull);
+			tmp_group_dlevel_addr  = PIO_REG_DLEVEL(port, port_num_pull);
+			tmp_group_data_addr    = PIO_REG_DATA(port);  
+
+
+			tmp_group_func_data    = GPIO_REG_READ(tmp_group_func_addr);
+			tmp_group_pull_data    = GPIO_REG_READ(tmp_group_pull_addr);
+			tmp_group_dlevel_data  = GPIO_REG_READ(tmp_group_dlevel_addr);
+			tmp_group_data_data    = GPIO_REG_READ(tmp_group_data_addr);
+		}
+		else if(pre_port_num_func != port_num_func)                    
+		{
+			GPIO_REG_WRITE(tmp_group_func_addr, tmp_group_func_data);  
+			tmp_group_func_addr    = PIO_REG_CFG(port, port_num_func); 
+			tmp_group_func_data    = GPIO_REG_READ(tmp_group_func_addr);		
+		}
+
+		pre_port_num_pull = port_num_pull;                    
+		pre_port_num_func = port_num_func;
+		pre_port          = port;
+
+	
+		tmp_val = (port_num - (port_num_func << 3)) << 2;
+		if(tmp_user_gpio_data->mul_sel >= 0)
+		{
+			tmp_group_func_data &= ~(0x07  << tmp_val);
+			if(set_gpio)
+			{
+				tmp_group_func_data |=  (tmp_user_gpio_data->mul_sel & 0x07) << tmp_val;
+			}
+		}
+
+		tmp_val = (port_num - (port_num_pull << 4)) << 1;
+		if(tmp_user_gpio_data->pull >= 0)
+		{
+			tmp_group_pull_data &= ~(                           0x03  << tmp_val);
+			tmp_group_pull_data |=  (tmp_user_gpio_data->pull & 0x03) << tmp_val;
+		}
+       
+		if(tmp_user_gpio_data->drv_level >= 0)
+		{
+			tmp_group_dlevel_data &= ~(                                0x03  << tmp_val);
+			tmp_group_dlevel_data |=  (tmp_user_gpio_data->drv_level & 0x03) << tmp_val;
+		}
+      
+		if(tmp_user_gpio_data->mul_sel == 1)
+		{
+		    if(tmp_user_gpio_data->data >= 0)
+		    {
+		    	tmp_val = tmp_user_gpio_data->data & 1;
+		        tmp_group_data_data &= ~(1 << port_num);
+		        tmp_group_data_data |= tmp_val << port_num;
+		        data_change = 1;
+		    }
+		}
+      
+	}
+        
+	if(tmp_group_func_addr)                        
+	{                                              
+		GPIO_REG_WRITE(tmp_group_func_addr,   tmp_group_func_data); 
+		GPIO_REG_WRITE(tmp_group_pull_addr,   tmp_group_pull_data); 
+		GPIO_REG_WRITE(tmp_group_dlevel_addr, tmp_group_dlevel_data);
+		if(data_change)
+		{
+		    GPIO_REG_WRITE(tmp_group_data_addr, tmp_group_data_data);
 		}
 	}
 
     return 0;
 }
 
-ulong gpio_request(user_gpio_set_t *gpio_list, unsigned group_count_max)
+ulong gpio_request(user_gpio_set_t *gpio_list, __u32 group_count_max)
 {
-    char               *user_gpio_buf;                                        //按照char类型申请
-    system_gpio_set_t  *user_gpio_set, *tmp_sys_gpio_data;                      //user_gpio_set将是申请内存的句柄
+    char               *user_gpio_buf;                                     
+    system_gpio_set_t  *user_gpio_set, *tmp_sys_gpio_data;
     user_gpio_set_t  *tmp_user_gpio_data;
-    __u32                real_gpio_count = 0, first_port;                      //保存真正有效的GPIO的个数
+    __u32                real_gpio_count = 0, first_port;
     __u32               tmp_group_func_data = 0;
     __u32               tmp_group_pull_data = 0;
     __u32               tmp_group_dlevel_data = 0;
@@ -1108,7 +1036,7 @@ ulong gpio_request(user_gpio_set_t *gpio_list, unsigned group_count_max)
     __u32               dlevel_change = 0, data_change = 0;
     volatile __u32  *tmp_group_func_addr = NULL, *tmp_group_pull_addr = NULL;
     volatile __u32  *tmp_group_dlevel_addr = NULL, *tmp_group_data_addr = NULL;
-    __u32  port, port_num, pre_port_num, port_num_func, port_num_pull;
+    __u32  port, port_num, port_num_func, port_num_pull;
     __u32  pre_port = 0x7fffffff, pre_port_num_func = 0x7fffffff;
     __u32  pre_port_num_pull = 0x7fffffff;
     __s32  i, tmp_val;
@@ -1118,7 +1046,7 @@ ulong gpio_request(user_gpio_set_t *gpio_list, unsigned group_count_max)
     }
     for(i = 0; i < group_count_max; i++)
     {
-        tmp_user_gpio_data = gpio_list + i;                 //gpio_set依次指向每个GPIO数组成员
+        tmp_user_gpio_data = gpio_list + i;        
         if(!tmp_user_gpio_data->port)
         {
             continue;
@@ -1126,67 +1054,55 @@ ulong gpio_request(user_gpio_set_t *gpio_list, unsigned group_count_max)
         real_gpio_count ++;
     }
 
-    //SYSCONFIG_DEBUG("to malloc space for pin \n");
-    user_gpio_buf = (char *)malloc(16 + sizeof(system_gpio_set_t) * real_gpio_count);   //申请内存，多申请16个字节，用于存放GPIO个数等信息
+ 
+    user_gpio_buf = (char *)malloc(16 + sizeof(system_gpio_set_t) * real_gpio_count);  
     if(!user_gpio_buf)
     {
         return (u32)0;
     }
-    memset(user_gpio_buf, 0, 16 + sizeof(system_gpio_set_t) * real_gpio_count);         //首先全部清零
-    *(int *)user_gpio_buf = real_gpio_count;                                           //保存有效的GPIO个数
-    user_gpio_set = (system_gpio_set_t *)(user_gpio_buf + 16);                         //指向第一个结构体
-    //准备第一个GPIO数据
+    memset(user_gpio_buf, 0, 16 + sizeof(system_gpio_set_t) * real_gpio_count);        
+    *(int *)user_gpio_buf = real_gpio_count;                                          
+    user_gpio_set = (system_gpio_set_t *)(user_gpio_buf + 16);                    
+   
     for(first_port = 0; first_port < group_count_max; first_port++)
     {
         tmp_user_gpio_data = gpio_list + first_port;
-        port     = tmp_user_gpio_data->port;                         //读出端口数值
-        port_num = tmp_user_gpio_data->port_num;                     //读出端口中的某一个GPIO
-        pre_port_num = port_num;
+        port     = tmp_user_gpio_data->port;                       
+        port_num = tmp_user_gpio_data->port_num;                    
         if(!port)
         {
             continue;
         }
-		port_num_func = (port_num >> 3);
+        port_num_func = (port_num >> 3);
         port_num_pull = (port_num >> 4);
 
-        if(port == PORT_TYPE_AXP)
-        {
-        	tmp_group_data_data = tmp_user_gpio_data->data & 1;
-        }
-        else
-        {        
-	        tmp_group_func_addr    = PIO_REG_CFG(port, port_num_func);   //更新功能寄存器地址
-	        tmp_group_pull_addr    = PIO_REG_PULL(port, port_num_pull);  //更新pull寄存器
-	        tmp_group_dlevel_addr  = PIO_REG_DLEVEL(port, port_num_pull);//更新level寄存器
-	        tmp_group_data_addr    = PIO_REG_DATA(port);                 //更新data寄存器
-	     
-	        tmp_group_func_data    = GPIO_REG_READ(tmp_group_func_addr);
-	        tmp_group_pull_data    = GPIO_REG_READ(tmp_group_pull_addr);
-	        tmp_group_dlevel_data  = GPIO_REG_READ(tmp_group_dlevel_addr);
-	        tmp_group_data_data    = GPIO_REG_READ(tmp_group_data_addr);
-        }
+        tmp_group_func_addr    = PIO_REG_CFG(port, port_num_func); 
+        tmp_group_pull_addr    = PIO_REG_PULL(port, port_num_pull);
+        tmp_group_dlevel_addr  = PIO_REG_DLEVEL(port, port_num_pull);
+        tmp_group_data_addr    = PIO_REG_DATA(port);               
+
+        tmp_group_func_data    = *tmp_group_func_addr;
+        tmp_group_pull_data    = *tmp_group_pull_addr;
+        tmp_group_dlevel_data  = *tmp_group_dlevel_addr;
+        tmp_group_data_data    = *tmp_group_data_addr;
         break;
     }
     if(first_port >= group_count_max)
     {
         return 0;
     }
-    //保存用户数据
+   
     for(i = first_port; i < group_count_max; i++)
     {
-        tmp_sys_gpio_data  = user_gpio_set + i;             //tmp_sys_gpio_data指向申请的GPIO空间
-        tmp_user_gpio_data = gpio_list + i;                 //gpio_set依次指向用户的每个GPIO数组成员
-        port     = tmp_user_gpio_data->port;                //读出端口数值
-        port_num = tmp_user_gpio_data->port_num;            //读出端口中的某一个GPIO
+        tmp_sys_gpio_data  = user_gpio_set + i;            
+        tmp_user_gpio_data = gpio_list + i;                
+        port     = tmp_user_gpio_data->port;             
+        port_num = tmp_user_gpio_data->port_num;
         if(!port)
         {
             continue;
         }
-
-        port_num_func = (port_num >> 3);
-        port_num_pull = (port_num >> 4);
-
-        //开始保存用户数据
+      
         strcpy(tmp_sys_gpio_data->gpio_name, tmp_user_gpio_data->gpio_name);
         tmp_sys_gpio_data->port                       = port;
         tmp_sys_gpio_data->port_num                   = port_num;
@@ -1195,175 +1111,124 @@ ulong gpio_request(user_gpio_set_t *gpio_list, unsigned group_count_max)
         tmp_sys_gpio_data->user_gpio_status.drv_level = tmp_user_gpio_data->drv_level;
         tmp_sys_gpio_data->user_gpio_status.data      = tmp_user_gpio_data->data;
 
-        if((port_num_pull != pre_port_num_pull) || (port != pre_port) || (pre_port == PORT_TYPE_AXP))    //如果发现当前引脚的端口不一致，或者所在的pull寄存器不一致
-        {
-            if(pre_port == PORT_TYPE_AXP)
-            {
-            	if(data_change)
-            	{
-            		data_change = 0;
-            		gpio_set_axpgpio_value(0, pre_port_num, tmp_group_data_data);
-            	}
-            }
-            else
-            {
-            	if(func_change)
-	            {
-	                GPIO_REG_WRITE(tmp_group_func_addr, tmp_group_func_data);    //回写功能寄存器
-	                func_change = 0;
-	            }
-	            if(pull_change)
-	            {
-	                pull_change = 0;
-	                GPIO_REG_WRITE(tmp_group_pull_addr, tmp_group_pull_data);    //回写pull寄存器
-	            }
-	            if(dlevel_change)
-	            {
-	                dlevel_change = 0;
-	                GPIO_REG_WRITE(tmp_group_dlevel_addr, tmp_group_dlevel_data);  //回写driver level寄存器
-	            }
-	            if(data_change)
-	            {
-	                data_change = 0;
-	                GPIO_REG_WRITE(tmp_group_data_addr, tmp_group_data_data);    //回写
-	            }
-	        }
+        port_num_func = (port_num >> 3);
+        port_num_pull = (port_num >> 4);
 
-	        if(port == PORT_TYPE_AXP)
-	        {
-	        	tmp_group_data_data = tmp_user_gpio_data->data;
-	        	data_change = 1;
-	        }
-	        else
-	        {           
-	            tmp_group_func_addr    = PIO_REG_CFG(port, port_num_func);   //更新功能寄存器地址
-	            tmp_group_pull_addr    = PIO_REG_PULL(port, port_num_pull);   //更新pull寄存器
-	            tmp_group_dlevel_addr  = PIO_REG_DLEVEL(port, port_num_pull); //更新level寄存器
-	            tmp_group_data_addr    = PIO_REG_DATA(port);                  //更新data寄存器
-	           
-	            tmp_group_func_data    = GPIO_REG_READ(tmp_group_func_addr);
-		        tmp_group_pull_data    = GPIO_REG_READ(tmp_group_pull_addr);
-		        tmp_group_dlevel_data  = GPIO_REG_READ(tmp_group_dlevel_addr);
-		        tmp_group_data_data    = GPIO_REG_READ(tmp_group_data_addr);
-	        }
-        }
-        else if(pre_port_num_func != port_num_func)                       //如果发现当前引脚的功能寄存器不一致
+        if((port_num_pull != pre_port_num_pull) || (port != pre_port))  
         {
-            if(pre_port == PORT_TYPE_AXP)
+            if(func_change)
             {
-            	gpio_set_axpgpio_value(0, pre_port_num, tmp_group_data_data);
+                *tmp_group_func_addr   = tmp_group_func_data;  
+                func_change = 0;
             }
-            else
+            if(pull_change)
             {
-				GPIO_REG_WRITE(tmp_group_func_addr, tmp_group_func_data);    //则只回写功能寄存器
+                pull_change = 0;
+                *tmp_group_pull_addr   = tmp_group_pull_data;  
+            }
+            if(dlevel_change)
+            {
+                dlevel_change = 0;
+                *tmp_group_dlevel_addr = tmp_group_dlevel_data;
+            }
+            if(data_change)
+            {
+                data_change = 0;
+                *tmp_group_data_addr   = tmp_group_data_data;
             }
 
-            if(port == PORT_TYPE_AXP)
-            {
-            	tmp_group_data_data = tmp_user_gpio_data->data;
-	        	data_change = 1;
-            }
-            else
-            {
-	            tmp_group_func_addr    = PIO_REG_CFG(port, port_num_func);   //更新功能寄存器地址
-	            tmp_group_func_data    = GPIO_REG_READ(tmp_group_func_addr);
-            }
+            tmp_group_func_addr    = PIO_REG_CFG(port, port_num_func); 
+            tmp_group_pull_addr    = PIO_REG_PULL(port, port_num_pull);
+            tmp_group_dlevel_addr  = PIO_REG_DLEVEL(port, port_num_pull);
+            tmp_group_data_addr    = PIO_REG_DATA(port); 
+
+			tmp_group_func_data    = *tmp_group_func_addr;
+            tmp_group_pull_data    = *tmp_group_pull_addr;
+            tmp_group_dlevel_data  = *tmp_group_dlevel_addr;
+            tmp_group_data_data    = *tmp_group_data_addr;
+
         }
-        //保存当前硬件寄存器数据
-        pre_port_num_pull = port_num_pull;                      //设置当前GPIO成为前一个GPIO
+        else if(pre_port_num_func != port_num_func)            
+        {
+            *tmp_group_func_addr   = tmp_group_func_data;
+
+           tmp_group_func_addr    = PIO_REG_CFG(port, port_num_func);
+
+            tmp_group_func_data    = *tmp_group_func_addr;
+        }
+       
+        pre_port_num_pull = port_num_pull;   
         pre_port_num_func = port_num_func;
         pre_port          = port;
-		pre_port_num	  = port_num;
 
-        if(port == PORT_TYPE_AXP)
+    
+        if(tmp_user_gpio_data->mul_sel >= 0)
         {
-        	if(tmp_user_gpio_data->data >= 0)
+            tmp_val = (port_num - (port_num_func<<3)) << 2;
+            tmp_sys_gpio_data->hardware_gpio_status.mul_sel = (tmp_group_func_data >> tmp_val) & 0x07;
+            tmp_group_func_data &= ~(                              0x07  << tmp_val);
+            tmp_group_func_data |=  (tmp_user_gpio_data->mul_sel & 0x07) << tmp_val;
+            func_change = 1;
+        }
+     
+
+        tmp_val = (port_num - (port_num_pull<<4)) << 1;
+
+        if(tmp_user_gpio_data->pull >= 0)
+        {
+            tmp_sys_gpio_data->hardware_gpio_status.pull = (tmp_group_pull_data >> tmp_val) & 0x03;
+            if(tmp_user_gpio_data->pull >= 0)
             {
-                tmp_group_data_data = tmp_user_gpio_data->data;
-	        	data_change = 1;
+                tmp_group_pull_data &= ~(                           0x03  << tmp_val);
+                tmp_group_pull_data |=  (tmp_user_gpio_data->pull & 0x03) << tmp_val;
+                pull_change = 1;
             }
         }
-        else
+     
+        if(tmp_user_gpio_data->drv_level >= 0)
         {
-        	//更新功能寄存器
-	        if(tmp_user_gpio_data->mul_sel >= 0)
-	        {
-	            tmp_val = (port_num - (port_num_func<<3)) << 2;
-	            tmp_sys_gpio_data->hardware_gpio_status.mul_sel = (tmp_group_func_data >> tmp_val) & 0x07;
-	            tmp_group_func_data &= ~(                              0x07  << tmp_val);
-	            tmp_group_func_data |=  (tmp_user_gpio_data->mul_sel & 0x07) << tmp_val;
-	            func_change = 1;
-	        }
-	        //根据pull的值决定是否更新pull寄存器
-
-	        tmp_val = (port_num - (port_num_pull<<4)) << 1;
-
-	        if(tmp_user_gpio_data->pull >= 0)
-	        {
-	            tmp_sys_gpio_data->hardware_gpio_status.pull = (tmp_group_pull_data >> tmp_val) & 0x03;
-	            if(tmp_user_gpio_data->pull >= 0)
-	            {
-	                tmp_group_pull_data &= ~(                           0x03  << tmp_val);
-	                tmp_group_pull_data |=  (tmp_user_gpio_data->pull & 0x03) << tmp_val;
-	                pull_change = 1;
-	            }
-	        }
-	        //根据driver level的值决定是否更新driver level寄存器
-	        if(tmp_user_gpio_data->drv_level >= 0)
-	        {
-	            tmp_sys_gpio_data->hardware_gpio_status.drv_level = (tmp_group_dlevel_data >> tmp_val) & 0x03;
-	            if(tmp_user_gpio_data->drv_level >= 0)
-	            {
-	                tmp_group_dlevel_data &= ~(                                0x03  << tmp_val);
-	                tmp_group_dlevel_data |=  (tmp_user_gpio_data->drv_level & 0x03) << tmp_val;
-	                dlevel_change = 1;
-	            }
-	        }
-	        //根据用户输入，以及功能分配决定是否更新data寄存器
-	        if(tmp_user_gpio_data->mul_sel == 1)
-	        {
-	            if(tmp_user_gpio_data->data >= 0)
-	            {
-	                tmp_val = tmp_user_gpio_data->data;
-	                tmp_val &= 1;
-	                tmp_group_data_data &= ~(1 << port_num);
-	                tmp_group_data_data |= tmp_val << port_num;
-	                data_change = 1;
-	            }
-	        }
+            tmp_sys_gpio_data->hardware_gpio_status.drv_level = (tmp_group_dlevel_data >> tmp_val) & 0x03;
+            if(tmp_user_gpio_data->drv_level >= 0)
+            {
+                tmp_group_dlevel_data &= ~(                                0x03  << tmp_val);
+                tmp_group_dlevel_data |=  (tmp_user_gpio_data->drv_level & 0x03) << tmp_val;
+                dlevel_change = 1;
+            }
+        }
+      
+        if(tmp_user_gpio_data->mul_sel == 1)
+        {
+            if(tmp_user_gpio_data->data >= 0)
+            {
+                tmp_val = tmp_user_gpio_data->data;
+                tmp_val &= 1;
+                tmp_group_data_data &= ~(1 << port_num);
+                tmp_group_data_data |= tmp_val << port_num;
+                data_change = 1;
+            }
         }
     }
 
-    //for循环结束，如果存在还没有回写的寄存器，这里写回到硬件当中
-    if(port == PORT_TYPE_AXP)
-	{
-		if(data_change)
-		{
-			data_change = 0;
-			gpio_set_axpgpio_value(0, port_num, tmp_group_data_data);
-		}
-	}
-    else
-    {
-		if(tmp_group_func_addr)                         //只要更新过寄存器地址，就可以对硬件赋值
-	    {                                               //那么把所有的值全部回写到硬件寄存器
-	        GPIO_REG_WRITE(tmp_group_func_addr, tmp_group_func_data);       //回写功能寄存器
-	        if(pull_change)
-	        {
-	            GPIO_REG_WRITE(tmp_group_pull_addr, tmp_group_pull_data);    //回写pull寄存器
-	        }
-	        if(dlevel_change)
-	        {
-	            GPIO_REG_WRITE(tmp_group_dlevel_addr, tmp_group_dlevel_data);  //回写driver level寄存器
-	        }
-	        if(data_change)
-	        {
-	            GPIO_REG_WRITE(tmp_group_data_addr, tmp_group_data_data);    //回写data寄存器
-	        }
-	    }
+   
+    if(tmp_group_func_addr)                        
+    {                                              
+        *tmp_group_func_addr   = tmp_group_func_data;     
+        if(pull_change)
+        {
+            *tmp_group_pull_addr   = tmp_group_pull_data;  
+        }
+        if(dlevel_change)
+        {
+            *tmp_group_dlevel_addr = tmp_group_dlevel_data;
+        }
+        if(data_change)
+        {
+            *tmp_group_data_addr   = tmp_group_data_data;   
+        }
     }
-    return (u32)user_gpio_buf;
+    return (ulong)user_gpio_buf;
 }
+
        
 //note : just free malloc memory
 __s32 gpio_release(ulong p_handler, __s32 unused_para)
@@ -1408,8 +1273,8 @@ int fdt_get_all_pin(int nodeoffset,const char* pinctrl_name,user_gpio_set_t* gpi
 	char *function = NULL;
 	int  ret;
 	char path_tmp[128] = {0};
-	char port_name[20][12]; //format PA0,PB6 ....
-	char pin_name[20][64] = {{0}}; //
+	char port_name[32][12]; //format PA0,PB6 ....
+	char pin_name[32][64] = {{0}}; //
 	u32 handle[10] = {0};
 	int handle_num = 0;
 	int i,j;
@@ -1495,13 +1360,6 @@ int fdt_get_all_pin(int nodeoffset,const char* pinctrl_name,user_gpio_set_t* gpi
 		if(ret < 0 )
 		{
 			FDT_ERROR("get muxsel err returned %s\n",fdt_strerror(ret));
-			return -1;
-		}
-
-		ret = fdt_getprop_u32(working_fdt,nodeoffset,"allwinner,muxsel",&muxsel);
-		if(ret < 0 )
-		{
-			printf("error:get drive err returned %s\n",fdt_strerror(ret));
 			return -1;
 		}
 
@@ -1691,6 +1549,7 @@ int fdt_set_all_pin_by_offset(int nodeoffset,const char* pinctrl_name)
 	{
 		return -1;
 	}
+
 	pin_set = malloc(pin_count*sizeof(user_gpio_set_t));
 	if(pin_set == NULL)
 	{

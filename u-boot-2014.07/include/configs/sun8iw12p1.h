@@ -11,16 +11,15 @@
 
 #include "sunxi-base.h"
 
-#define FC_ADDR 0x42000000
-
 #undef DEBUG
 
 #ifndef __KERNEL__
 #define __KERNEL__
 #endif
-//#define CONFIG_SUNXI_CMD_DMA
-//#define DEBUG
-//#define FPGA_PLATFORM
+/*#define CONFIG_SUNXI_CMD_DMA*/
+/*#define DEBUG*/
+/*#define FPGA_PLATFORM*/
+
 #define CONFIG_SUNXI_CRASH
 
 #ifdef CONFIG_SUN8IW12P1_NOR
@@ -31,11 +30,6 @@
 #define CONFIG_ARCH_SUN8IW12P1
 #define CONFIG_ARM_A7
 #define SUNXI_NCAT_VERSION1
-#define CONFIG_SUNXI_CHIPID
-/*********************************************************************
- *system clock and other clock
- **********************************************************************/
-#define APB_24MHZ
 
 /*********************************************************************
  *platform memory map
@@ -84,6 +78,7 @@
 #define BL31_SIZE                          (0x100000)
 #define SCP_DRAM_BASE                      (PLAT_TRUSTED_DRAM_BASE+BL31_SIZE)
 #define SCP_DRAM_SIZE                      (0x4000)
+#define SCP_CODE_DRAM_OFFSET		     (0x18000)
 
 
 /*********************************************************************
@@ -105,20 +100,19 @@
 
 #define CONFIG_SYS_I2C_SPEED 400000
 
-/* #define CONFIG_AUTO_UPDATE */
+/*#define CONFIG_AUTO_UPDATE*/
 #ifdef CONFIG_AUTO_UPDATE
 #define CONFIG_SUNXI_MODULE_SDMMC
 #define CONFIG_CMD_SUNXI_SPRITE
 #define CONFIG_SUNXI_MODULE_SPRITE
-#define CONFIG_CMD_FAT
 #endif
 
 #define CONFIG_GPADC_KEY
 
 #define CONFIG_USB_MAX_CONTROLLER_COUNT 2
 #define CONFIG_SUNXI_KEY_SUPPORT
-//#define CONFIG_SUNXI_KEY_BURN
-//#define CONFIG_SUNXI_DRAGONBOARD_SUPPORT
+/*#define CONFIG_SUNXI_KEY_BURN*/
+/*#define CONFIG_SUNXI_DRAGONBOARD_SUPPORT*/
 #define CONFIG_LZMA
 
 #define FEL_BASE                         0x20
@@ -127,30 +121,11 @@
 #define SUNXI_RUN_EFEX_ADDR              (SUNXI_RTC_BASE + 0x108)
 
 #define CONFIG_SUNXI_DMA
-//#define CONFIG_SUNXI_CHIPID
-//#define CONFIG_SUNXI_ARISC_EXIST
-//#define CONFIG_SUNXI_MULITCORE_BOOT
-//#define CONFIG_SUNXI_HDCP_IN_SECURESTORAGE
-//#define CONFIG_BOOTLOGO_DISABLE
-
-/*********************************************************************
- *module support
- **********************************************************************/
-#ifndef CONFIG_SUN8IW12P1_NOR
-#define CONFIG_SUNXI_KEY_BURN
-#define CONFIG_SUNXI_SECURE_STORAGE
-#define CONFIG_SUNXI_MODULE_SPRITE
-#define CONFIG_SUNXI_MODULE_NAND
-#define CONFIG_SUNXI_MODULE_SDMMC
-#define CONFIG_SUNXI_MODULE_USB
-#define CONFIG_SUNXI_PRIVATE_KEY
-#define CONFIG_SUNXI_USER_KEY  /*read keys from secure storage or private*/
-#define CONFIG_SUNXI_MODULE_DISPLAY
-//#define CONFIG_GPT_SUPPORT
-#else
-#define CONFIG_SUNXI_SPINOR_PLATFORM
-#endif
-
+/*#define CONFIG_SUNXI_CHIPID
+#define CONFIG_SUNXI_ARISC_EXIST
+#define CONFIG_SUNXI_MULITCORE_BOOT
+#define CONFIG_SUNXI_HDCP_IN_SECURESTORAGE*/
+/*#define CONFIG_BOOTLOGO_DISABLE*/
 /*********************************************************************
  *uboot cmd support
  **********************************************************************/
@@ -158,9 +133,7 @@
 #define CONFIG_CMD_RUN			/* run a command */
 #define CONFIG_CMD_BOOTD		/* boot the default command */
 #define CONFIG_CMD_FDT
-
 #ifndef CONFIG_SUN8IW12P1_NOR
-#define CONFIG_CMD_FAT			/* with this we can access bootfs in nand */
 #define CONFIG_CMD_IRQ
 #define CONFIG_CMD_ELF
 #define CONFIG_CMD_MEMORY
@@ -169,16 +142,27 @@
 #define CONFIG_CMD_SUNXI_TIMER
 #define CONFIG_CMD_SUNXI_EFEX
 #define CONFIG_CMD_SUNXI_SHUTDOWN
-#define CONFIG_CMD_SUNXI_BMP
 #ifdef CONFIG_SUNXI_KEY_BURN
 #define CONFIG_CMD_SUNXI_BURN
 #endif
 #define CONFIG_CMD_SUNXI_MEMTEST
 #endif
 
+
+/*********************************************************************
+ *module support
+ **********************************************************************/
+#ifndef CONFIG_SUN8IW12P1_NOR
+#define CONFIG_SUNXI_SECURE_STORAGE
+#define CONFIG_SUNXI_MODULE_SPRITE
+#define CONFIG_SUNXI_MODULE_NAND
+#define CONFIG_SUNXI_MODULE_SDMMC
+#define CONFIG_SUNXI_MODULE_USB
+/* #define CONFIG_GPT_SUPPORT */
+#endif
+#define CONFIG_SUNXI_MODULE_DISPLAY
 #define CONFIG_CMD_FAT
 #define CONFIG_CMD_SUNXI_BMP
-#define CONFIG_SUNXI_PIO_POWER_MODE
 
 #define CONFIG_SUNXI_MODULE_SPINOR
 #define CONFIG_SUNXI_MODULE_AXP
@@ -216,7 +200,7 @@
 #ifdef CONFIG_SUNXI_MODULE_USB
 #define CONFIG_USBD_HS
 #define CONFIG_USB_EHCI_SUNXI
-//for usb host
+/*for usb host*/
 #ifdef CONFIG_USB_EHCI_SUNXI
 	#define CONFIG_EHCI_DCACHE
 	#define CONFIG_CMD_USB
@@ -224,7 +208,7 @@
 	#define CONFIG_USB_EHCI
 #endif
 
-//#define CONFIG_USB_ETHER
+/*#define CONFIG_USB_ETHER*/
 #ifdef CONFIG_USB_ETHER
 /* net support */
 #define CONFIG_CMD_NET
@@ -250,8 +234,11 @@
 #ifdef CONFIG_SUNXI_MODULE_DISPLAY
 #define CONFIG_SUNXI_DISPLAY
 #define CONFIG_VIDEO_SUNXI_V3
-//#define CONFIG_SUNXI_MODULE_HDMI
-//#define CONFIG_SUNXI_MODULE_TV
+#ifndef CONFIG_SUN8IW12P1_NOR
+#define CONFIG_SUNXI_MODULE_HDMI
+#define CONFIG_SUNXI_MODULE_TV
+#endif
+#define CONFIG_SUNXI_LOGBUFFER
 #endif
 
 
@@ -259,6 +246,7 @@
 #define CONFIG_SUNXI_AXP
 #define CONFIG_SUNXI_AXP809
 #define CONFIG_SUNXI_AXP_CONFIG_ONOFF
+#define CONFIG_SUNXI_PIO_POWER_MODE
 #endif
 
 #ifdef CONFIG_GPT_SUPPORT
@@ -267,7 +255,7 @@
 #endif
 
 /* ethernet support */
-//#define CONFIG_SUNXI_GETH
+/*#define CONFIG_SUNXI_GETH*/
 #ifdef CONFIG_SUNXI_GETH
 #define CONFIG_SUNXI_EXT_PHY
 #define CONFIG_EPHY_CLK
@@ -282,15 +270,7 @@
 #define CONFIG_GATEWAYIP       192.168.200.1
 #endif
 
-//#define CONFIG_SYS_DCACHE_OFF
-
-/*if open this macro will not use sunxi_mbr ,
-and use "mtdparts=" string stroe partition infromation in env.fex
-if open, please make sure you env partition in the first partition. 
-if open, please make sure kernel support [command line partition table parsing]
-it just apply to SPINOR*/
-
-//#define DISABLE_SUNXI_MBR
-
+/*#define CONFIG_SYS_DCACHE_OFF*/
 
 #endif /* __CONFIG_H */
+

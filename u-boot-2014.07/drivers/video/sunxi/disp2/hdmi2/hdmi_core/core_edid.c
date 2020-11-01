@@ -207,7 +207,8 @@ void edid_correct_hardware_config(void)
 
 	/*correct vic setting*/
 	core->dev_func.get_vsif(vsif_data);
-	if ((vsif_data[0]) >> 5 == 0x1) { /*To check if there is sending hdmi_vic*/
+	if ((vsif_data[0]) >> 5 == 0x1) {
+		/*To check if there is sending hdmi_vic*/
 		cea_code = videoParams_GetCeaVicCode(vsif_data[1]);
 		if (cea_code > 0) {
 			if (get_cea_vic_support(cea_code)) {
@@ -217,7 +218,8 @@ void edid_correct_hardware_config(void)
 				core->dev_func.set_video_code(cea_code);
 			}
 		}
-	} else if ((vsif_data[0] >> 5) == 0x0) { /*To check if there is sending cea_vic*/
+	} else if ((vsif_data[0] >> 5) == 0x0) {
+		/*To check if there is sending cea_vic*/
 		cea_code = core->dev_func.get_video_code();
 		if (!get_cea_vic_support(cea_code)) {
 			hdmi_code = videoParams_GetHdmiVicCode(cea_code);
@@ -244,15 +246,16 @@ void videoParams_SetYcc420Support(dtd_t *paramsDtd, shortVideoDesc_t *paramsSvd)
 	HDMI_INFO_MSG("set ParamsDtd->supports %d\n", paramsDtd->mYcc420);
 }
 
-static void edid_set_video_prefered(sink_edid_t *sink_cap, videoParams_t *pVideo)
+static void edid_set_video_prefered(sink_edid_t *sink_cap,
+						videoParams_t *pVideo)
 {
 	/* Configure using Native SVD or HDMI_VIC */
 	int i = 0;
 	int hdmi_vic = 0;
-#if defined(__LINUX_PLAT__)	
+#if defined(__LINUX_PLAT__)
 	bool cea_vic_support = false;
 	bool hdmi_vic_support = false;
-#endif	
+#endif
 	unsigned int vic_index = 0;
 	struct hdmi_tx_core *core = get_platform();
 

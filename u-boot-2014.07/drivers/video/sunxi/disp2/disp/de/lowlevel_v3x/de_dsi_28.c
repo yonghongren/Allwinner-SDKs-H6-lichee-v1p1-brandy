@@ -102,9 +102,28 @@ __s32 dsi_start(__u32 sel, enum __dsi_start_t func)
 
 __s32 dsi_open(__u32 sel, disp_panel_para *panel)
 {
-	dsi_dev[sel]->dsi_cmd_ctl.bits.cmd_mode_en = 0;
-	dsi_dev[sel]->dsi_vid_ctl0.bits.video_mode_en = 1;
-	dsi_dev[sel]->dsi_cfg1.bits.dpi_src = 1;
+	if (panel->lcd_dsi_if == LCD_DSI_IF_COMMAND_MODE) {
+		dsi_dev[sel]->dsi_cmd_ctl.bits.gen_sw_0p_tx_lp = 0;
+		dsi_dev[sel]->dsi_cmd_ctl.bits.gen_sw_1p_tx_lp = 0;
+		dsi_dev[sel]->dsi_cmd_ctl.bits.gen_sw_2p_tx_lp = 0;
+		dsi_dev[sel]->dsi_cmd_ctl.bits.gen_sr_0p_tx_lp = 0;
+		dsi_dev[sel]->dsi_cmd_ctl.bits.gen_sr_1p_tx_lp = 0;
+		dsi_dev[sel]->dsi_cmd_ctl.bits.gen_sr_2p_tx_lp = 0;
+		dsi_dev[sel]->dsi_cmd_ctl.bits.dcs_sw_0p_tx_lp = 0;
+		dsi_dev[sel]->dsi_cmd_ctl.bits.dcs_sw_1p_tx_lp = 0;
+		dsi_dev[sel]->dsi_cmd_ctl.bits.dcs_sr_0p_tx_lp = 0;
+		dsi_dev[sel]->dsi_cmd_ctl.bits.max_rd_pkg_size_lp = 0;
+		dsi_dev[sel]->dsi_cmd_ctl.bits.gen_lw_tx_lp = 0;
+		dsi_dev[sel]->dsi_cmd_ctl.bits.dcs_lw_tx_lp = 0;
+		dsi_dev[sel]->dsi_cmd_ctl.bits.cmd_mode_en = 1;
+		dsi_dev[sel]->dsi_vid_ctl0.bits.video_mode_en = 0;
+		dsi_dev[sel]->dsi_cfg1.bits.dpi_src = 0;
+		dsi_dev[sel]->dsi_cfg2.bits.dbi_src = 1;
+	} else {
+		dsi_dev[sel]->dsi_cmd_ctl.bits.cmd_mode_en = 0;
+		dsi_dev[sel]->dsi_vid_ctl0.bits.video_mode_en = 1;
+		dsi_dev[sel]->dsi_cfg1.bits.dpi_src = 1;
+	}
 
 	return 0;
 }
@@ -128,18 +147,34 @@ __s32 dsi_close(__u32 sel)
  *             0--> cmd mode
  * @return	   alway return 0
  */
-__s32 dsi_mode_switch(__u32 sel, __u32 en)
+__s32 dsi_mode_switch(__u32 sel, __u32 cmd_en, __u32 lp_en)
 {
-	if (en == 1) {
-		dsi_dev[sel]->dsi_cmd_ctl.bits.cmd_mode_en = 0;
-		dsi_dev[sel]->dsi_vid_ctl0.bits.video_mode_en = 1;
-		dsi_dev[sel]->dsi_cfg1.bits.dpi_src = 1;
-	} else {
+	/*for video mode only*/
+	/*switch between low power mode and high speed mode*/
+	dsi_dev[sel]->dsi_cmd_ctl.bits.gen_sw_0p_tx_lp = lp_en;
+	dsi_dev[sel]->dsi_cmd_ctl.bits.gen_sw_1p_tx_lp = lp_en;
+	dsi_dev[sel]->dsi_cmd_ctl.bits.gen_sw_2p_tx_lp = lp_en;
+	dsi_dev[sel]->dsi_cmd_ctl.bits.gen_sr_0p_tx_lp = lp_en;
+	dsi_dev[sel]->dsi_cmd_ctl.bits.gen_sr_1p_tx_lp = lp_en;
+	dsi_dev[sel]->dsi_cmd_ctl.bits.gen_sr_2p_tx_lp = lp_en;
+	dsi_dev[sel]->dsi_cmd_ctl.bits.dcs_sw_0p_tx_lp = lp_en;
+	dsi_dev[sel]->dsi_cmd_ctl.bits.dcs_sw_1p_tx_lp = lp_en;
+	dsi_dev[sel]->dsi_cmd_ctl.bits.dcs_sr_0p_tx_lp = lp_en;
+	dsi_dev[sel]->dsi_cmd_ctl.bits.max_rd_pkg_size_lp = lp_en;
+	dsi_dev[sel]->dsi_cmd_ctl.bits.gen_lw_tx_lp = lp_en;
+	dsi_dev[sel]->dsi_cmd_ctl.bits.dcs_lw_tx_lp = lp_en;
+
+	/*command mode use dbi interface*/
+	/*video mode use dpi interface*/
+	if (cmd_en) {
 		dsi_dev[sel]->dsi_cfg1.bits.dpi_src = 0;
 		dsi_delay_ms(16);
 		dsi_dev[sel]->dsi_vid_ctl0.bits.video_mode_en = 0;
 		dsi_dev[sel]->dsi_cmd_ctl.bits.cmd_mode_en = 1;
-		dsi_hs_clk(sel, 0);
+	} else {
+		dsi_dev[sel]->dsi_cmd_ctl.bits.cmd_mode_en = 0;
+		dsi_dev[sel]->dsi_vid_ctl0.bits.video_mode_en = 1;
+		dsi_dev[sel]->dsi_cfg1.bits.dpi_src = 1;
 	}
 	return 0;
 }
@@ -311,8 +346,8 @@ __s32 dsi_gen_wr(__u32 sel, __u8 cmd, __u8 *para_p, __u32 para_num)
 		break;
 	default:
 		dt = DSI_DT_GEN_LONG_WR;
-		data0 = (para_num >> 0) & 0xff;
-		data1 = (para_num >> 8) & 0xff;
+		data0 = ((para_num + 1) >> 0) & 0xff;
+		data1 = ((para_num + 1) >> 8) & 0xff;
 		break;
 	}
 
@@ -403,12 +438,115 @@ __s32 dsi_turn_on_peripheral_command(__u32 sel)
 }
 __s32 dsi_set_max_ret_size(__u32 sel, __u32 size)
 {
+	__u8 vc = 0;
+	__u8 dt = DSI_DT_MAX_RET_SIZE;
+
+	dsi_dev[sel]->dsi_pkg_ctl0.dwval =
+	    (((size >> 8) & 0xff) << 16 | ((size >> 0) & 0xff) << 8 | vc << 6 |
+	     dt);
+	while (!dsi_dev[sel]->dsi_pkg_status.bits.fifo_pld_w_empty)
+		;
 	return 0;
 }
 
-__s32 dsi_dcs_rd(__u32 sel, __u8 cmd, __u8 *para_p, __u32 *num_p)
+/**
+ * @name       :dsi_dcs_rd
+ * @brief      :dcs read
+ * @param[IN]  :sel:index of dsi
+ * @param[IN]  :cmd: dcs command
+ * @param[OUT] :result: pointer of read result
+ * @param[OUT] :num_p: number of bytes have been readed
+ * @return     :number of bytes have been readed
+ */
+__s32 dsi_dcs_rd(__u32 sel, __u8 cmd, __u8 *result, __u32 *num_p)
 {
-	return 0;
+	__s32 ret = 0;
+	__u8 dt = DSI_DT_DCS_RD_P0;
+	u32 tmp_result = 0;
+
+	dsi_dev[sel]->dsi_pkg_ctl2.bits.bta_en = 1;
+
+	dsi_dev[sel]->dsi_pkg_ctl0.dwval =
+	    (0 << 16 | cmd << 8 | 0 << 6 | dt);
+
+	while (!dsi_dev[sel]->dsi_pkg_status.bits.fifo_pld_w_empty)
+		;
+	while (dsi_dev[sel]->dsi_pkg_status.bits.rd_cmd_busy)
+		;
+
+	while (!dsi_dev[sel]->dsi_pkg_status.bits.fifo_pld_r_empty) {
+		tmp_result = dsi_dev[sel]->dsi_pkg_ctl1.dwval;
+		result[0+ret] = (tmp_result >> 0) & 0xff;
+		result[1+ret] = (tmp_result >> 8) & 0xff;
+		result[2+ret] = (tmp_result >> 16) & 0xff;
+		result[3+ret] = (tmp_result >> 24) & 0xff;
+		ret += 4;
+	}
+	dsi_dev[sel]->dsi_pkg_ctl2.bits.bta_en = 0;
+	*num_p = ret;
+
+	return ret;
+}
+
+/**
+ * @name       :dsi_gen_short_rd
+ * @brief      :dsi generic short read with up to 2 para
+ * @param[IN]  :dt:data type
+ * @param[IN]  :para_p:device address,array
+ * @param[IN]  :para_num:number of para_p array
+ * @param[OUT] :result,array which store the result
+ * @return     :number of bytes have been readed
+ */
+__s32 dsi_gen_short_rd(__u32 sel, __u8 *para_p, __u8 para_num, __u8 *result)
+{
+	__s32 ret = 0;
+	__u8 data0 = 0;
+	__u8 data1 = 0;
+	__u32 vc = 0;
+	__u8 dt = 0;
+	u32 tmp_result = 0;
+
+	switch (para_num) {
+	case 0:
+		dt = DSI_DT_GEN_RD_P0;
+		break;
+	case 1:
+		dt = DSI_DT_GEN_RD_P1;
+		data0 = para_p[0];
+		break;
+	case 2:
+		dt = DSI_DT_GEN_RD_P2;
+		data0 = para_p[0];
+		data1 = para_p[1];
+		break;
+	default:
+		dt = DSI_DT_GEN_RD_P2;
+		data0 = para_p[0];
+		data1 = para_p[1];
+		break;
+	}
+
+	dsi_dev[sel]->dsi_pkg_ctl2.bits.bta_en = 1;
+
+	dsi_dev[sel]->dsi_pkg_ctl0.dwval =
+	    (data1 << 16 | data0 << 8 | vc << 6 | dt);
+
+	while (!dsi_dev[sel]->dsi_pkg_status.bits.fifo_pld_w_empty)
+		;
+	while (dsi_dev[sel]->dsi_pkg_status.bits.rd_cmd_busy)
+		;
+
+	while (!dsi_dev[sel]->dsi_pkg_status.bits.fifo_pld_r_empty) {
+		tmp_result = dsi_dev[sel]->dsi_pkg_ctl1.dwval;
+		result[0+ret] = (tmp_result >> 0) & 0xff;
+		result[1+ret] = (tmp_result >> 8) & 0xff;
+		result[2+ret] = (tmp_result >> 16) & 0xff;
+		result[3+ret] = (tmp_result >> 24) & 0xff;
+		ret += 4;
+	}
+	dsi_dev[sel]->dsi_pkg_ctl2.bits.bta_en = 0;
+
+	return ret;
 }
 
 __s32 dsi_dcs_rd_memory(__u32 sel, __u32 *p_data, __u32 length)
@@ -642,7 +780,7 @@ static __s32 dsi_dphy_cfg(__u32 sel, disp_panel_para *panel)
 	dsi_dev[sel]->dsi_cfg3.bits.reg_snk = 2;
 	dsi_dev[sel]->dsi_cfg3.bits.reg_rint = 2;
 	dsi_delay_ms(1);
-	dsi_dev[sel]->dsi_cfg3.bits.reg_rext = 1;
+	dsi_dev[sel]->dsi_cfg3.bits.enrext = 1;
 	dsi_delay_ms(1);
 
 	dsi_dev[sel]->dsi_phy_ctl3.bits.phy_cfg_clr = 1;
@@ -654,8 +792,10 @@ static __s32 dsi_dphy_cfg(__u32 sel, disp_panel_para *panel)
 	dsi_dev[sel]->dsi_phy_ctl3.bits.phy_cfg_clr = 0;
 	dsi_delay_ms(1);
 
-	dsi_dphy_cfg_1data(sel, 0x20, 0xcd);
-	dsi_dphy_cfg_1data(sel, 0x22, 0x42);
+	if (panel->lcd_dsi_if != LCD_DSI_IF_COMMAND_MODE) {
+		dsi_dphy_cfg_1data(sel, 0x20, 0xcd);
+		dsi_dphy_cfg_1data(sel, 0x22, 0x42);
+	}
 
 	if (LCD_DSI_IF_VIDEO_MODE == mode || LCD_DSI_IF_BURST_MODE == mode) {
 		dsi_dphy_cfg_hsfrq(sel,
@@ -670,16 +810,15 @@ static __s32 dsi_dphy_cfg(__u32 sel, disp_panel_para *panel)
 	}
 
 	dsi_delay_ms(1);
-	dsi_dev[sel]->dsi_ctl1.bits.phy_en = 1;
-	dsi_delay_ms(1);
 	dsi_dev[sel]->dsi_ctl1.bits.phy_rst = 1;
-	dsi_delay_ms(1);
-	dsi_dev[sel]->dsi_phy_ctl1.dwval =
-	    ((dsi_dev[sel]->dsi_phy_ctl1.dwval) & (~0xff)) | 1;
-	dsi_dev[sel]->dsi_ctl1.bits.phy_lane_num = lane - 1;
 	dsi_delay_ms(1);
 	dsi_dev[sel]->dsi_ctl1.bits.phy_clk_gating = 1;
 	dsi_delay_ms(1);
+	dsi_dev[sel]->dsi_ctl1.bits.phy_en = 1;
+	dsi_delay_ms(1);
+	dsi_dev[sel]->dsi_phy_ctl1.dwval =
+	    ((dsi_dev[sel]->dsi_phy_ctl1.dwval) & (~0xff)) | 0x1;
+	dsi_dev[sel]->dsi_ctl1.bits.phy_lane_num = lane - 1;
 
 	return 0;
 }
@@ -737,24 +876,22 @@ static __s32 dsi_basic_cfg(__u32 sel, disp_panel_para *panel)
 		    0xff;
 	} else {
 		dsi_dev[sel]->dsi_ctl2.dwval =
-		    ((dclk * 6 * dsi_bits_per_pixel[format] + 4 * lane * 10) /
-		     (8 * lane * 10)) &
-		    0xff;
+		    ((dclk * 36) / (8 * lane * 10)) & 0xff;
 		dsi_delay_ms(100);
 		dsi_dev[sel]->dsi_to_ctl0.dwval =
-		    ((dclk * 6 * dsi_bits_per_pixel[format] + 4 * lane * 10) /
-		     (8 * lane * 10)) &
-		    0xff;
+		    ((dclk * 36) / (8 * lane * 10)) & 0xff;
 	}
 	dsi_dev[sel]->dsi_pkg_ctl2.bits.eotp_tx_en = 0;
 	dsi_dev[sel]->dsi_pkg_ctl2.bits.eotp_rx_en = 0;
 	dsi_dev[sel]->dsi_pkg_ctl2.bits.bta_en = 0;
-	dsi_dev[sel]->dsi_pkg_ctl2.bits.ecc_rx_en = 1;
-	dsi_dev[sel]->dsi_pkg_ctl2.bits.crc_rx_en = 1;
-	dsi_dev[sel]->dsi_pkg_ctl2.bits.vid_rx = 1;
-	dsi_dev[sel]->dsi_vid_ctl2.dwval = 0x00400000;
+	dsi_dev[sel]->dsi_pkg_ctl2.bits.ecc_rx_en = 0;
+	dsi_dev[sel]->dsi_pkg_ctl2.bits.crc_rx_en = 0;
+	dsi_dev[sel]->dsi_pkg_ctl2.bits.vid_rx = 0;
+	dsi_dev[sel]->dsi_vid_ctl2.dwval = (panel->lcd_x / timing_div * 3 / 4)
+					   << 16;
 	dsi_dev[sel]->dsi_phy_ctl1.dwval =
-	    ((dsi_dev[sel]->dsi_phy_ctl1.dwval) & (~0x7fff0000)) | (50 << 16);
+	    ((dsi_dev[sel]->dsi_phy_ctl1.dwval) & (~0x7fff0000)) |
+	    ((panel->lcd_x / timing_div * 3 / 4) << 16);
 
 	dsi_dev[sel]->dsi_phy_ctl0.dwval = 0x00140014;
 	dsi_dev[sel]->dsi_to_ctl1.dwval = 0x0;
@@ -897,9 +1034,9 @@ static __s32 dsi_packet_cfg(__u32 sel, disp_panel_para *panel)
 		}
 		dsi_dev[sel]->dsi_vid_ctl0.bits.vsa_lp_en = 1;
 		dsi_dev[sel]->dsi_vid_ctl0.bits.vbp_lp_en = 1;
-		dsi_dev[sel]->dsi_vid_ctl0.bits.vfp_lp_en = 1;
+		dsi_dev[sel]->dsi_vid_ctl0.bits.vfp_lp_en = 0;
 		dsi_dev[sel]->dsi_vid_ctl0.bits.vact_lp_en = 1;
-		dsi_dev[sel]->dsi_vid_ctl0.bits.hbp_lp_en = 0;
+		dsi_dev[sel]->dsi_vid_ctl0.bits.hbp_lp_en = 1;
 
 		dsi_dev[sel]->dsi_vid_ctl1.bits.pkt_multi_en = 0;
 		dsi_dev[sel]->dsi_vid_ctl1.bits.pkt_null_in_hact = 0;

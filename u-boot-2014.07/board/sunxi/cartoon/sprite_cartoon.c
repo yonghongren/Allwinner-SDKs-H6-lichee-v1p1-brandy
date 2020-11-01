@@ -281,10 +281,6 @@ uint sprite_cartoon_create(void)
 int sprite_cartoon_upgrade(int rate)
 {
 
-	if((uboot_spare_head.boot_data.work_mode != WORK_MODE_CARD_PRODUCT) && (uboot_spare_head.boot_data.work_mode != WORK_MODE_SPRITE_RECOVERY))
-	{
-		return 0;
-	}
 	if(last_rate == rate)
 	{
 		return 0;

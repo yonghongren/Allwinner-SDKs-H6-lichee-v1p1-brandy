@@ -37,7 +37,6 @@
 #include <sunxi_board.h>
 #include <serial.h>
 #include <asm/arch/usb.h>
-#include <bat.h>
 #if defined(CONFIG_SUNXI_I2C)
 	#include <i2c.h>
 #elif defined(CONFIG_SUNXI_P2WI)
@@ -45,7 +44,6 @@
 #elif defined(CONFIG_SUNXI_RSB)
 	#include <rsb.h>
 #endif
-
 #if defined(CONFIG_SUNXI_RTC)
 	#include <rtc.h>
 #endif
@@ -215,7 +213,7 @@ int sunxi_board_run_fel(void)
 {
 #if defined(CONFIG_SUN6I) || defined(CONFIG_ARCH_SUN8IW3P1)|| defined(CONFIG_ARCH_SUN8IW5P1) || defined(CONFIG_ARCH_SUN7I)|| defined(CONFIG_ARCH_SUN8IW8P1)
 	*((volatile unsigned int *)(SUNXI_RUN_EFEX_ADDR)) = SUNXI_RUN_EFEX_FLAG;
-#elif defined(CONFIG_ARCH_SUN9IW1P1) || defined(CONFIG_ARCH_SUN8IW7P1) || defined(CONFIG_ARCH_SUN8IW6P1)
+#elif defined(CONFIG_ARCH_SUN9IW1P1) || defined(CONFIG_ARCH_SUN8IW7P1) || defined(CONFIG_ARCH_SUN8IW6P1) || defined(CONFIG_ARCH_SUN8IW9P1)
 	sunxi_set_fel_flag();
 #endif
 	printf("set next system status\n");
@@ -261,7 +259,7 @@ int sunxi_board_run_fel_eraly(void)
 {
 #if defined(CONFIG_SUN6I) || defined(CONFIG_ARCH_SUN8IW3P1) || defined(CONFIG_ARCH_SUN8IW5P1)|| defined(CONFIG_ARCH_SUN7I)||defined(CONFIG_ARCH_SUN8IW8P1)
 	*((volatile unsigned int *)(SUNXI_RUN_EFEX_ADDR)) = SUNXI_RUN_EFEX_FLAG;
-#elif defined(CONFIG_ARCH_SUN9IW1P1) || defined(CONFIG_ARCH_SUN8IW7P1) || defined(CONFIG_ARCH_SUN8IW6P1)
+#elif defined(CONFIG_ARCH_SUN9IW1P1) || defined(CONFIG_ARCH_SUN8IW7P1) || defined(CONFIG_ARCH_SUN8IW6P1) || defined(CONFIG_ARCH_SUN8IW9P1)
 	sunxi_set_fel_flag();
 #endif
 	printf("set next system status\n");
@@ -371,10 +369,6 @@ void fastboot_partition_init(void)
 		if(!storage_type)
 		{
 			sprintf(part_name, "nand%c", 'a' + index);
-		}
-		else if(storage_type == 3)
-		{
-			sprintf(part_name, "spinorp%d", index);
 		}
 		else
 		{
@@ -614,22 +608,7 @@ static void check_debug_mode(void)
 
     return ;
 }
-/*
-************************************************************************************************************
-*
-*                                             function
-*
-*    name          :
-*
-*    parmeters     :
-*
-*    return        :
-*
-*    note          :
-*
-*
-************************************************************************************************************
-*/
+
 int check_android_misc(void)
 {
 	int   mode;
@@ -654,7 +633,7 @@ int check_android_misc(void)
     //if enter debug mode,set loglevel = 8
     check_debug_mode();
 
-	memset(boot_commond, 0x0, 128);
+   memset(boot_commond, 0x0, 128);
 	strcpy(boot_commond, getenv("bootcmd"));
 	printf("base bootcmd=%s\n", boot_commond);
 	//ÅÐ¶Ï´æ´¢½éÖÊ
@@ -662,10 +641,6 @@ int check_android_misc(void)
 	{
 		sunxi_str_replace(boot_commond, "setargs_nand", "setargs_mmc");
 		printf("bootcmd set setargs_mmc\n");
-	}
-	else if(uboot_spare_head.boot_data.storage_type == 3)
-	{
-		printf("bootcmd set setargs_nor\n");
 	}
 	else
 	{
@@ -773,23 +748,111 @@ int check_android_misc(void)
 	return 0;
 
 }
+#ifdef CONFIG_DETECT_RTC_BOOT_MODE
+static int detect_rtc_boot_mode(void)
+{
+	int   mode;
+	int   pmu_value;
+	char  boot_commond[128];
+	u8 bootmode_flag = 0;
+
+	if (uboot_spare_head.boot_data.work_mode != WORK_MODE_BOOT) {
+		return 0;
+	}
+
+	if (gd->force_shell) {
+		char delaytime[8];
+
+		sprintf(delaytime, "%d", 3);
+		setenv("bootdelay", delaytime);
+	}
+
+	//if enter debug mode,set loglevel = 8
+	check_debug_mode();
+
+	memset(boot_commond, 0x0, 128);
+	strcpy(boot_commond, getenv("bootcmd"));
+	printf("base bootcmd=%s\n", boot_commond);
+
+	if ((uboot_spare_head.boot_data.storage_type == 1) || (uboot_spare_head.boot_data.storage_type == 2)) {
+		sunxi_str_replace(boot_commond, "setargs_nand", "setargs_mmc");
+		printf("bootcmd set setargs_mmc\n");
+	} else {
+		printf("bootcmd set setargs_nand\n");
+	}
+
+	mode = detect_other_boot_mode();
+
+	if (mode == ANDROID_NULL_MODE) {
+		pmu_value = axp_probe_pre_sys_mode();
+
+		if (pmu_value == PMU_PRE_FASTBOOT_MODE) {
+			puts("PMU : ready to enter fastboot mode\n");
+			bootmode_flag = SUNXI_FASTBOOT_FLAG;
+		} else if (pmu_value == PMU_PRE_RECOVERY_MODE) {
+			puts("PMU : ready to enter recovery mode\n");
+			bootmode_flag = SUNXI_BOOT_RECOVERY_FLAG;
+		} else {
+			/* read RTC flag*/
+			bootmode_flag = sunxi_get_bootmode_flag();
+             }
+	} else if (mode == ANDROID_RECOVERY_MODE) {
+		bootmode_flag = ANDROID_RECOVERY_MODE;
+	} else if ( mode == ANDROID_FASTBOOT_MODE) {
+		bootmode_flag = ANDROID_FASTBOOT_MODE;
+	}
+
+	sunxi_set_bootmode_flag(0);
+
+	if (!loglel_change_flag) {
+		switch (bootmode_flag) {
+			case SUNXI_EFEX_CMD_FLAG:
+				puts("find efex cmd\n");
+				sunxi_board_run_fel();
+				break;
+			case SUNXI_BOOT_RESIGNATURE_FLAG:
+				puts("error: find boot-resignature cmd,but this cmd not implement\n");
+				//sunxi_oem_op_lock(SUNXI_LOCKING, NULL, 1);
+				break;
+			case SUNXI_BOOT_RECOVERY_FLAG:
+				puts("Recovery detected, will boot recovery\n");
+				sunxi_str_replace(boot_commond, "boot_normal", "boot_recovery");
+				break;
+			case SUNXI_SYS_RECOVERY_FLAG:
+				puts("recovery detected, will sprite recovery\n");
+				strncpy(boot_commond, "sprite_recovery", sizeof("sprite_recovery"));
+				uboot_spare_head.boot_data.work_mode = WORK_MODE_SPRITE_RECOVERY;
+				break;
+			case SUNXI_FASTBOOT_FLAG:
+				puts("Fastboot detected, will boot fastboot\n");
+				sunxi_str_replace(boot_commond, "boot_normal", "boot_fastboot");
+				break;
+			case SUNXI_USB_RECOVERY_FLAG:
+				puts("Recovery detected, will usb recovery\n");
+				sunxi_str_replace(boot_commond, "boot_normal", "boot_recovery");
+				break;
+			default:
+				break;
+			}
+	}
+
+	if (bootmode_flag == SUNXI_DEBUG_MODE_FLAG) {
+		puts("debug_mode detected ,will enter debug_mode");
+
+		if (!change_to_debug_mode()) {
+			check_debug_mode();
+		}
+	}
+
+	setenv("bootcmd", boot_commond);
+
+	printf("to be run cmd=%s\n", boot_commond);
+	return 0;
+
+}
 #endif
-/*
-************************************************************************************************************
-*
-*                                             function
-*
-*    name          :
-*
-*    parmeters     :
-*
-*    return        :
-*
-*    note          :
-*
-*
-************************************************************************************************************
-*/
+#endif
+
 int board_late_init(void)
 {
 	fastboot_partition_init();
@@ -798,10 +861,19 @@ int board_late_init(void)
 	respond_physical_key_action();
 #endif
 #ifndef CONFIG_SUNXI_SPINOR_PLATFORM
+#ifndef CONFIG_DETECT_RTC_BOOT_MODE
 	check_android_misc();
+#else
+	detect_rtc_boot_mode();
+#endif
 #endif
 #ifdef  CONFIG_ARCH_HOMELET
 	update_user_data();
+#endif
+
+#ifdef CONFIG_USE_UBOOT_SERIALNO
+	extern int sunxi_set_serial_num(void);
+	sunxi_set_serial_num();
 #endif
 	return 0;
 }
@@ -1523,54 +1595,34 @@ int change_to_debug_mode(void)
 *
 ************************************************************************************************************
 */
-sunxi_rgb_store_t rgb_info;
-
-int sunxi_flash_read_bootlogo(u32 start, int buf, const char *part_name)
-{
-	int ret;
-	u32 rblock;
-	u32 start_block = start;
-	void *addr;
-	
-	addr = (void *)buf;
-	start_block = sunxi_partition_get_offset_byname((const char *)part_name);
-	rblock = sunxi_partition_get_size_byname((const char *)part_name);
-    ret = sunxi_flash_read(start_block, rblock, (void *)addr);
-	if(ret != 0) {
-		printf("read bootlogo partition successful,start_block=0x%x,rblock=0x%x ,ret=%d\n",start_block,rblock,ret);
-	}
-	else {
-		printf("read bootlogo partition fail,start_block=0x%x,rblock=0x%x ,ret=%d\n",start_block,rblock,ret);
-	}
-
-	return ret;
-}
-extern int jpegdec(const unsigned char *src_addr, const unsigned char *dst_addr, sunxi_rgb_store_t *rgb_info);
 void sunxi_read_bootlogo(char *part_name)
 {
-    //uint addr;
+    int ret = 0;
+    u32 rblock = 0;
+    u32 start_block = 0;
+    uint addr;
 #if defined(CONFIG_SUNXI_LOGBUFFER)
-    rgb_info.buffer = (uint *)(CONFIG_SYS_SDRAM_BASE + gd->ram_size - SUNXI_DISPLAY_FRAME_BUFFER_SIZE);
+    addr = (uint)(CONFIG_SYS_SDRAM_BASE + gd->ram_size - SUNXI_DISPLAY_FRAME_BUFFER_SIZE);
 #else
-    rgb_info.buffer = (uint *)(SUNXI_DISPLAY_FRAME_BUFFER_ADDR);
+    addr = (uint)(SUNXI_DISPLAY_FRAME_BUFFER_ADDR);
 #endif
-
-	sunxi_flash_read_bootlogo(0, 0x40000000, part_name);
-
-	//dump_data(0x40000000);
-
-	if(!jpegdec((const unsigned char *)0x40000000, (const unsigned char *)SUNXI_DISPLAY_FRAME_BUFFER_ADDR, &rgb_info))
-	{
-		gd->fb_base = (uint)(rgb_info.buffer);
-		printf("sunxi_read_bootlogo: jpg convert argb  \n");     
-	}
-	else
-	{
-		gd->fb_base = 0;
-        printf("sunxi_read_bootlogo: jpg convert argb fail \n");
-	}
-
-	return ;	
+    printf("addr = %x \n",addr);
+    start_block = sunxi_partition_get_offset_byname((const char *)part_name);
+    if(start_block == 0 )
+        return ;
+    rblock = sunxi_partition_get_size_byname((const char *)part_name);
+    ret = sunxi_flash_read(start_block, rblock, (void *)addr);
+    if(ret != 0)
+    {
+        gd->fb_base = addr ;
+        printf("sunxi_read_bootlogo: read bootlogo partition successful \n");
+    }
+    else
+    {
+        gd->fb_base = 0;
+        printf("sunxi_read_bootlogo: read bootlogo partition fail \n");
+    }
+    return;
 }
 #endif
 

@@ -399,7 +399,7 @@
 #define CONFIG_SUNXI_AXP22
 #define CONFIG_SUNXI_AXP15
 #define CONFIG_SUNXI_AXP259
-#define CONFIG_CHARGER_PMU
+//#define CONFIG_CHARGER_PMU
 
 #define PMU_SCRIPT_NAME                 "charger0"
 #define FDT_PATH_REGU                   "regulator0"

@@ -469,7 +469,14 @@ int fdt_node_offset_by_phandle(const void *fdt, uint32_t phandle)
 	if ((phandle == 0) || (phandle == -1))
 		return -FDT_ERR_BADPHANDLE;
 
+#ifdef CONFIG_SUNXI_MULITCORE_BOOT
+	int cpu_id = get_core_pos();
+	if (cpu_id)
+		fdt += fdt_totalsize(fdt);
 	FDT_CHECK_HEADER(fdt);
+#else
+	FDT_CHECK_HEADER(fdt);
+#endif
 
 	/* FIXME: The algorithm here is pretty horrible: we
 	 * potentially scan each property of a node in

@@ -111,12 +111,12 @@
 #define __FPGA_DEBUG__
 #endif
 
-#define SETMASK(width, shift)   ((width?((-1U) >> (32-width)):0)  << (shift))
-#define CLRMASK(width, shift)   (~(SETMASK(width, shift)))
-#define GET_BITS(shift, width, reg)     \
-	(((reg) & SETMASK(width, shift)) >> (shift))
-#define SET_BITS(shift, width, reg, val) \
-	(((reg) & CLRMASK(width, shift)) | (val << (shift)))
+/* #define SETMASK(width, shift)   ((width?((-1U) >> (32-width)):0)  << (shift))*/
+/* #define CLRMASK(width, shift)   (~(SETMASK(width, shift))) */
+/* #define GET_BITS(shift, width, reg)     \ */
+/*	(((reg) & SETMASK(width, shift)) >> (shift)) */
+/* #define SET_BITS(shift, width, reg, val) \ */
+/*	(((reg) & CLRMASK(width, shift)) | (val << (shift))) */
 
 #define DISPALIGN(value, align) ((align==0)?value:(((value) + ((align) - 1)) & ~((align) - 1)))
 

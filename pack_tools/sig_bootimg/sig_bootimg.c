@@ -24,6 +24,7 @@
 
 
 typedef unsigned int u32;
+typedef unsigned long long u64;
 #include "android_image.h"
 
 #define ALIGN(x,a)              __ALIGN_MASK(x,(typeof(x))(a)-1)
@@ -148,7 +149,7 @@ int main(int argc, char **argv)
 	}
 
 	memcpy(&hdr_ex,raw_image_data,sizeof(hdr_ex));
-	strcpy(hdr_ex.cert_magic, AW_CERT_MAGIC);
+	strncpy(hdr_ex.cert_magic, AW_CERT_MAGIC , strlen(AW_CERT_MAGIC));
 	memset(hdr_ex.padding,0,AW_IMAGE_PADDING_LEN);
 
 	cert_data = load_file(cert_fn, &(hdr_ex.cert_size));
@@ -165,9 +166,12 @@ int main(int argc, char **argv)
 
 	cert_offset += ALIGN(sizeof(hdr_ex),pagesize);
 	cert_offset += ALIGN(hdr_ex.std_hdr.kernel_size,pagesize);
-	cert_offset += ALIGN(hdr_ex.std_hdr.ramdisk_size,pagesize);
+	if (hdr_ex.std_hdr.ramdisk_size)
+		cert_offset += ALIGN(hdr_ex.std_hdr.ramdisk_size, pagesize);
 	if(hdr_ex.std_hdr.second_size)
-		cert_offset += ALIGN(hdr_ex.std_hdr.second_size,pagesize);
+		cert_offset += ALIGN(hdr_ex.std_hdr.second_size, pagesize);
+	if (hdr_ex.std_hdr.recovery_dtbo_size)
+		cert_offset += ALIGN(hdr_ex.std_hdr.recovery_dtbo_size, pagesize);
 
 	if(write(fd, raw_image_data, raw_image_sz) != raw_image_sz) goto fail;
 

@@ -153,8 +153,8 @@ extern  int nand_physic_erase_block(unsigned int chip,unsigned int block);
 extern  int nand_is_blank(void);
 extern int nand_get_param_for_uboottail(boot_nand_para_t *nand_param);
 
-struct _nand_info* NandHwInit(void);
-__s32 NandHwExit(void);
+extern struct _nand_info* NandHwInit(void);
+extern __s32 NandHwExit(void);
 
 //extern void div_test(void);
 
@@ -169,6 +169,7 @@ extern unsigned int get_phy_partition_num(struct _nand_info*nand_info);
 extern unsigned int nftl_read(unsigned int start_sector,unsigned int len,unsigned char *buf);
 extern unsigned int nftl_write(unsigned int start_sector,unsigned int len,unsigned char *buf);
 extern unsigned int nftl_flush_write_cache(void);
+extern unsigned int nftl_write_end(void);
 extern void set_capacity_level(struct _nand_info*nand_info,unsigned short capacity_level);
 
 

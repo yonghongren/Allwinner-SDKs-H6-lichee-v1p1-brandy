@@ -525,6 +525,10 @@ static void mmc_ddr_mode_onoff(struct mmc *mmc, int on)
 	rval = readl(&reg->gctrl);
 	rval &= (~(1U << 10));
 
+    /*  disable ccu clock */
+    writel(readl(mmchost->mclkbase)&(~(1<<31)), mmchost->mclkbase);
+    MMCDBG("disable mclk %x\n", readl(mmchost->mclkbase));
+
 	if (on) {
 		rval |= (1U << 10);
 		writel(rval, &reg->gctrl);
@@ -533,6 +537,10 @@ static void mmc_ddr_mode_onoff(struct mmc *mmc, int on)
 		writel(rval, &reg->gctrl);
 		MMCDBG("set %d rgctrl 0x%x to disable ddr mode\n", mmchost->mmc_no, readl(&reg->gctrl));
 	}
+
+    /*  enable ccu clock */
+    writel(readl(mmchost->mclkbase)|(1<<31), mmchost->mclkbase);
+    MMCDBG("enable mmc %d mclk %x\n", mmchost->mmc_no, readl(mmchost->mclkbase));
 }
 
 static void mmc_hs400_mode_onoff(struct mmc *mmc, int on)
@@ -564,14 +572,15 @@ static int mmc_calibrate_delay_unit(struct sunxi_mmc_host* mmchost)
 
 	struct mmc_reg_v4p1 *reg = (struct mmc_reg_v4p1 *)mmchost->reg;
 	unsigned rval = 0;
-	unsigned clk[3] = {50*1000*1000, 100*1000*1000, 200*1000*1000};
-	unsigned period[3] = {10*1000, 5*1000, 2500}; //ps, module clk is 2xclk at init phase.
+	unsigned clk[4] = {50*1000*1000, 100*1000*1000, 150*1000*1000, 200*1000*1000};
+	/*ps, module clk is 2xclk at init phase.*/
+	unsigned period[4] = {10*1000, 5*1000, 3333, 2500};
 	unsigned result = 0;
 	int i = 0;
 
 	MMCDBG("start %s, don't access device...\n", __FUNCTION__);
 
-	for (i=0; i<3; i++)
+	for (i = 0; i < 4; i++)
 	{
 		MMCINFO("%d MHz...\n", clk[i]/1000/1000);
 		/* close card clock */

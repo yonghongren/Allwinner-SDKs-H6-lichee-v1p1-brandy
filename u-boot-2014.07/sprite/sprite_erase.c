@@ -38,9 +38,6 @@ int sunxi_sprite_erase_flash(void  *img_mbr_buffer)
 	uint32_t need_erase_flag = 0;
 	int mbr_num = SUNXI_MBR_COPY_NUM;
 	char buf[SUNXI_MBR_SIZE * SUNXI_MBR_COPY_NUM];
-	//int  ret;
-	//int nodeoffset;
-    
 
 	if (sunxi_sprite_erase(0, img_mbr_buffer) > 0) {
 		printf("flash already erased\n");
@@ -48,16 +45,21 @@ int sunxi_sprite_erase_flash(void  *img_mbr_buffer)
 	}
 
 	script_parser_fetch("platform", "eraseflag", (int *)&need_erase_flag, 1);
-	//nodeoffset =  fdt_path_offset(working_fdt,FDT_PATH_PLATFORM);
-	//if(nodeoffset > 0)
-	//{
-	//	fdt_getprop_u32(working_fdt,nodeoffset,"eraseflag",&need_erase_flag);
-	//}
 
 	if (need_erase_flag)
 		printf("do need erase flash\n");
 	else
 		printf("not need erase flash\n");
+
+	printf("%s, erase_flag=%u\n", __func__, need_erase_flag);
+	if (need_erase_flag == 0x12) {
+		printf("force erase all flash\n");
+		sunxi_sprite_force_erase(1, img_mbr_buffer);
+#ifdef CONFIG_SUNXI_SECURE_STORAGE
+		sunxi_secure_storage_erase_all();
+#endif
+		return 0;
+	}
 
 	if (need_erase_flag == 0x11) {
 		printf("force erase flash\n");
@@ -100,7 +102,7 @@ int sunxi_sprite_erase_flash(void  *img_mbr_buffer)
 		return -1;
 	}
 	sunxi_sprite_exit(1);
-	printf("need_erase_flag = %d\n", need_erase_flag);
+	printf("need_erase_flag = %u\n", need_erase_flag);
 	printf("begin to erase\n");
 	sunxi_sprite_erase(need_erase_flag, img_mbr_buffer);
 	printf("finish erase\n");

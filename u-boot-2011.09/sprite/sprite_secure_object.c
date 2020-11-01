@@ -441,8 +441,7 @@ static int dump_secure_store(char *type)
 
 static int cmd_secure_object(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	int ret = -1;
-	
+
 	if(argc >3 || argc <1){
 		printf("wrong argc\n");
 		return -1 ;
@@ -455,33 +454,29 @@ static int cmd_secure_object(cmd_tbl_t *cmdtp, int flag, int argc, char * const 
 
 	if ( (strncmp("clean", argv[1],strlen("clean")) == 0)){
 		if( strncmp("all", argv[2], strlen("all") ) ==0  ){
-			ret = clear_secure_store(0xffff);
+			return clear_secure_store(0xffff);
 		}else{
 			unsigned int index = simple_strtoul( (const char *)argv[2], NULL, 10 ) ;
-			ret = clear_secure_store(index) ; 
+			return clear_secure_store(index) ; 
 		}
 	}else if(strncmp("dump", argv[1], strlen("dump"))== 0){
-		ret = dump_secure_store(argv[2]);
+		return dump_secure_store(argv[2]);
 	}else if( (strncmp("test", argv[1],strlen("test")) == 0) ) {
 		#ifdef _SO_TEST_
-		ret = secure_object_op_test();
+		return secure_object_op_test();
 		#else
-		ret = cmd_usage(cmdtp);
+		return cmd_usage(cmdtp);
 		#endif
 	}else if(strncmp("crypt", argv[1], strlen("crypt"))== 0){
 #ifdef CONFIG_SUNXI_SECURE_SYSTEM
 		extern int smc_load_sst_test(void);
 		smc_load_sst_test();
 #endif
-		ret = 0 ;
+		return 0 ;
 	}else
-		ret = cmd_usage(cmdtp);
+		return cmd_usage(cmdtp);
 
-	if( sunxi_secure_storage_exit() < 0  ){
-		printf("secure storage exit fail\n");
-		return -1 ;
-	}
-	return ret;
+	return 0;
 }
 
 U_BOOT_CMD(

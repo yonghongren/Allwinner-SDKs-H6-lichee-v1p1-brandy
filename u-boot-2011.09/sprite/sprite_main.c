@@ -130,9 +130,7 @@ int sunxi_card_sprite_main(int workmode, char *name)
 	//获取当前是量产介质是nand或者卡
 	production_media = uboot_spare_head.boot_data.storage_type;
 	//启动动画显示
-#ifndef CONFIG_ARCH_SUN8IW8P1
 	sprite_cartoon_create();
-#endif
 	//检查固件合法性
 	if(sprite_card_firmware_probe(name))
     {
@@ -207,7 +205,6 @@ int sunxi_card_sprite_main(int workmode, char *name)
 		}
 		tick_printf("successed in downloading boot0\n");
 		sprite_cartoon_upgrade(100);
-		sprite_uichar_printf("CARD OK\n");
 	}
 #ifdef CONFIG_SUNXI_SPINOR
 	else
@@ -219,6 +216,7 @@ int sunxi_card_sprite_main(int workmode, char *name)
 		}
 	}
 #endif
+    sprite_uichar_printf("CARD OK\n");
 	tick_printf("sprite success \n");
 	//烧写结束
 	__msdelay(3000);

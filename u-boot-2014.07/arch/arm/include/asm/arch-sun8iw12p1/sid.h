@@ -46,6 +46,7 @@
 #define EFUSE_TF_ZONE		(0x20)
 #define EFUSE_ROTPK             (0x30)
 #define EFUSE_NV1               (0x50)
+#define EFUSE_RESERVED			(0x5c)
 #define EFUSE_TVE               (0x54)
 #define EFUSE_LCJS              (0x58)
 #define EFUSE_WRITE_PROTECT     (0xBC)

@@ -124,6 +124,7 @@
 *
 ***************************************************************/
 #define CONFIG_SUNXI_RSB
+#define CONFIG_PMU_USE_RSB
 #define CONFIG_USE_IRQ
 #define CONFIG_CMD_IRQ
 #define CONFIG_CMD_ELF
@@ -134,7 +135,6 @@
 #define CONFIG_SUNXI_DISPLAY
 
 #define CONFIG_SUNXI_AXP
-#define POWER_CONFIG_SUNXI_RSB	//axp communication bus
 #define CONFIG_SUNXI_AXP22
 #define CONFIG_SUNXI_AXP_MAIN        PMU_TYPE_22X
 #define PMU_SCRIPT_NAME                 "pmu1_para"

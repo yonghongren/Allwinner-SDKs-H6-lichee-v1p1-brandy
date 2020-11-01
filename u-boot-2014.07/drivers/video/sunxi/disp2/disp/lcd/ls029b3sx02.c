@@ -92,7 +92,6 @@ static s32 lcd_open_flow(u32 sel)
 	 * set delay time to lcdp->openflow.delay*/
 	LCD_OPEN_FUNC(sel, lcd_power_on, 10);
 	LCD_OPEN_FUNC(sel, lcd_panel_init, 200);
-	LCD_OPEN_FUNC(sel, sunxi_lcd_dsi_open, 50);
 	LCD_OPEN_FUNC(sel, lcd_bl_open, 0);
 
 	return 0;
@@ -182,11 +181,11 @@ static void lcd_panel_init(u32 sel)
 	sunxi_lcd_delay_ms(200);
 	sunxi_lcd_tcon_enable(sel); /*tcon and dsi enable,start send data*/
 	sunxi_lcd_delay_ms(400); /*FIXME modify this value*/
-	sunxi_lcd_dsi_close(sel); /*close dsi,enable cmd mode*/
-	sunxi_lcd_delay_ms(100);/*FIXME modify this value*/
-	sunxi_lcd_dsi_clk_enable(sel); /*prepare send cmd*/
+	sunxi_lcd_dsi_mode_switch(sel, 1, 1); /*close dsi,enable cmd mode*/
 	sunxi_lcd_delay_ms(100);
 	sunxi_lcd_dsi_dcs_write_0para(sel, DSI_DCS_SET_DISPLAY_ON);
+	sunxi_lcd_delay_ms(200);
+	sunxi_lcd_dsi_mode_switch(sel, 0, 1); /*enable video mode*/
 	return;
 }
 

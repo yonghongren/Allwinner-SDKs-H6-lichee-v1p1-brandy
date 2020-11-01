@@ -67,6 +67,7 @@ typedef enum
 extern int sunxi_disp_get_source_ops(struct sunxi_disp_source_ops *src_ops);
 int lcd_init(void);
 
+extern __lcd_panel_t WilliamLcd_panel;
 #if defined(CONFIG_ARCH_SUN50IW3P1)
 extern __lcd_panel_t ls029b3sx02_panel;
 extern __lcd_panel_t vr_ls055t1sx01_panel;
@@ -78,7 +79,6 @@ extern __lcd_panel_t sl008pn21d_panel;
 extern __lcd_panel_t ili9341_panel;
 extern __lcd_panel_t fd055hd003s_panel;
 extern __lcd_panel_t default_panel;
-extern __lcd_panel_t lh219wq1_panel;
 #else
 extern __lcd_panel_t default_eink;
 extern __lcd_panel_t default_panel;

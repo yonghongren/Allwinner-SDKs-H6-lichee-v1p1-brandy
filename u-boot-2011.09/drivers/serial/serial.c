@@ -74,6 +74,8 @@ DECLARE_GLOBAL_DATA_PTR;
 /* Note: The port number specified in the functions is 1 based.
  *	 the array is 0 based.
  */
+int sunxi_uart_console = -1;
+
 static NS16550_t serial_ports[4] = {
 #ifdef CONFIG_SYS_NS16550_COM1
 	(NS16550_t)CONFIG_SYS_NS16550_COM1,
@@ -204,7 +206,7 @@ int serial_init (void)
 	clock_divisor = calc_divisor(serial_ports[uart_console]);
 	NS16550_init(serial_ports[uart_console], clock_divisor);
 
-	gd->uart_console = uart_console;
+	sunxi_uart_console = uart_console;
 #endif
 
 	return (0);
@@ -267,7 +269,7 @@ void
 serial_putc(const char c)
 {
 #ifdef CONFIG_ALLWINNER
-	_serial_putc(c,gd->uart_console+1);
+	_serial_putc(c,sunxi_uart_console+1);
 #else
 	_serial_putc(c,CONFIG_CONS_INDEX);
 #endif
@@ -285,7 +287,7 @@ void
 serial_putc_raw(const char c)
 {
 #ifdef CONFIG_ALLWINNER
-	_serial_putc_raw(c,gd->uart_console+1);
+	_serial_putc_raw(c,sunxi_uart_console+1);
 #else
 	_serial_putc_raw(c,CONFIG_CONS_INDEX);
 #endif
@@ -303,7 +305,7 @@ void
 serial_puts(const char *s)
 {
 #ifdef CONFIG_ALLWINNER
-	_serial_puts(s,gd->uart_console+1);
+	_serial_puts(s,sunxi_uart_console+1);
 #else
 	_serial_puts(s,CONFIG_CONS_INDEX);
 #endif
@@ -321,7 +323,7 @@ int
 serial_getc(void)
 {
 #ifdef CONFIG_ALLWINNER
-	return _serial_getc(gd->uart_console+1);
+	return _serial_getc(sunxi_uart_console+1);
 #else
 	return _serial_getc(CONFIG_CONS_INDEX);
 #endif
@@ -339,7 +341,7 @@ int
 serial_tstc(void)
 {
 #ifdef CONFIG_ALLWINNER
-	return _serial_tstc(gd->uart_console+1);
+	return _serial_tstc(sunxi_uart_console+1);
 #else
 	return _serial_tstc(CONFIG_CONS_INDEX);
 #endif
@@ -357,7 +359,7 @@ void
 serial_setbrg(void)
 {
 #ifdef CONFIG_ALLWINNER
-	_serial_setbrg(gd->uart_console+1);
+	_serial_setbrg(sunxi_uart_console+1);
 #else
 	_serial_setbrg(CONFIG_CONS_INDEX);
 #endif
@@ -382,7 +384,7 @@ struct serial_device eserial4_device =
 __weak struct serial_device *default_serial_console(void)
 {
 #ifdef CONFIG_ALLWINNER
-	switch (gd->uart_console) {
+	switch (sunxi_uart_console) {
 	case 0:
 		return &eserial1_device;
 	case 1:

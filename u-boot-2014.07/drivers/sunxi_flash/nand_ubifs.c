@@ -1,3 +1,8 @@
+/*
+ * (C) Copyright 2016
+ *
+ * SPDX-License-Identifier:	GPL-2.0
+ */
 
 #include <common.h>
 #include <sys_config.h>
@@ -31,8 +36,8 @@ sunxi_flash_nand_write(uint start_block, uint nblock, void *buffer)
 	if (sunxi_get_mtd_ubi_mode_status())
 		if (!chk_ubifs_sb_status &&
 			sunxi_chk_ubifs_sb(ubifs_sb_packed)) {
-			printf("Err: ubifs super blk check fail.");
-			printf("please check ubifs pack config.\n");
+			pr_msg("Err: ubifs super blk check fail.");
+			pr_msg("please check ubifs pack config.\n");
 			return -1;
 		} else {
 			chk_ubifs_sb_status = 1;
@@ -99,7 +104,7 @@ sunxi_flash_nand_flush(void)
 }
 
 static int
-sunxi_flash_nand_force_erase(void)
+sunxi_flash_nand_force_erase(int erase, void *mbr_buffer)
 {
 #ifdef CONFIG_SUNXI_UBIFS
 	if (sunxi_get_mtd_ubi_mode_status())
@@ -160,7 +165,7 @@ int nand_init_for_sprite(int workmode)
 	if (ret)
 		return -1;
 
-	printf("nand found\n");
+	pr_msg("nand found\n");
 	sunxi_sprite_init_pt  = sunxi_flash_nand_init;
 	sunxi_sprite_exit_pt  = sunxi_flash_nand_exit;
 	sunxi_sprite_read_pt  = sunxi_flash_nand_read;
@@ -175,7 +180,7 @@ int nand_init_for_sprite(int workmode)
 
 	if (workmode == 0x30) {
 		if (sunxi_sprite_init(1)) {
-			printf("nand init fail\n");
+			pr_msg("nand init fail\n");
 			return -1;
 		}
 	}

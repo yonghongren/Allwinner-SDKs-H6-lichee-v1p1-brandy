@@ -491,7 +491,7 @@ char * bcopy(const char * src, char * dest, int count)
 #endif
 
 //#ifndef __HAVE_ARCH_MEMCPY
-#if 1
+#if 0
 /**
  * memcpy - Copy one area of memory to another
  * @dest: Where to copy to

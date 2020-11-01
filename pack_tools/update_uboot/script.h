@@ -36,8 +36,7 @@
 typedef struct
 {
 	int  main_key_count;
-	unsigned  length;
-	unsigned  char name[8];
+	int  version[3];
 }
 script_head_t;
 

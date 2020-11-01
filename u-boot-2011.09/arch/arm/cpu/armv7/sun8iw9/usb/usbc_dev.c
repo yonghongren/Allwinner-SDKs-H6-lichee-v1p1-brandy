@@ -277,6 +277,16 @@ static __u32 __USBC_Dev_Tx_IsWriteDataReady(__u32 usbc_base_addr)
 	return temp;
 }
 
+static __u32 __USBC_Dev_Tx_IsWriteDataReady_FifoEmpty(__u32 usbc_base_addr)
+{
+	__u32 temp = 0;
+
+	temp = USBC_Readw(USBC_REG_TXCSR(usbc_base_addr));
+	temp &= (1 << USBC_BP_TXCSR_D_TX_READY) | (1 << USBC_BP_TXCSR_D_FIFO_NOT_EMPTY);
+
+	return temp;
+}
+
 static void __USBC_Dev_Tx_WriteDataHalf(__u32 usbc_base_addr)
 {
     __u16 ep_csr = 0;
@@ -1336,6 +1346,91 @@ __u32 USBC_Dev_IsWriteDataReady(__hdle hUSB, __u32 ep_type)
 	return 0;
 }
 
+__u32 USBC_Dev_IsWriteDataReady_FifoEmpty(__hdle hUSB, __u32 ep_type)
+{
+	__usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
+
+	if (usbc_otg == NULL) {
+		return 0;
+	}
+
+	switch(ep_type) {
+	case USBC_EP_TYPE_EP0:
+		return __USBC_Dev_ep0_IsWriteDataReady(usbc_otg->base_addr);
+
+	case USBC_EP_TYPE_TX:
+		return __USBC_Dev_Tx_IsWriteDataReady_FifoEmpty(usbc_otg->base_addr);
+
+	case USBC_EP_TYPE_RX:
+		//not support
+		break;
+
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+/*
+ * configure the device's transfer type and speed mode.
+ * @hUSB:       handle return by USBC_open_otg, include the key data which USBC need
+ *
+ */
+__s32 USBC_Dev_IsoUpdateEnable(__hdle hUSB)
+{
+	__usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
+
+	if(usbc_otg == NULL){
+		return -1;
+	}
+
+	__USBC_Dev_TsType_Iso(usbc_otg->base_addr);
+	return 0;
+}
+
+static void __USBC_Dev_ep0_FlushFifo(__u32 usbc_base_addr)
+{
+	USBC_Writew(1 << USBC_BP_CSR0_D_FLUSH_FIFO, USBC_REG_CSR0(usbc_base_addr));
+}
+
+static void __USBC_Dev_Tx_FlushFifo(__u32 usbc_base_addr)
+{
+	USBC_Writew((1 << USBC_BP_TXCSR_D_CLEAR_DATA_TOGGLE) | (1 << USBC_BP_TXCSR_D_FLUSH_FIFO),
+	USBC_REG_TXCSR(usbc_base_addr));
+}
+
+static void __USBC_Dev_Rx_FlushFifo(__u32 usbc_base_addr)
+{
+	USBC_Writew((1 << USBC_BP_RXCSR_D_CLEAR_DATA_TOGGLE) | (1 << USBC_BP_RXCSR_D_FLUSH_FIFO),
+	USBC_REG_RXCSR(usbc_base_addr));
+}
+
+void USBC_Dev_FlushFifo(__hdle hUSB, __u32 ep_type)
+{
+	__usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
+
+	if(usbc_otg == NULL){
+		return ;
+	}
+
+	switch(ep_type){
+		case USBC_EP_TYPE_EP0:
+			__USBC_Dev_ep0_FlushFifo(usbc_otg->base_addr);
+		break;
+
+		case USBC_EP_TYPE_TX:
+			__USBC_Dev_Tx_FlushFifo(usbc_otg->base_addr);
+		break;
+
+		case USBC_EP_TYPE_RX:
+			__USBC_Dev_Rx_FlushFifo(usbc_otg->base_addr);
+		break;
+
+		default:
+		break;
+	}
+}
 //
 //EXPORT_SYMBOL(USBC_Dev_SetAddress_default);
 //EXPORT_SYMBOL(USBC_Dev_SetAddress);

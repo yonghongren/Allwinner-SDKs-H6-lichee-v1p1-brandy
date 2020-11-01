@@ -47,7 +47,6 @@
 #define EFUSE_THERMAL_SENSOR    (0x14)/* 64 bits */
 #define EFUSE_TF_ZONE           (0x1C)/* 128 bits */
 #define EFUSE_OEM_PROGRAM       (0x2C)/* 160bits :emac 16+tvout 32+reserv112 */
-#define EFUSE_MAC               (0x38)/* 64 bits share with EFUSE_OEM_PROGRAM*/
 
 #define EFUSE_WRITE_PROTECT     (0x40)/* 32 bits */
 #define EFUSE_READ_PROTECT      (0x44)/* 32 bits */
@@ -55,7 +54,6 @@
 #define EFUSE_ATTR              (0x4C)/* 32 bits */
 #define EFUSE_IN                (0x50)/* 192 bits */
 #define EFUSE_HUK               (0x50)/* 192 bits */
-
 #define EFUSE_INDENTIFICATION   (0x68)/* 32 bits */
 #define EFUSE_ID                (0x6C)/* 32 bits */
 #define EFUSE_ROTPK             (0x70)/* 256 bits */
@@ -75,9 +73,5 @@
 
 extern void sid_set_security_mode(void);
 extern int  sid_probe_security_mode(void);
-extern int sid_get_security_status(void);
-extern uint sid_read_key(uint key_index);
-extern void sid_program_key(uint key_index, uint key_value);
-
 
 #endif    /*  #ifndef __EFUSE_H__  */

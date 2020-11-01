@@ -69,7 +69,6 @@ int board_init(void)
 {
 	gd->bd->bi_arch_number = LINUX_MACHINE_ID;
 	gd->bd->bi_boot_params = (PHYS_SDRAM_1 + 0x100);
-	debug("board_init storage_type = %d\n",uboot_spare_head.boot_data.storage_type);
 
 	//
 	if(uboot_spare_head.boot_data.work_mode != WORK_MODE_USB_PRODUCT) {

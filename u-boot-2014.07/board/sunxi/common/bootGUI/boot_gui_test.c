@@ -1,3 +1,13 @@
+/*
+ * Allwinner SoCs bootGUI.
+ *
+ * Copyright (C) 2017 Allwinner.
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
 #include <common.h>
 #include <command.h>
 #include <boot_gui.h>
@@ -16,7 +26,7 @@ static int print_fb_info(int fb_id)
 	struct canvas *cv = fb_lock(fb_id);
 	if (NULL == cv)
 		return -1;
-	printf("fb%d: width=%d, height=%d, bits_per_pixel=%d, line_stride=%d\n",
+	pr_msg("fb%d: width=%d, height=%d, bits_per_pixel=%d, line_stride=%d\n",
 		fb_id, cv->width, cv->height, cv->bpp, cv->stride);
 	fb_unlock(fb_id, NULL, 0);
 	return 0;
@@ -70,7 +80,7 @@ static int test_draw_fb_direct(void)
 		0xFFFF00FF,
 	};
 
-	printf("%s begin\n", __func__);
+	pr_msg("%s begin\n", __func__);
 	loop_cnt = 10;
 	while (loop_cnt--) {
 		char *pdata;
@@ -78,7 +88,7 @@ static int test_draw_fb_direct(void)
 		rect_t dirty_rect;
 		struct canvas *cv = fb_lock(FB_ID_0);
 		if (NULL == cv) {
-			printf("%s: fb lock failed\n", __func__);
+			pr_msg("%s: fb lock failed\n", __func__);
 			return -1;
 		}
 
@@ -101,7 +111,7 @@ static int test_draw_fb_direct(void)
 static int test_draw_fb_with_double_buf(void)
 {
 #ifdef BOOT_GUI_DOUBLE_BUF
-	printf("%s begin\n", __func__);
+	pr_msg("%s begin\n", __func__);
 	unsigned int loop_cnt = 0;
 	unsigned int clist[] = {
 		0xFFFF0000,
@@ -115,7 +125,7 @@ static int test_draw_fb_with_double_buf(void)
 	rect_t dirty_rects[4];
 	struct canvas *cv = fb_lock(FB_ID_0);
 	if (NULL == cv) {
-		printf("%s: fb lock failed\n", __func__);
+		pr_msg("%s: fb lock failed\n", __func__);
 		return -1;
 	}
 	dirty_rects[0].left = cv->width >> 2;
@@ -143,7 +153,7 @@ static int test_draw_fb_with_double_buf(void)
 		rect_t *p_rect;
 		struct canvas *cv = fb_lock(FB_ID_0);
 		if (NULL == cv) {
-			printf("%s: fb lock failed\n", __func__);
+			pr_msg("%s: fb lock failed\n", __func__);
 			return -1;
 		}
 
@@ -158,7 +168,7 @@ static int test_draw_fb_with_double_buf(void)
 	}
 	return 0;
 #else
-	printf("please to define BOOT_GUI_DOUBLE_BUF\n");
+	pr_msg("please to define BOOT_GUI_DOUBLE_BUF\n");
 	return -1;
 #endif
 }
@@ -166,7 +176,7 @@ static int test_draw_fb_with_double_buf(void)
 static int test_draw_geometry(void)
 {
 #ifdef SUPORT_DRAW_GEOMETRY
-	printf("%s begin, wait for finish\n", __func__);
+	pr_msg("%s begin, wait for finish\n", __func__);
 	int loop_cnt = 0;
 	struct canvas *cv = NULL;
 	int width = 0;
@@ -240,7 +250,7 @@ static int test_draw_geometry(void)
 	}
 	return 0;
 #else
-	printf("please to define SUPORT_DRAW_GEOMETRY\n");
+	pr_msg("please to define SUPORT_DRAW_GEOMETRY\n");
 	return -1;
 #endif
 }
@@ -266,7 +276,7 @@ static int test_draw_chars(void)
 	};
 	char *str = "HELLO BOOTGUI !";
 
-	printf("%s begin\n", __func__);
+	pr_msg("%s begin\n", __func__);
 	cv = fb_lock(FB_ID_0);
 	if (NULL == cv)
 		return -1;
@@ -307,7 +317,7 @@ static int test_draw_chars(void)
 	} while (0);
 	return 0;
 #else
-	printf("please to define SURPORT_DRAW_CHARS\n");
+	pr_msg("please to define SURPORT_DRAW_CHARS\n");
 	return -1;
 #endif
 }
@@ -317,7 +327,7 @@ static int test_open_other_device(void)
 	extern int disp_device_open_ex(int dev_id, int fb_id, int flag);
 
 	if (disp_device_open_ex(1, FB_ID_0, 0)) {
-		printf("disp_device_open_ex failed\n");
+		pr_msg("disp_device_open_ex failed\n");
 		return -1;
 	}
 	return 0;
@@ -331,7 +341,7 @@ static int test_show_2_fb_on_different_devices(void)
 	struct canvas *cv = NULL;
 
 	if (disp_device_open_ex(1, FB_ID_1, 0)) {
-		printf("disp_device_open_ex for fb1 failed\n");
+		pr_msg("disp_device_open_ex for fb1 failed\n");
 		return -1;
 	}
 
@@ -341,7 +351,7 @@ static int test_show_2_fb_on_different_devices(void)
 		char *str;
 		cv = fb_lock(fb_id);
 		if (NULL == cv) {
-			printf("fb%d is invalid\n", fb_id);
+			pr_msg("fb%d is invalid\n", fb_id);
 			return -1;
 		}
 		if (FB_ID_0 == fb_id) {
@@ -368,7 +378,7 @@ static int boot_gui_test(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[
 	if (2 > argc) {
 		return -1;
 	}
-	/* printf("%s begin. argc=%d, cmd=%s\n", __func__, argc, argv[1]); */
+	/* pr_msg("%s begin. argc=%d, cmd=%s\n", __func__, argc, argv[1]); */
 	cmd = simple_strtoul(argv[1], NULL, 10);
 	switch (cmd) {
 	case 1:
@@ -393,7 +403,7 @@ static int boot_gui_test(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[
 		test_show_2_fb_on_different_devices();
 		break;
 	default:
-		printf("%s: no support this cmd(%s)\n", __func__, argv[1]);
+		pr_msg("%s: no support this cmd(%s)\n", __func__, argv[1]);
 		return -1;
 	}
 	return 0;

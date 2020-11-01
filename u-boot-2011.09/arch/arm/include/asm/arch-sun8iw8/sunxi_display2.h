@@ -144,7 +144,12 @@ typedef enum
 	DISP_TV_MOD_3840_2160P_30HZ     = 0x1c,
 	DISP_TV_MOD_3840_2160P_25HZ     = 0x1d,
 	DISP_TV_MOD_3840_2160P_24HZ     = 0x1e,
-	DISP_TV_MODE_NUM                = 0x1f,
+	DISP_TV_MOD_4096_2160P_24HZ     = 0x1f,
+
+	DISP_TV_MOD_1280_1024P_60HZ     = 0x41,
+	DISP_TV_MOD_1024_768P_60HZ      = 0x42,
+	DISP_TV_MOD_900_540P_60HZ       = 0x43,
+	DISP_TV_MODE_NUM                = 0x59,
 }disp_tv_mode;
 
 
@@ -443,7 +448,6 @@ typedef enum tag_DISP_CMD
 	DISP_HDMI_SUPPORT_MODE = 0xc4,
 	DISP_HDMI_GET_HPD_STATUS = 0xc5,
 	DISP_TV_GET_HPD_STATUS = 0xc6,
-	DISP_HDMI_GET_EDID = 0xc9,
 
 	//----lcd----
 	DISP_LCD_ENABLE = 0x100,

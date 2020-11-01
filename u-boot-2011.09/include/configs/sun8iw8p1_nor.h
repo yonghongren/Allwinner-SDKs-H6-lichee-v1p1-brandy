@@ -32,7 +32,6 @@
 #define __KERNEL__
 #endif
 
-#define ALIGN_SIZE_8K
 #define LINUX_MACHINE_ID        4137
 
 #define UBOOT_VERSION			"1.1.0"
@@ -74,13 +73,13 @@
 #define PHYS_SDRAM_1_SIZE			(512 << 20)				/* 0x20000000, 512 MB Bank #1 */
 
 #define CONFIG_NONCACHE_MEMORY
-#define CONFIG_NONCACHE_MEMORY_SIZE (1 * 1024 * 1024)
+#define CONFIG_NONCACHE_MEMORY_SIZE (20 * 1024 * 1024)
 /*
  * define malloc space
  * Size of malloc() pool
  * 1MB = 0x100000, 0x100000 = 1024 * 1024
  */
-#define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + (10 << 20))
+#define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + (4 << 20))
 
 
 
@@ -109,17 +108,13 @@
 
 #define DRAM_PARA_STORE_ADDR		     (CONFIG_SYS_SDRAM_BASE + 0x00800000)
 
-#define MEM_ADD_SIZE             (SZ_1M * 2)
+#define SYS_CONFIG_MEMBASE               (CONFIG_SYS_SDRAM_BASE + 0x03000000)
+#define CONFIG_SMALL_MEMSIZE                    
 
-#define SYS_CONFIG_MEMBASE               (CONFIG_SYS_SDRAM_BASE + SZ_32M - SZ_1M - MEM_ADD_SIZE)
-//#define CONFIG_SMALL_MEMSIZE                    
-
-//#define CONFIG_SUNXI_LOGBUFFER
+#define CONFIG_SUNXI_LOGBUFFER
 #define CONFIG_READ_LOGO_FOR_KERNEL
-
-
-#define SUNXI_DISPLAY_FRAME_BUFFER_ADDR             ((CONFIG_SYS_SDRAM_BASE + SZ_32M -SZ_1M *3 - MEM_ADD_SIZE  ))
-#define SUNXI_DISPLAY_FRAME_BUFFER_SIZE             (SZ_512K * 3 )
+#define SUNXI_DISPLAY_FRAME_BUFFER_ADDR  (CONFIG_SYS_SDRAM_BASE + 0x06400000)
+#define SUNXI_DISPLAY_FRAME_BUFFER_SIZE  0x01000000
 
 #define FEL_BASE                         0xFFFF0020
 /*
@@ -172,6 +167,7 @@
 ***************************************************************/
 //#define CONFIG_SUNXI_RSB
 #define CONFIG_SUNXI_I2C
+#define CONFIG_PMU_USE_I2C
 #define CONFIG_SYS_I2C_SPEED 400000
 #define CONFIG_SYS_I2C_SLAVE 0x68
 #define CONFIG_USE_IRQ
@@ -184,17 +180,12 @@
 //#define CONFIG_SUNXI_DISPLAY
 
 #define CONFIG_SUNXI_AXP
-#define POWER_CONFIG_SUNXI_I2C	//axp communication bus
 #define CONFIG_SUNXI_AXP20
-#define CONFIG_SUNXI_AXP15
 #define CONFIG_SUNXI_AXP_MAIN        PMU_TYPE_20X
 #define PMU_SCRIPT_NAME                 "pmu1_para"
 //#define CONFIG_SUNXI_AXP_CONFIG_ONOFF
 
 //#define CONFIG_SUNXI_SCRIPT_REINIT
-
-#define CONFIG_BOOT0_I2C
-#define CONFIG_BOOT0_POWER
 
 #define BOARD_LATE_INIT				/* init the fastboot partitions */
 
@@ -301,23 +292,24 @@
  * if not, below CONFIG_ENV_ADDR and CONFIG_ENV_SIZE will be where to store env.
  * */
 #define CONFIG_ENV_ADDR				(53 << 20)  /* 16M */
-#define CONFIG_ENV_SIZE				(64 << 10)	/* 64KB */
+#define CONFIG_ENV_SIZE				(128 << 10)	/* 128KB */
 #define CONFIG_CMD_SAVEENV
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"bootdelay=3\0" \
-	"bootcmd=run setargs_spinor boot_normal\0" \
+	"bootcmd=run setargs_nand boot_normal\0" \
 	"console=ttyS0,115200\0" \
-	"spinor_root=/dev/nor1\0" \
+	"nand_root=/dev/nandd\0" \
+	"mmc_root=/dev/mmcblk0p7\0" \
 	"init=/init\0" \
 	"loglevel=8\0" \
-    "setargs_spinor=setenv bootargs console=${console} root=${spinor_root} " \
+	"setargs_nand=setenv bootargs console=${console} root=${nand_root}" \
+	"init=${init} loglevel=${loglevel} partitions=${partitions}\0" \
+	"setargs_mmc=setenv bootargs console=${console} root=${mmc_root}" \
 	"init=${init} loglevel=${loglevel} partitions=${partitions}\0" \
 	"boot_normal=sunxi_flash read 40007800 boot;boota 40007800\0" \
-	"boot_fastboot=fastboot\0" \
-	"ethaddr=3a:9d:33:28:d2:51\0" \
-    "ipaddr=192.16.1.221\0" \
-    "serverip=192.16.1.100\0" 
+	"boot_recovery=sunxi_flash read 40007800 recovery;boota 40007800\0" \
+	"boot_fastboot=fastboot\0"
 
 #define CONFIG_SUNXI_SPRITE_ENV_SETTINGS	\
 	"bootdelay=0\0" \
@@ -335,7 +327,6 @@
 #define CONFIG_CMD_RUN			/* run a command */
 #define CONFIG_CMD_BOOTD		/* boot the default command */
 
-#if 0
 /* Configuaration of Network and net-driver */
 #define CONFIG_CMD_NET
 #define CONFIG_NET_MULTI
@@ -346,15 +337,13 @@
 //#define CONFIG_CMD_MII		/* MII support                  */
 #define CONFIG_ETHADDR         02:AC:BD:3F:29:E0       /* Ethernet hardware address    */
 #define CONFIG_CMD_PING
-#endif
-
 #define CONFIG_HARD_CHECKSUM
-#define CONFIG_IPADDR          192.168.1.10
-#define CONFIG_SERVERIP        192.168.1.100
-#define CONFIG_NETMASK         255.255.255.0
-#define CONFIG_GATEWAYIP       192.168.1.1
-#define CONFIG_BOOTFILE        uImage
-#define CONFIG_LOADADDR        0x40007800
 
+#define CONFIG_IPADDR  192.168.0.23
+#define CONFIG_SERVERIP        192.168.0.20
+#define CONFIG_NETMASK 255.255.255.0
+#define CONFIG_GATEWAYIP 192.168.0.1
+#define CONFIG_BOOTFILE        "uImage"
+#define CONFIG_LOADADDR        0x40008000
 
 #endif /* __CONFIG_H */

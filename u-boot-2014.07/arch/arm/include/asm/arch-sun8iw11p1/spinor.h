@@ -37,7 +37,6 @@
 #define SPINOR_SE          0xd8
 #define SPINOR_BE          0xc7
 #define SPINOR_RDID        0x9f
-#define SPINOR_FREAD_DUAL_OUT 	0x3b
 #else
 #define SPINOR_READ		0x03 // sclk <= 30MHz
 #define SPINOR_FREAD_DUAL_IO 	0xbb // sclk <= 50MHz

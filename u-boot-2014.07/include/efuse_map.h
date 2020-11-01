@@ -29,7 +29,6 @@
 #define EFUSE_BACKUP_KEY_NAME        "backup_key"
 #define EFUSE_RSAKEY_HASH_NAME       "rsakey_hash"
 #define EFUSE_RENEW_NAME             "renewability"
-#define EFUSE_IPTV_MAC              "efusemac"
 #define EFUSE_OPT_ID_NAME            "operator_id"
 #define EFUSE_LIFE_CYCLE_NAME        "life_cycle"
 #define EFUSE_JTAG_SECU_NAME         "jtag_security"
@@ -38,8 +37,6 @@
 #define EFUSE_RESERVED_NAME          "reserved"
 #define EFUSE_RESERVED2_NAME         "reserved2"
 #define EFUSE_HUK_NAME               "huk"
-#define EFUSE_ANTI_BLUSH_NAME        "anti_blushing"
-#define EFUSE_TVE_NAME               "tve"
 
 /* For KeyLadder */
 #define EFUSE_KL_SCK0_NAME           "keyladder_sck0"
@@ -81,21 +78,21 @@ typedef enum efuse_err
 }
 efuse_err_e;
 
-/*  breif:: sunxi_efuse_write : unify api to write Efuse key map.
+/*  breif: unify api to write Efuse key map.
 * OTP bit one time burn feature: this API only care the unburned bits of key_buf->data
 * So it is strongly suggested you read the value first,then set the unburned bits you want.
-* In param:key_buf(please reference efuse_key_info_t).
+* In param:key_buf(efuse_key_info_t) key_buf->data should be aligned to 4Byte.
 * Return val: 0==success ;negetive value is err number:ref efuse_err_e)
 */
 int sunxi_efuse_write(void *key_buf);
 
-/* breif:: sunxi_efuse_read: unify api to read Efuse key map.
+/* breif: unify api to read Efuse key map.
 *In param:key_name
-*In param:rd_buf:array to store the keydata.You must take note of no overflow.
-*return value : (>0) means the real lenth of read data;
-*other value means err number:Please reference efuse_err_e to get detail.
+*In param:rd_buf,should be aligned to 4Byte.
+*return value : 0-success; other-fail
+*is err number:ref efuse_err_e
 */
-int sunxi_efuse_read(void *key_name, void *rd_buf);
+int sunxi_efuse_read(void *key_name, void *rd_buf, int *len);
 
 /*reference this struct when call api:sunxi_efuse_write*/
 typedef struct
@@ -106,5 +103,6 @@ typedef struct
 	u8  *key_data;
 }
 efuse_key_info_t;
+
 #endif /*__EFUSE_MAP_H__*/
 

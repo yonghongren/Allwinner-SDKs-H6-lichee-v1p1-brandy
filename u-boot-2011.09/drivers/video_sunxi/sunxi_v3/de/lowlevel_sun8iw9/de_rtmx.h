@@ -295,5 +295,8 @@ int de_rtmx_set_dbuff_rdy(unsigned int sel);
 int de_rtmx_set_enable(unsigned int sel, unsigned int en);
 int de_rtmx_set_display_size(unsigned int sel, unsigned int width, unsigned int height);
 int de_rtmx_query_irq(unsigned int sel);
+int de_rtmx_enable_irq(unsigned int sel, unsigned int en);
+
+int de_rtmx_mux(unsigned int sel, unsigned int tcon_index);
 
 #endif

@@ -220,3 +220,103 @@ int cpu0_set_detected_paras(void)
 {
 	return 0;
 }
+
+#ifdef CONFIG_CMD_NET
+#ifdef CONFIG_USB_ETHER
+extern int sunxi_udc_probe(void);
+#ifdef CONFIG_USE_UBOOT_SERIALNO
+extern int get_serial_num_from_chipid(char* serial);
+
+static int sunxi_serial_num_is_zero(char *serial)
+{
+	int i = 0;
+
+	get_serial_num_from_chipid(serial);
+	while(i < 20) {
+		if (serial[i] != '0')
+			break;
+		i++;
+	}
+	if (i == 20)
+		return 0;
+	else
+		return 1;
+}
+#endif
+
+static void sunxi_random_ether_addr(void)
+{
+	int i = 0;
+	char serial[128] = {0};
+	ulong tmp = 0;
+	char tmp_s[5] = "";
+	unsigned long long rand = 0;
+	uchar usb_net_addr[6];
+	char mac[18] = "";
+	char tmp_mac = 0;
+	int ret = 0;
+
+	/*
+	 * get random mac address from serial num if it's not zero, or from timer.
+	 */
+#ifdef CONFIG_USE_UBOOT_SERIALNO
+	ret = sunxi_serial_num_is_zero(serial);
+#endif
+	if (ret == 1) {
+		for(i = 0; i < 6; i++) {
+			if(i == 0)
+				strncpy(tmp_s, serial+16, 4);
+			else if ((i == 1) || (i == 4))
+				strncpy(tmp_s, serial+12, 4);
+			else if (i == 2)
+				strncpy(tmp_s, serial+8, 4);
+			else
+				strncpy(tmp_s,serial+4,4);
+
+			tmp = simple_strtoul(tmp_s, NULL, 16);
+			rand = (tmp) * 0xfedf4fd;
+
+			rand = rand * 0xd263f967 + 0xea6f22ad8235;
+			usb_net_addr[i] = (uchar)(rand % 0x100);
+		}
+	} else {
+		for(i = 0; i < 6; i++) {
+			rand = get_timer_masked() * 0xfedf4fd;
+			rand = rand * 0xd263f967 + 0xea6f22ad8235;
+			usb_net_addr[i] = (uchar)(rand % 0x100);
+		}
+	}
+
+	/*
+	 * usbnet_hostaddr, usb_net_addr[0] = 0xxx xx10
+	 */
+	tmp_mac = usb_net_addr[0] & 0x7e;
+	tmp_mac = tmp_mac | 0x02;
+	sprintf(mac, "%02x:%02x:%02x:%02x:%02x:%02x", tmp_mac, usb_net_addr[1],usb_net_addr[2],
+		usb_net_addr[3],usb_net_addr[4],usb_net_addr[5]);
+	setenv("usbnet_hostaddr", mac);
+
+	/*
+	 * usbnet_devaddr, usb_net_addr[0] = 1xxx xx10
+	 */
+	tmp_mac = usb_net_addr[0] & 0xfe;
+	tmp_mac = tmp_mac | 0x82;
+	sprintf(mac, "%02x:%02x:%02x:%02x:%02x:%02x", tmp_mac, usb_net_addr[1],usb_net_addr[2],
+		usb_net_addr[3],usb_net_addr[4],usb_net_addr[5]);
+	setenv("usbnet_devaddr", mac);
+}
+#endif
+
+int board_eth_init(bd_t *bis)
+{
+	int rc = 0;
+
+#if defined(CONFIG_USB_ETHER)
+	sunxi_random_ether_addr();
+	sunxi_udc_probe();
+	usb_eth_initialize(bis);
+#endif
+
+	return rc;
+}
+#endif

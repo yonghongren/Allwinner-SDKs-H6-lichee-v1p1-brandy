@@ -27,7 +27,7 @@ void set_pll_cpux_axi(void)
 {
 	__u32 reg_val;
 	/*select CPUX  clock src: OSC24M,AXI divide ratio is 3, system apb clk ratio is 4*/
-	writel((0<<24) | (3<<8) | (2<<0), CCMU_CPUX_AXI_CFG_REG);
+	writel((0<<24) | (3<<8) | (1<<0), CCMU_CPUX_AXI_CFG_REG);
 	__usdelay(1);
 
 	/* set default val: clk is 1008M  ,PLL_OUTPUT= 24M*(N+1)/(M+1)/(P+1) */
@@ -68,7 +68,7 @@ void set_pll_cpux_axi(void)
 
 	reg_val = readl(CCMU_CPUX_AXI_CFG_REG);
 	reg_val &= ~(0x03 << 0);
-	reg_val |= (0x02 << 0);
+	reg_val |= (0x01 << 0);
 	writel(reg_val, CCMU_CPUX_AXI_CFG_REG);
 
 	reg_val = readl(CCMU_CPUX_AXI_CFG_REG);
@@ -183,9 +183,9 @@ void set_pll_mbus(void)
 static inline void set_iommu_auto_gating(void)
 {
 	/*gating clock for iommu*/
-	writel(0x01, 0x030017bc);
+	writel(0x01, CCMU_IOMMU_BGR_REG);
 	/*enable auto gating*/
-	writel(0x01, 0x030f0040);
+	writel(0x01, IOMMU_AUTO_GATING_REG);
 }
 
 static void set_cpu_step(void)
@@ -196,7 +196,6 @@ static void set_cpu_step(void)
 	reg_val &= (~(0x7 << 28));
 	reg_val |= (0x01 << 28);
 	writel(reg_val, SUNXI_CCM_BASE + 0x400);
-	__usdelay(10);
 }
 
 void set_pll_vol(void)
@@ -293,12 +292,11 @@ static void set_modules_clock(void)
 	__usdelay(10);
 
 	/*enable hsic clk*/
-	/*reg_addr = SUNXI_CCM_BASE + 0x70;
+	reg_addr = SUNXI_CCM_BASE + 0x70;
 	reg_val = readl(reg_addr);
 	reg_val |= (1 << 31);
 	writel(reg_val, reg_addr);
 	__usdelay(10);
-	*/
 
 	/*enable audio clk*/
 	reg_addr = SUNXI_CCM_BASE + 0x78;

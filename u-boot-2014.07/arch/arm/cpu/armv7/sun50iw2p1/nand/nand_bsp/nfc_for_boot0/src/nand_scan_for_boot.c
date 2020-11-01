@@ -50,7 +50,6 @@ __u32 nand_specialinfo_offset = 0;
 
 extern  struct __NandStorageInfo_t  NandStorageInfo;
 extern __s32 BOOT_NandGetPara(boot_nand_para_t *param, __u32 size);
-extern __s32 Setup_Ddr_Nand_Force_To_Sdr_Para(boot_nand_para_t *nand_info);
 
 
 void _InitNandPhyInfo(boot_nand_para_t *nand_info)
@@ -189,10 +188,8 @@ __s32  BOOT_AnalyzeNandSystem(void)
 		NFC_ChangMode(&nfc_info);
 		NandIndex = 0;
 	}
-    
+
 	PHY_ChangeMode(1);
-	
-	Setup_Ddr_Nand_Force_To_Sdr_Para( &nand_info);
 
 	if( SUPPORT_READ_RETRY
 		&& ( (((READ_RETRY_TYPE>>16)&0xff) < 0x10)

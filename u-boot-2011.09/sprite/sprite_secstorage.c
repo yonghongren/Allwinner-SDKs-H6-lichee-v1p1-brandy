@@ -24,23 +24,20 @@
 #include <config.h>
 #include <common.h>
 #include <malloc.h>
-#include "sprite_storage_crypt.h"
 
 extern int nand_secure_storage_read( int item, unsigned char *buf, unsigned int len);
 extern int nand_secure_storage_write(int item, unsigned char *buf, unsigned int len);
 
 extern int sunxi_flash_mmc_secread( int item, unsigned char *buf, unsigned int len);
-extern int sunxi_flash_mmc_secread_backup( int item, unsigned char *buf, unsigned int len);
 extern int sunxi_flash_mmc_secwrite( int item, unsigned char *buf, unsigned int len);
 
 extern int sunxi_sprite_mmc_secwrite(int item ,unsigned char *buf,unsigned int nblock);
 extern int sunxi_sprite_mmc_secread(int item ,unsigned char *buf,unsigned int nblock);
-extern int sunxi_sprite_mmc_secread_backup(int item ,unsigned char *buf,unsigned int nblock);
 
 int sunxi_secure_storage_erase(const char *item_name);
 int sunxi_secure_storage_erase_data_only(const char *item_name);
 
-//static unsigned char secure_storage_map[4096] = {0};
+static unsigned char secure_storage_map[4096] = {0};
 static unsigned int  secure_storage_inited = 0;
 
 static unsigned int map_dirty;
@@ -48,234 +45,6 @@ static unsigned int map_dirty;
 static inline void set_map_dirty(void)   { map_dirty = 1; }
 static inline void clear_map_dirty(void) { map_dirty = 0;}
 static inline int try_map_dirty(void)    { return map_dirty ;}
-
-static unsigned char _inner_buffer[4096+64]; /*align temp buffer*/
-
-#define SEC_BLK_SIZE 		(4096)
-#define MAP_KEY_NAME_SIZE	(64)
-#define MAP_KEY_DATA_SIZE	(32)
-struct map_info{
-	unsigned char data[SEC_BLK_SIZE - sizeof(int)*2];
-	unsigned int magic;
-	unsigned int crc;
-}secure_storage_map;
-
-static int check_secure_storage_key(char *buffer)
-{
-	store_object_t *obj = buffer;
-
-	if( obj->magic != STORE_OBJECT_MAGIC ){
-		printf("Input object magic fail [0x%x]\n", obj->magic);
-		return -1 ;
-	}
-
-	if( obj->crc != crc32( 0 , (void *)obj, sizeof(*obj)-4 ) ){
-		printf("Input object crc fail [0x%x]\n", obj->crc);
-		return -1 ;
-	}
-	return 0;
-}
-
-static int check_secure_storage_map(char *buffer)
-{
-	struct map_info *map_buf = buffer;
-
-	if (map_buf->magic != STORE_OBJECT_MAGIC)
-	{
-		printf("Item0 (Map) magic is bad\n");
-		return 2;
-	}
-	if (map_buf->crc != crc32( 0 , (void *)map_buf, sizeof(struct map_info)-4 ))
-	{
-		printf("Item0 (Map) crc is fail [0x%x]\n", map_buf->crc);
-		return -1;
-	}
-	return 0;
-}
-
-static int mmc_secure_storage_read_key(int item, unsigned char *buf, unsigned int len)
-{
-	unsigned char * align ;
-	unsigned int blkcnt;
-	int ret ,workmode;
-
-	if(((unsigned int)buf%32)){
-		align = (unsigned char *)(((unsigned int)_inner_buffer + 0x20)&(~0x1f)) ;
-		memset(align,0,4096);
-	}else {
-		align = buf ;
-	}
-
-	blkcnt = (len+511)/512 ;
-
-	workmode = uboot_spare_head.boot_data.work_mode;
-	if(workmode == WORK_MODE_BOOT || workmode == WORK_MODE_SPRITE_RECOVERY)
-	{
-		ret = (sunxi_flash_mmc_secread(item, align, blkcnt) == blkcnt) ? 0 : -1;
-	}
-	else if ((workmode & WORK_MODE_PRODUCT) || (workmode == 0x30))
-	{
-		ret = sunxi_sprite_mmc_secread(item, align, blkcnt);
-	}
-	else
-	{
-		printf("workmode=%d is err\n", workmode);
-		return -1;
-	}
-	if (!ret)
-	{
-		/*check copy 0 */
-		if (!check_secure_storage_key(align)){
-			printf("the secure storage item%d copy0 is good\n",item);
-			goto ok ; /*copy 0 pass*/
-		}
-		printf("the secure storage item%d copy0 is bad\n", item);
-	}
-
-	// read backup
-	memset(align, 0x0, len);
-	printf("read item%d copy1\n", item);
-	if(workmode == WORK_MODE_BOOT || workmode == WORK_MODE_SPRITE_RECOVERY)
-	{
-		ret = (sunxi_flash_mmc_secread_backup(item, align, blkcnt) == blkcnt) ? 0 : -1;
-	}
-	else if ((workmode & WORK_MODE_PRODUCT) || (workmode == 0x30))
-	{
-		ret = sunxi_sprite_mmc_secread_backup(item, align, blkcnt);
-	}
-	else
-	{
-		printf("workmode=%d is err\n", workmode);
-		return -1;
-	}
-	if (!ret)
-	{
-		/*check copy 1 */
-		if (!check_secure_storage_key(align)){
-			printf("the secure storage item%d copy1 is good\n",item);
-			goto ok ; /*copy 1 pass*/
-		}
-		printf("the secure storage item%d copy1 is bad\n", item);
-	}
-
-	printf("sunxi_secstorage_read fail\n");
-	return -1;
-
-ok:
-	if(((unsigned int)buf%32))
-		memcpy(buf,align,len);
-	return 0 ;
-}
-
-static int mmc_secure_storage_read_map(int item, unsigned char *buf, unsigned int len)
-{
-	int have_map_copy0 ;
-	unsigned char * align ;
-	unsigned int blkcnt;
-	int ret ,workmode;
-	char * map_copy0_buf;
-
-	if(((unsigned int)buf%32)){
-		align = (unsigned char *)(((unsigned int)_inner_buffer + 0x20)&(~0x1f)) ;
-		memset(align,0,4096);
-	}else {
-		align = buf ;
-	}
-
-	blkcnt = (len+511)/512 ;
-
-	map_copy0_buf=(char *)malloc(blkcnt*512);
-	if(!map_copy0_buf){
-		printf("out of memory\n");
-		return -1 ;
-	}
-
-	printf("read item%d copy0\n", item);
-	workmode = uboot_spare_head.boot_data.work_mode;
-	if(workmode == WORK_MODE_BOOT || workmode == WORK_MODE_SPRITE_RECOVERY)
-	{
-		ret = (sunxi_flash_mmc_secread(item, align, blkcnt) == blkcnt) ? 0 : -1;
-	}
-	else if ((workmode & WORK_MODE_PRODUCT) || (workmode == 0x30))
-	{
-		ret = sunxi_sprite_mmc_secread(item, align, blkcnt);
-	}
-	else
-	{
-		printf("workmode=%d is err\n", workmode);
-		return -1;
-	}
-	if (!ret)
-	{
-		/*read ok*/
-		ret = check_secure_storage_map(align);
-		if (ret == 0)
-		{
-			printf("the secure storage item0 copy0 is good\n");
-			goto ok ; /*copy 0 pass*/
-		}else if (ret == 2){
-			memcpy(map_copy0_buf, align, len);
-			have_map_copy0 = 1;
-			printf("the secure storage item0 copy0 is bad\n");
-		}else
-			printf("the secure storage item0 copy 0 crc fail, the data is bad\n");
-	}
-
-	// read backup
-	memset(align, 0x0, len);
-	printf("read item%d copy1\n", item);
-	if(workmode == WORK_MODE_BOOT || workmode == WORK_MODE_SPRITE_RECOVERY)
-	{
-		ret = (sunxi_flash_mmc_secread(item, align, blkcnt) == blkcnt) ? 0 : -1;
-	}
-	else if ((workmode & WORK_MODE_PRODUCT) || (workmode == 0x30))
-	{
-		ret = sunxi_sprite_mmc_secread(item, align, blkcnt);
-	}
-	else
-	{
-		printf("workmode=%d is err\n", workmode);
-		return -1;
-	}
-	if (!ret)
-	{
-		ret = check_secure_storage_map(align);
-		if (ret == 0){
-			printf("the secure storage item0 copy1 is good\n");
-			goto ok ;
-		}else if (ret == 2){
-			if (have_map_copy0 && !memcmp(map_copy0_buf, align, len))
-			{
-				printf("the secure storage item0 copy0 == copy1, the data is good\n");
-				goto ok ; /*copy have no magic and crc*/
-			}
-			else
-			{
-				printf("the secure storage item0 copy0 != copy1, try to use copy0\n");
-
-				// when the map is not verify, try to use copy0, maybe is good,  20151125
-				memset(buf, 0x0, len);
-				memcpy(buf, map_copy0_buf, len);
-
-				free(map_copy0_buf);
-				return 1;
-			}
-		}else{
-			printf("the secure storage item0 copy 1 crc fail, the data is bad\n");
-			free(map_copy0_buf);
-			return 1;
-		}
-	}
-	printf("unknown error happen in item 0 read\n");
-	free(map_copy0_buf);
-	return -1 ;
-
-ok:
-	if(((unsigned int)buf%32))
-		memcpy(buf,align,len);
-	free(map_copy0_buf);
-	return 0 ;
-}
 
 /*
 ************************************************************************************************************
@@ -293,19 +62,31 @@ ok:
 *
 ************************************************************************************************************
 */
+static unsigned char _inner_buffer[4096+64]; /*align temp buffer*/
 int sunxi_secstorage_read(int item, unsigned char *buf, unsigned int len)
 {
 	unsigned char * align ;
 	unsigned int blkcnt;
-	int ret ,workmode;
+	int ret ;
 
 	if(!uboot_spare_head.boot_data.storage_type)
 		return nand_secure_storage_read(item, buf, len);
 	else{
-		if (item == 0)
-			return mmc_secure_storage_read_map(item, buf, len);
-		else
-			return mmc_secure_storage_read_key(item, buf, len);
+		if(((unsigned int)buf%32)){
+			align = (unsigned char *)(((unsigned int)_inner_buffer + 0x20)&(~0x1f)) ;
+			memset(align,0,4096);
+		}else
+			align = buf ;
+
+		blkcnt = (len+511)/512 ;
+		ret = (sunxi_flash_mmc_secread(item, align, blkcnt) == blkcnt) ? 0 : -1;
+		if(ret< 0){
+			printf("sunxi_secstorage_read fail\n");
+			return -1;
+		}
+		if(((unsigned int)buf%32))
+			memcpy(buf,align,len);
+		return 0 ;
 	}
 }
 /*
@@ -328,7 +109,6 @@ int sunxi_secstorage_write(int item, unsigned char *buf, unsigned int len)
 {
 	unsigned char * align ;
 	unsigned int blkcnt;
-	int workmode;
 
 	if(!uboot_spare_head.boot_data.storage_type)
 		return nand_secure_storage_write(item, buf, len);
@@ -340,23 +120,9 @@ int sunxi_secstorage_write(int item, unsigned char *buf, unsigned int len)
 			align=buf;
 
 		blkcnt = (len+511)/512 ;
-		workmode = uboot_spare_head.boot_data.work_mode;
-		if(workmode == WORK_MODE_BOOT || workmode == WORK_MODE_SPRITE_RECOVERY)
-		{
-			return (sunxi_flash_mmc_secwrite(item, align, blkcnt) == blkcnt) ? 0 : -1;
-		}
-		else if((workmode & WORK_MODE_PRODUCT) || (workmode == 0x30))
-		{
-			return sunxi_sprite_mmc_secwrite(item, align, blkcnt);
-		}
-		else
-		{
-			printf("workmode=%d is err\n", workmode);
-			return -1;
-		}
+		return (sunxi_flash_mmc_secwrite(item, align, blkcnt) == blkcnt) ? 0 : -1;
 	}
 }
-
 /*
 ************************************************************************************************************
 *
@@ -377,33 +143,24 @@ static int __probe_name_in_map(unsigned char *buffer, const char *item_name, int
 {
 	unsigned char *buf_start = buffer;
 	int   index = 1;
-	char  name[MAP_KEY_NAME_SIZE], length[MAP_KEY_DATA_SIZE];
+	char  name[64], length[32];
 	int   i,j;
-	while(*buf_start != '\0' && (buf_start - buffer) < SEC_BLK_SIZE)
+
+	while(*buf_start != '\0')
 	{
 		memset(name, 0, 64);
 		memset(length, 0, 32);
-		i = j = 0;
-		while(buf_start[i] != ':' && (buf_start[i] != '\0') && (&buf_start[i] - buffer) < SEC_BLK_SIZE && j < sizeof(name))
+		i=0;
+		while(buf_start[i] != ':')
 		{
-			name[j] = buf_start[i];
-			i++;j++;
+			name[i] = buf_start[i];
+			i++;
 		}
-
-		if (j >= sizeof(name))
-			return -1;
-
 		i++;j=0;
-		while( (buf_start[i] != ' ') && (buf_start[i] != '\0') && (&buf_start[i] - buffer) < SEC_BLK_SIZE && j < sizeof(length))
+		while( (buf_start[i] != ' ') && (buf_start[i] != '\0') )
 		{
 			length[j] = buf_start[i];
 			i++;j++;
-		}
-
-		//处理垃圾数据情况
-		if ((&buf_start[i] - buffer) >= SEC_BLK_SIZE || j >= sizeof(length))
-		{
-			return -1;
 		}
 
 		if(!strcmp(item_name, (const char *)name))
@@ -416,6 +173,7 @@ static int __probe_name_in_map(unsigned char *buffer, const char *item_name, int
 		index++;
 		buf_start += strlen((const char *)buf_start) + 1;
 	}
+
 	return -1;
 }
 
@@ -441,23 +199,12 @@ static int __fill_name_in_map(unsigned char *buffer, const char *item_name, int 
 	int   index = 1;
 	int   name_len;
 
-	while(*buf_start != '\0' && (buf_start - buffer) < SEC_BLK_SIZE)
+	while(*buf_start != '\0')
 	{
 
 		name_len = 0;
-		while(buf_start[name_len] != ':' && (&buf_start[name_len] - buffer) < SEC_BLK_SIZE && name_len < MAP_KEY_NAME_SIZE)
+		while(buf_start[name_len] != ':')
 			name_len ++;
-
-		//处理垃圾数据情况
-		if ((&buf_start[name_len] - buffer) >= SEC_BLK_SIZE || name_len >= MAP_KEY_NAME_SIZE)
-		{
-			printf("__fill_name_in_map: dirty map, memset 0\n");
-			memset(buffer, 0x0, SEC_BLK_SIZE);
-			buf_start = buffer;
-			index = 1;
-			break;
-		}
-
 		if(!memcmp((const char *)buf_start, item_name, name_len))
 		{
 			printf("name in map %s\n", buf_start);
@@ -470,6 +217,7 @@ static int __fill_name_in_map(unsigned char *buffer, const char *item_name, int 
 		return -1;
 
 	sprintf((char *)buf_start, "%s:%d", item_name, length);
+
 	return index;
 }
 /*
@@ -494,19 +242,12 @@ static int __discard_name_in_map(unsigned char *buffer, const char *item_name)
 	int   index = 1;
 	int   name_len;
 
-	while(*buf_start != '\0' && (buf_start - buffer) < SEC_BLK_SIZE)
+	while(*buf_start != '\0')
 	{
 
 		name_len = 0;
-		while(buf_start[name_len] != ':' && (&buf_start[name_len] - buffer) < SEC_BLK_SIZE && name_len < MAP_KEY_NAME_SIZE)
+		while(buf_start[name_len] != ':')
 			name_len ++;
-
-		//处理垃圾数据情况
-		if ((&buf_start[name_len] - buffer) >= SEC_BLK_SIZE || name_len >= MAP_KEY_NAME_SIZE)
-		{
-			return -1;
-		}
-
 		if(!memcmp((const char *)buf_start, item_name, name_len))
 		{
 			last_start = buf_start + strlen((const char *)buf_start) + 1;
@@ -550,32 +291,24 @@ int sunxi_secure_storage_init(void)
 
 	if(!secure_storage_inited)
 	{
-		ret = sunxi_secstorage_read(0, &secure_storage_map, 4096);
+		ret = sunxi_secstorage_read(0, secure_storage_map, 4096);
 		if(ret < 0)
 		{
 			printf("get secure storage map err\n");
+
 			return -1;
 		}
-
-		ret = check_secure_storage_map(&secure_storage_map);
-		if (ret == -1)
+		else
 		{
-			memset(&secure_storage_map, 0, SEC_BLK_SIZE);
-		}
-		else if (ret == 2)
-		{
-			if((secure_storage_map.data[0] == 0xff) ||(secure_storage_map.data[0] == 0x00))
+			if((secure_storage_map[0] == 0xff) || (secure_storage_map[0] == 0x0))
 			{
 				printf("the secure storage map is empty\n");
-				memset(&secure_storage_map, 0, SEC_BLK_SIZE);
-			}
-			else
-			{
-				// no things
+				memset(secure_storage_map, 0, 4096);
 			}
 		}
 	}
 	secure_storage_inited = 1;
+
 	return 0;
 }
 /*
@@ -605,9 +338,7 @@ int sunxi_secure_storage_exit(void)
 		return -1;
 	}
 	if( try_map_dirty() ){
-		secure_storage_map.magic = STORE_OBJECT_MAGIC;
-		secure_storage_map.crc = crc32( 0 , (void *)&secure_storage_map, sizeof(struct map_info)-4 );
-		ret = sunxi_secstorage_write(0, &secure_storage_map, 4096);
+		ret = sunxi_secstorage_write(0, secure_storage_map, 4096);
 		if(ret<0)
 		{
 			printf("write secure storage map\n");
@@ -639,7 +370,7 @@ int sunxi_secure_storage_exit(void)
 int sunxi_secure_storage_list(void)
 {
 	int ret, index = 1;
-	unsigned char *buf_start = &secure_storage_map;
+	unsigned char *buf_start = secure_storage_map;
 	unsigned char  buffer[4096];
 
 	if(sunxi_secure_storage_init())
@@ -723,7 +454,7 @@ int sunxi_secure_storage_probe(const char *item_name)
 
 		return -1;
 	}
-	ret = __probe_name_in_map(&secure_storage_map, item_name, &len);
+	ret = __probe_name_in_map(secure_storage_map, item_name, &len);
 	if(ret < 0)
 	{
 		printf("no item name %s in the map\n", item_name);
@@ -761,7 +492,7 @@ int sunxi_secure_storage_read(const char *item_name, char *buffer, int buffer_le
 
 		return -1;
 	}
-	index = __probe_name_in_map(&secure_storage_map, item_name, &len_in_store);
+	index = __probe_name_in_map(secure_storage_map, item_name, &len_in_store);
 	if(index < 0)
 	{
 		printf("no item name %s in the map\n", item_name);
@@ -818,10 +549,10 @@ int sunxi_secure_storage_write(const char *item_name, char *buffer, int length)
 		return -1;
 	}
 
-	index = __probe_name_in_map(&secure_storage_map, item_name, &len);
+	index = __probe_name_in_map(secure_storage_map, item_name, &len);
 	if(index < 0)
 	{
-		index = __fill_name_in_map(&secure_storage_map, item_name, length);
+		index = __fill_name_in_map(secure_storage_map, item_name, length);
 		if(index < 0)
 		{
 			printf("write secure storage block %d name %s overrage\n", index, item_name);
@@ -889,7 +620,7 @@ int sunxi_secure_storage_erase_data_only(const char *item_name)
 
 		return -1;
 	}
-	index = __probe_name_in_map(&secure_storage_map, item_name, &len);
+	index = __probe_name_in_map(secure_storage_map, item_name, &len);
 	if(index < 0)
 	{
 		printf("no item name %s in the map\n", item_name);
@@ -938,7 +669,7 @@ int sunxi_secure_storage_erase(const char *item_name)
 
 		return -1;
 	}
-	index = __discard_name_in_map(&secure_storage_map, item_name);
+	index = __discard_name_in_map(secure_storage_map, item_name);
 	if(index < 0)
 	{
 		printf("no item name %s in the map\n", item_name);
@@ -985,8 +716,8 @@ int sunxi_secure_storage_erase_all(void)
 
 		return -1;
 	}
-	memset(&secure_storage_map, 0xff, 4096);
-	ret = sunxi_secstorage_write(0, &secure_storage_map, 4096);
+	memset(secure_storage_map, 0xff, 4096);
+	ret = sunxi_secstorage_write(0, secure_storage_map, 4096);
 	if(ret<0)
 	{
 		printf("erase secure storage block 0 err\n");

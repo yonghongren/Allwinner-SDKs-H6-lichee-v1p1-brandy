@@ -21,11 +21,10 @@ typedef struct core_pll_freq_tbl {
 
 static PLL_TABLE pll1_table[] =
 {	/*pll     N    M   P*/   /* pll = 24M*(N+1)/(M+1)/(P+1) */
-	{408,     16 ,  0,  0},
+	{408,	  16 ,  0,  0},
 	{888,     36 ,  0,  0},
 	{1008,    41 ,  0,  0},
 	{1080,    44 ,  0,  0},
-	{1320,    54 ,  0,  0},
 	{1440,    59 ,  0,  0},
 };
 
@@ -44,7 +43,7 @@ static int clk_get_pll_para(PLL_TABLE *factor, int pll_clk)
 	if(i >= size)
 	{
 		i = 0;
-		printf("cant find pll setting(%dM) from  pll table,use default(%dM)\n",
+		pr_msg("cant find pll setting(%dM) from  pll table,use default(%dM)\n",
 			pll_clk,pll1_table[0].pll_value);
 	}
 	target_factor = &pll1_table[i];

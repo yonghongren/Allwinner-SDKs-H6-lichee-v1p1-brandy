@@ -64,7 +64,7 @@ static void rsb_cfg_io(void)
 	//PH14,PH15 drv 2
 	rsb_reg_writel(rsb_reg_readl(SUNXI_PIO_BASE+0x110)& ~(0xf<<28),SUNXI_PIO_BASE+0x110);
 	rsb_reg_writel(rsb_reg_readl(SUNXI_PIO_BASE+0x110)|(0xa<<28),SUNXI_PIO_BASE+0x110);
-#elif (defined(CONFIG_ARCH_SUN8IW3P1) || defined(CONFIG_ARCH_SUN8IW5P1) || defined(CONFIG_ARCH_SUN8IW6P1) )
+#elif (defined(CONFIG_ARCH_SUN8IW3P1) || defined(CONFIG_ARCH_SUN8IW5P1) || defined(CONFIG_ARCH_SUN8IW6P1) || defined(CONFIG_ARCH_SUN8IW9P1))
 //	r_gpio_set_cfg(R_GPIO_L(0), 2, 2);
 //	r_gpio_set_pull(R_GPIO_L(0), 2, 1);
 //	r_gpio_set_drv(R_GPIO_L(0), 2, 2);

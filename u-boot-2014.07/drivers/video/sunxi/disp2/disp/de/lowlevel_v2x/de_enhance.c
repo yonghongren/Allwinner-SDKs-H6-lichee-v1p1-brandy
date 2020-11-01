@@ -101,7 +101,7 @@ int de_enhance_info2data(struct disp_enhance_config *config,
 	struct de_rect tmp_win;
 	struct disp_enhance_config tmp_config;
 
-	memcpy((void *)&tmp_config.info, config, sizeof(struct disp_enhance_config));
+	memcpy(&tmp_config.info, config, sizeof(struct disp_enhance_config));
 	memset(data, 0, sizeof(struct vep_config_data));
 
 	/* FIXME : should be deleted */
@@ -193,7 +193,7 @@ int de_enhance_apply(unsigned int screen_id,
 
 	__inf("disp %d, en=%d, sharp=%d\n", screen_id, config[0].info.enable,
 	      config[0].info.sharp);
-	memcpy((void *)&g_config[screen_id], config,
+	memcpy(&g_config[screen_id], config,
 	       sizeof(struct disp_enhance_config));
 	de_enhance_set_mode(g_format[screen_id], config);
 	for (ch_id = 0; ch_id < chno; ch_id++) {
@@ -307,7 +307,7 @@ int de_enhance_set_size(unsigned int screen_id, struct disp_rect *size)
 		g_config[screen_id].flags |= ENH_SIZE_DIRTY;
 	} else
 		g_size_change[screen_id] = false;
-	memcpy((void *)&g_size[screen_id], size, sizeof(struct disp_rect));
+	memcpy(&g_size[screen_id], size, sizeof(struct disp_rect));
 
 	if (size[0].width < ENAHNCE_MIN_WIDTH
 	    || size[0].height < ENAHNCE_MIN_HEIGHT) {

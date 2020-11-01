@@ -1,6 +1,12 @@
-
-
-
+/*
+ * Allwinner SoCs hdmi2.0 driver.
+ *
+ * Copyright (C) 2016 Allwinner.
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
 #include "hdmi_core.h"
 #include "api/api.h"
 #include "api/cec.h"

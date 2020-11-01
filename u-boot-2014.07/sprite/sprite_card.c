@@ -668,10 +668,6 @@ __download_sysrecover_part_err1:
 *
 ************************************************************************************************************
 */
-#ifdef CONFIG_BACKUP_PARTITION
-unsigned  int set_part_back_work(sunxi_mbr_t *mbr_info, unsigned int work_addr, int work);
-unsigned  int get_backup_flag_addr(void);
-#endif
 int sunxi_sprite_deal_part(sunxi_download_info *dl_map)
 {
     dl_one_part_info  	*part_info;
@@ -680,10 +676,6 @@ int sunxi_sprite_deal_part(sunxi_download_info *dl_map)
 	int 				  i  = 0;
     uchar *down_buff         = NULL;
     int					rate;
-#ifdef CONFIG_BACKUP_PARTITION
-    int					set_work = 0;
-    int					backup_flag_addr = 0;
-#endif
 
 	if(!dl_map->download_count)
 	{
@@ -707,26 +699,9 @@ int sunxi_sprite_deal_part(sunxi_download_info *dl_map)
 
     	goto __sunxi_sprite_deal_part_err1;
     }
-#ifdef CONFIG_BACKUP_PARTITION
-    backup_flag_addr = get_backup_flag_addr();
-#endif
     for(part_info = dl_map->one_part_info, i = 0; i < dl_map->download_count; i++, part_info++)
     {
     	tick_printf("begin to download part %s\n", part_info->name);
-#ifdef DISABLE_SUNXI_MBR
-		//decrease mbr size
-		part_info->addrlo = part_info->addrlo - (sizeof(sunxi_mbr_t)/512);
-#endif
-        //if download main partition finish
-#ifdef CONFIG_BACKUP_PARTITION
-        if(part_info->addrlo >= backup_flag_addr && !set_work)
-		{
-			printf("download main partition finish, set work! part_info->addrlo = 0x%x, work_addr = 0x%x\n",part_info->addrlo,backup_flag_addr);
-			set_part_back_work(NULL, backup_flag_addr, 1);
-			set_work = 1;
-		}
-#endif
-
     	if(!strncmp("UDISK", (char*)part_info->name, strlen("UDISK")))
 		{
 			ret1 = __download_udisk(part_info, down_buff);
@@ -1015,9 +990,6 @@ int sunxi_sprite_deal_recorvery_boot(int production_media)
     Img_CloseItem(imghd, imgitemhd);
     imgitemhd = NULL;
 
-	if(!production_media) //if media is nand
-		sunxi_flash_exit(1);// importent for nand logic interface
-
     /*write boot data*/
     if(sunxi_sprite_download_uboot(buffer_uboot, production_media, 0))
     {
@@ -1206,42 +1178,15 @@ ERR_OUT:
 //		}
 //	}
 //}
-int card_fetch_standard_mbr(void)
-{
-	int ret;
-	char mbr_bufst[512];
-	mbr_stand   *mbrst;
-	int	work_mode = get_boot_work_mode();
-
-	memset(mbr_bufst, 0, 512);
-	if(work_mode != WORK_MODE_BOOT)
-		ret = sunxi_sprite_phyread(0, 1, mbr_bufst);
-	else
-		ret = sunxi_flash_phyread(0, 1, mbr_bufst);
-
-	if(!ret)
-	{
-		printf("read standard mbr failed\n");
-		return -1;
-	}
-	mbrst = (mbr_stand *)mbr_bufst;
-
-	if((mbrst->end_flag & 0xffff) == 0xAA55)
-		return 0;
-
-	printf("mbrst->end_flag=0x%x\n", mbrst->end_flag);
-	return -1;
-}
 
 int card_download_standard_mbr(void *buffer)
 {
 	mbr_stand   *mbrst;
 	sunxi_mbr_t *mbr = (sunxi_mbr_t *)buffer;
 	char         mbr_bufst[512];
-	int          i, ret;
+	int          i;
 	int          sectors;
 	int          unusd_sectors;
-	int			 work_mode = get_boot_work_mode();
 
 	sectors = 0;
 	for(i=1;i<mbr->PartCount-1;i++)
@@ -1267,12 +1212,7 @@ int card_download_standard_mbr(void *buffer)
 		}
 
 		mbrst->end_flag = 0xAA55;
-		if(work_mode != WORK_MODE_BOOT)
-			ret = sunxi_sprite_phywrite(i, 1, mbr_bufst);
-		else
-			ret = sunxi_flash_phywrite(i, 1, mbr_bufst);
-
-		if(!ret)
+		if(!sunxi_sprite_phywrite(i, 1, mbr_bufst))
 		{
 			printf("write standard mbr %d failed\n", i);
 
@@ -1282,11 +1222,7 @@ int card_download_standard_mbr(void *buffer)
 	memset(mbr_bufst, 0, 512);
 	mbrst = (mbr_stand *)mbr_bufst;
 
-	if(work_mode != WORK_MODE_BOOT)
-		unusd_sectors = sunxi_sprite_size() - 20 * 1024 * 1024/512 - sectors;
-	else
-		unusd_sectors = sunxi_flash_size() - 20 * 1024 * 1024/512 - sectors;
-
+	unusd_sectors = sunxi_sprite_size() - 20 * 1024 * 1024/512 - sectors;
 	mbrst->part_info[0].indicator = 0x80;
 	mbrst->part_info[0].part_type = 0x0B;
 	mbrst->part_info[0].start_sectorl  = ((mbr->array[mbr->PartCount-1].addrlo + 20 * 1024 * 1024/512 ) & 0x0000ffff) >> 0;
@@ -1307,13 +1243,7 @@ int card_download_standard_mbr(void *buffer)
 	mbrst->part_info[2].total_sectorsh = (sectors & 0xffff0000) >> 16;
 
 	mbrst->end_flag = 0xAA55;
-
-	if(work_mode != WORK_MODE_BOOT)
-		ret = sunxi_sprite_phywrite(0, 1, mbr_bufst);
-	else
-		ret = sunxi_flash_phywrite(0, 1, mbr_bufst);
-
-	if(!ret)
+	if(!sunxi_sprite_phywrite(0, 1, mbr_bufst))
 	{
 		printf("write standard mbr 0 failed\n");
 
@@ -1369,7 +1299,6 @@ int card_erase(int erase, void *mbr_buffer)
 		return -1;
 	}
 	memset(erase_buffer, 0, CARD_ERASE_BLOCK_BYTES);
-
 
 	//erase boot0,write 0x00
 	card_download_boot0(32 * 1024, erase_buffer, get_boot_storage_type());

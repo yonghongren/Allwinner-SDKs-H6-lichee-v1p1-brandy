@@ -113,7 +113,6 @@ int load_fip(int *use_monitor)
 
 	struct sbrom_toc1_head_info  *toc1_head = NULL;
 	struct sbrom_toc1_item_info  *item_head = NULL;
-
 	struct sbrom_toc1_item_info  *toc1_item = NULL;
 
 	toc1_head = (struct sbrom_toc1_head_info *)CONFIG_BOOTPKG_STORE_IN_DRAM_BASE;

@@ -91,6 +91,8 @@ int gpt_partition_get_name(int part_index, char *buf)
 	for(i=0;i < PARTNAME_SZ; i++ )
 	{
 		char8_name[i] = (char)(entry[part_index].partition_name[i]);
+		if (char8_name[i] == 0)
+			break;
 	}
 	strcpy(buf, char8_name);
 
@@ -454,7 +456,7 @@ int sunxi_partition_init(void)
 	if(!partition_op || !part_buff)
 	{
 		printf("%s:malloc fail\n", __func__);
-		return -1;
+		goto __error;
 	}
 
 	memset(partition_op, 0x0, sizeof(sunxi_partition_op_t));
@@ -464,7 +466,7 @@ int sunxi_partition_init(void)
 	if(!sunxi_flash_read(0, part_buff_size>>9, part_buff))
 	{
 		printf("read flash error\n");
-		return -1;
+		goto __error;
 	}
 
 	if(sunxi_is_gpt_valid(part_buff + GPT_HEAD_OFFSET))
@@ -491,7 +493,7 @@ int sunxi_partition_init(void)
 		partition_op->partition_refresh          = gpt_partition_refresh;
 		partition_op->partition_get_partno_byname= gpt_partition_get_partno_byname;
 
-		printf("GPT partition init ok\n");
+		pr_msg("GPT partition init ok\n");
 		return partition_op->partition_get_total_num();
 	}
 	else if(sunxi_is_awpart_valid(part_buff))
@@ -529,6 +531,9 @@ int sunxi_partition_init(void)
 	}
 
 	return 0;
+
+__error:
+	return -1;
 }
 
 
@@ -582,10 +587,11 @@ int check_card0_partition(char* sunxi_mbr_buf)
 	int         ret = 0;
 	char        buffer[1024];
 
-	if(STORAGE_SD != get_boot_storage_type())
-	{
+	if ((STORAGE_SD != get_boot_storage_type()) && (STORAGE_EMMC != get_boot_storage_type())) {
+
 		return -1;
 	}
+
 	if(WORK_MODE_BOOT != get_boot_work_mode())
 	{
 		return -1;

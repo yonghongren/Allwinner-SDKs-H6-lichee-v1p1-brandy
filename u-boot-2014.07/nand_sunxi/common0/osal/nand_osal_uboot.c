@@ -25,6 +25,7 @@
 #include <malloc.h>
 #include <stdarg.h>
 #include <asm/arch/dma.h>
+#include <asm/arch/clock.h>
 #include <sys_config.h>
 #include <smc.h>
 #include <fdt_support.h>
@@ -32,10 +33,16 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 //#define get_wvalue(addr)	(*((volatile unsigned long  *)(addr)))
+
 #define  NAND_DRV_VERSION_0		0x03
-#define  NAND_DRV_VERSION_1		0x6012
-#define  NAND_DRV_DATE			0x20170717
-#define  NAND_DRV_TIME			0x1026
+#define  NAND_DRV_VERSION_1		0x6013
+#define  NAND_DRV_DATE			0x20171208
+#define  NAND_DRV_TIME			0x17191449
+/*
+ *1719--AW1917--A63
+ *14--uboot2014
+ *49--linux4.9
+*/
 
 #define NAND_CLK_BASE_ADDR (0x03001000)
 #define NAND_PIO_BASE_ADDR (0x0300B000)
@@ -147,22 +154,10 @@ int NAND_WaitDmaFinish(void)
 
 __u32 _Getpll6Clk(void)
 {
-	__u32 reg_val;
-	__u32 factor_n;
-	__u32 factor_m0;
-	__u32 factor_m1;
 	__u32 clock;
 
-	reg_val  = get_wvalue(NAND_CLK_BASE_ADDR + 0x20);
-	factor_n = ((reg_val >> 8) & 0xFF) + 1;
-	factor_m0 = ((reg_val >> 0) & 0x1) + 1;
-	factor_m1 = ((reg_val >> 1) & 0x1) + 1;
-	//div_m = ((reg_val >> 0) & 0x3) + 1;
-
-	clock = 24000000 * factor_n / factor_m0/factor_m1/4;
-	//NAND_Print("pll6 clock is %d Hz\n", clock);
-	//if(clock != 600000000)
-	//printf("pll6 clock rate error, %d!!!!!!!\n", clock);
+	clock = sunxi_clock_get_pll6() * 1000000;
+	NAND_Print("pll6 clock is %d Hz\n", clock);
 
 	return clock;
 }

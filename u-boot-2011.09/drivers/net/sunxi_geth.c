@@ -225,7 +225,7 @@ static void pkt_hex_dump(char *prefix_str, void *pkt, unsigned int len)
 
 static void random_ether_addr(u8 *addr)
 {
-#if 1
+#if 0
        int i;
        unsigned long long rand;
 

@@ -75,7 +75,6 @@ typedef	struct	global_data {
 	unsigned long	tlb_addr;
 #endif
 #if defined(CONFIG_ALLWINNER)
-	int             uart_console;
     int             boot_card_num;
 	unsigned int    layer_para;
     unsigned int    layer_hd;
@@ -88,8 +87,7 @@ typedef	struct	global_data {
 	int             limit_cur;
 	int             limit_pcvol;
 	int             limit_pccur;
-	int				power_main_id;
-	int				power_slave_id;
+
 	char            *script_mod_buf;
 	int             script_main_key_count;
 	int             force_shell;

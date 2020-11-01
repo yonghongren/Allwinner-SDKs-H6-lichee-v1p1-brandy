@@ -49,7 +49,6 @@ void LCD_CLOSE_FUNC(u32 screen_id, LCD_FUNC func, u32 delay);
 s32 bsp_disp_hdmi_get_hpd_status(u32 disp);
 s32 bsp_disp_hdmi_check_support_mode(u32 disp, disp_tv_mode mode);
 s32 bsp_disp_tv_get_hpd_status(u32 disp);
-s32 bsp_disp_hdmi_get_edid(u32 disp);
 
 
 #endif

@@ -120,7 +120,6 @@ static void LCD_power_on(u32 sel)
 	/*pwr_en, active low*/
 	sunxi_lcd_gpio_set_value(sel, 3, 0);
 	sunxi_lcd_pin_cfg(sel, 1);
-
 }
 
 static void LCD_power_off(u32 sel)
@@ -219,7 +218,6 @@ static void LCD_panel_exit(u32 sel)
 
 static void lcd_panel_ili9341_init(disp_panel_para *info)
 {
-    
 	/*Start Initial Sequence*/
 	/*Reset LCD Driver*/
 	ili9341c_spi_reset_1;

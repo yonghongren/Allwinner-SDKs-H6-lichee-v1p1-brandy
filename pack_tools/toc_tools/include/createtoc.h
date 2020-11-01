@@ -25,12 +25,7 @@
 #include "toc_config.h"
 
 int splittoc0(char *toc0);
-
-int splittoc1(toc_descriptor_t *toc1_package, char *toc1 );
-int split_bootpkg(toc_descriptor_t *package, char *boot_pkg );
-//int update_toc0_cert(toc_descriptor_t* toc0, char *toc0_name);
-
-//int splittoc1(char *toc1);
+int splittoc1(char *toc1);
 int update_toc0_cert(toc_descriptor_t *toc0, char *toc0_name);
 
 int createtoc0(toc_descriptor_t *toc1, char *toc1_name);

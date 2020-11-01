@@ -24,6 +24,7 @@ typedef struct
 	u32                   lcd_registered[3];
 	u32                   hdmi_registered;
 	u32					  tv_registered;
+	u32 edp_registered;
 }disp_dev_t;
 
 extern disp_dev_t gdisp;
@@ -66,7 +67,10 @@ s32 bsp_disp_get_output_type(u32 disp);
 s32 bsp_disp_device_switch(int disp, enum disp_output_type output_type, enum disp_output_type mode);
 s32 bsp_disp_device_set_config(int disp, struct disp_device_config *config);
 s32 bsp_disp_set_hdmi_func(struct disp_device_func * func);
+s32 bsp_disp_set_edp_func(struct disp_tv_func *func);
 s32 bsp_disp_hdmi_check_support_mode(u32 disp, enum disp_output_type mode);
+s32 bsp_disp_hdmi_get_support_mode(u32 disp, u32 init_mode);
+s32 bsp_disp_hdmi_get_work_mode(u32 disp);
 s32 bsp_disp_hdmi_set_detect(bool hpd);
 s32 bsp_disp_tv_register(struct disp_tv_func * func);
 s32 bsp_disp_tv_set_hpd(u32 state);
@@ -100,8 +104,6 @@ s32 bsp_disp_tv_resume(void);
 
 int bsp_disp_get_fb_info(unsigned int disp, struct disp_layer_info *info);
 int bsp_disp_get_display_size(u32 disp, unsigned int *width, unsigned int *height);
-s32 bsp_disp_lcd_dsi_close(u32 disp);
-s32 bsp_disp_lcd_dsi_open(u32 disp);
 s32 bsp_disp_lcd_dsi_clk_enable(u32 disp, u32 en);
 s32 bsp_disp_lcd_dsi_dcs_wr(u32 disp, u8 command, u8 *para, u32 para_num);
 s32 bsp_disp_lcd_dsi_gen_wr(u32 disp, u8 command, u8 *para, u32 para_num);

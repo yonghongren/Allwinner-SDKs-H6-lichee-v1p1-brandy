@@ -34,7 +34,6 @@
 #include <fdt_support.h>
 #include "efex_queue.h"
 #include <sys_config_old.h>
-#include <sunxi_mbr.h>
 #include <sunxi_board.h>
 
 #ifndef CONFIG_SUNXI_SPINOR
@@ -79,16 +78,9 @@ static  int sunxi_usb_efex_status_enable = 1;
 
 extern int do_bootelf(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
 
-#ifdef CONFIG_BACKUP_PARTITION
-static int backup_flag_addr = 0;
-static int set_work = 0;
-static sunxi_mbr_t mbr_info;
-extern unsigned  int set_part_back_work(sunxi_mbr_t *mbr_info, unsigned int work_addr, int work);
-#endif
-
 int  efex_suspend_flag = 0;
-
 DECLARE_GLOBAL_DATA_PTR;
+
 /*
 *******************************************************************************
 *                     do_usb_req_set_interface
@@ -365,7 +357,7 @@ static int __usb_get_descriptor(struct usb_device_request *req, uchar *buffer)
 			qua_dscrpt = (struct usb_qualifier_descriptor *)buffer;
 			memset(&buffer, 0, sizeof(struct usb_qualifier_descriptor));
 
-			qua_dscrpt->bLength = MIN(req->wLength, sizeof(sizeof(struct usb_qualifier_descriptor)));
+			qua_dscrpt->bLength = MIN(req->wLength, sizeof(struct usb_qualifier_descriptor));
 			qua_dscrpt->bDescriptorType    = USB_DT_DEVICE_QUALIFIER;
 			qua_dscrpt->bcdUSB             = 0x200;
 			qua_dscrpt->bDeviceClass       = 0xff;
@@ -880,8 +872,8 @@ static int __sunxi_usb_efex_op_cmd(u8 *cmd_buffer)
 						uint value;
 
 						value = *(uint *)fes_old_data->addr;
-						sunxi_usb_dbg("send id 0x%x, addr 0x%x, length 0x%x\n", value, fes_old_data->addr, fes_old_data->len);
 #endif
+						sunxi_usb_dbg("send id 0x%x, addr 0x%x, length 0x%x\n", value, fes_old_data->addr, fes_old_data->len);
 						trans_data.act_send_buffer   = (void*)(ulong)fes_old_data->addr;	//设置发送地址
 						trans_data.send_size         = fes_old_data->len;	//设置发送长度
 						trans_data.last_err          = 0;
@@ -893,9 +885,8 @@ static int __sunxi_usb_efex_op_cmd(u8 *cmd_buffer)
 						uint value;
 
 						value = *(uint *)fes_old_data->addr;
-
-						sunxi_usb_dbg("receive id 0x%x, addr 0x%x, length 0x%x\n", value, fes_old_data->addr, fes_old_data->len);
 #endif
+						sunxi_usb_dbg("receive id 0x%x, addr 0x%x, length 0x%x\n", value, fes_old_data->addr, fes_old_data->len);
 
 						trans_data.type = SUNXI_EFEX_DRAM_TAG;		//写到dram的数据
 						trans_data.act_recv_buffer   = (void*)(ulong)fes_old_data->addr;	//设置接收地址
@@ -1032,6 +1023,26 @@ static int __sunxi_usb_efex_op_cmd(u8 *cmd_buffer)
 					trans_data.act_send_buffer   = (void*)(ulong)trans->addr;	//设置发送地址，属于字节单位
 					trans_data.send_size         = trans->len;	//设置接收长度，字节单位
 					sunxi_usb_dbg("dram read: start 0x%x: length 0x%x\n", trans->addr, trans->len);
+				} else if ((trans->type & SUNXI_EFEX_FLASH_BOOT0_TAG) == SUNXI_EFEX_FLASH_BOOT0_TAG) {
+				    trans_data.act_send_buffer   = trans_data.base_send_buffer;
+					trans_data.send_size         = trans->len;
+					trans_data.flash_start       = trans->addr;
+					trans_data.flash_sectors     = (trans->len + 511) >> 9;
+					printf("upload boot0 flash: start 0x%x, sectors 0x%x\n", trans_data.flash_start, trans_data.flash_sectors);
+					if (!sunxi_sprite_phyread(trans_data.flash_start, trans_data.flash_sectors, (void *)trans_data.act_send_buffer)) {
+						printf("flash read err: start 0x%x, sectors 0x%x\n", trans_data.flash_start, trans_data.flash_sectors);
+						trans_data.last_err      = -1;
+					}
+				} else if ((trans->type & SUNXI_EFEX_FLASH_BOOT1_TAG) == SUNXI_EFEX_FLASH_BOOT1_TAG) {
+					trans_data.act_send_buffer   = trans_data.base_send_buffer;
+					trans_data.send_size         = trans->len;
+					trans_data.flash_start       = trans->addr;
+					trans_data.flash_sectors     = (trans->len + 511) >> 9;
+					sunxi_usb_dbg("upload boot1 flash: start 0x%x, sectors 0x%x\n", trans_data.flash_start, trans_data.flash_sectors);
+					if (!sunxi_sprite_phyread(trans_data.flash_start, trans_data.flash_sectors, trans_data.act_send_buffer)) {
+						trans_data.last_err      = -1;
+					}
+					/*sunxi_dump(trans_data.act_send_buffer,64);*/
 				}
 				else	//属于flash数据，分别表示起始扇区，扇区数
 				{
@@ -1159,9 +1170,7 @@ static int __sunxi_usb_efex_op_cmd(u8 *cmd_buffer)
 
 		case FEX_CMD_fes_flash_set_off:
 			sunxi_usb_dbg("FEX_CMD_fes_flash_set_off\n");
-#ifdef CONFIG_BACKUP_PARTITION
-			set_part_back_work(NULL, backup_flag_addr, 1);
-#endif
+
 			trans_data.last_err = sunxi_sprite_exit(1);
 			trans_data.app_next_status   = SUNXI_USB_EFEX_APPS_STATUS;
 
@@ -1325,7 +1334,7 @@ static int __sunxi_usb_efex_op_cmd(u8 *cmd_buffer)
 		case FEX_CMD_fes_force_erase:
 			printf("FEX_CMD_fes_force_erase\n");
 			{
-                trans_data.last_err = sunxi_sprite_force_erase();
+				trans_data.last_err = sunxi_sprite_force_erase(1, NULL);
 				printf("FEX_CMD_fes_force_erase last err=%d\n", trans_data.last_err);
 			}
 			trans_data.app_next_status   = SUNXI_USB_EFEX_APPS_STATUS;
@@ -1383,35 +1392,33 @@ static int __sunxi_usb_efex_op_cmd(u8 *cmd_buffer)
 *
 ************************************************************************************************************
 */
-
 static void dram_data_recv_finish(uint data_type)
 {
 	if(data_type == SUNXI_EFEX_MBR_TAG)			//传输MBR已经完成
-	{
+        {
 		//检查MBR的正确性
-		trans_data.last_err = sunxi_sprite_verify_mbr((void *)trans_data.base_recv_buffer);
-		if(!trans_data.last_err)
+
+
+                trans_data.last_err = sunxi_sprite_verify_mbr((void *)trans_data.base_recv_buffer);
+		if(!trans_data.last_err )
 		{
-			nand_get_mbr((char *)trans_data.base_recv_buffer, 16 * 1024);
-			//准备擦除
-			if(!sunxi_sprite_erase_flash((void *)trans_data.base_recv_buffer))
-			{       //烧录mbr
-				printf("SUNXI_EFEX_MBR_TAG\n");
-				printf("mbr size = 0x%x\n", trans_data.to_be_recved_size);
-#ifndef DISABLE_SUNXI_MBR
-				trans_data.last_err = sunxi_sprite_download_mbr((void *)trans_data.base_recv_buffer, trans_data.to_be_recved_size);
-#else
-				trans_data.last_err = 0;
+#ifdef  CONFIG_SUNXI_MODULE_NAND
+		    nand_get_mbr((char *)trans_data.base_recv_buffer, 16 * 1024);
 #endif
-#ifdef CONFIG_BACKUP_PARTITION
-				mbr_info = *(sunxi_mbr_t *)trans_data.base_recv_buffer;
-#endif
-			}
-			else
-			{
-				trans_data.last_err = -1;
-			}
-		}
+		        //准备擦除
+		    if(!sunxi_sprite_erase_flash((void *)trans_data.base_recv_buffer))
+		    {       //烧录mbr
+                        printf("SUNXI_EFEX_MBR_TAG\n");
+                        printf("mbr size = 0x%x\n", trans_data.to_be_recved_size);
+                        trans_data.last_err = sunxi_sprite_download_mbr((void *)trans_data.base_recv_buffer, trans_data.to_be_recved_size);
+		    }
+		    else
+		    {
+		        trans_data.last_err = -1;
+		    }
+	        }
+
+
 	}
 	else if(data_type == SUNXI_EFEX_BOOT1_TAG)	//传输BOOT1已经完成
 	{
@@ -1431,13 +1438,12 @@ static void dram_data_recv_finish(uint data_type)
 
 		printf("SUNXI_EFEX_ERASE_TAG\n");
 		erase_flag = *(uint *)trans_data.base_recv_buffer;
-		if(erase_flag)
+		/*if(erase_flag)
 		{
 		    erase_flag = 1;
-		}
+		}*/
 		printf("erase_flag = 0x%x\n", erase_flag);
 		script_parser_patch("platform", "eraseflag", &erase_flag , 1);
-		
 	}
 	else if(data_type == SUNXI_EFEX_PMU_SET)
 	{
@@ -1753,6 +1759,7 @@ static int sunxi_efex_state_loop(void  *buffer)
 
 							sunxi_usb_efex_app_step = SUNXI_USB_EFEX_APPS_IDLE;
 						}
+
 					}
 				}
 				sunxi_usb_efex_status   = SUNXI_USB_EFEX_STATUS;			//传输阶段，下一阶段传输状态(csw)
@@ -1890,21 +1897,13 @@ static int sunxi_efex_state_loop(void  *buffer)
                     }
 
 #else
-#ifdef DISABLE_SUNXI_MBR
-					trans_data.flash_start -= SUNXI_MBR_SIZE / 512;
-#endif
                     if(!sunxi_sprite_write(trans_data.flash_start, trans_data.flash_sectors, (void *)trans_data.act_recv_buffer))
                     {
                         printf("sunxi usb efex err: write flash from 0x%x, sectors 0x%x failed\n", trans_data.flash_start, trans_data.flash_sectors);
                         trans_data.last_err = -1;
                     }
-#endif
-#ifdef CONFIG_BACKUP_PARTITION
-						if(!set_work)
-						{
-						    backup_flag_addr = set_part_back_work(&mbr_info, 0, 0);
-						    set_work = 1;
-						}
+
+
 #endif
                 }
                 csw.status = trans_data.last_err;

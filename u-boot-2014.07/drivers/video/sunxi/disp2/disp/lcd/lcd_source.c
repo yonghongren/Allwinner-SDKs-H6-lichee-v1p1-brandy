@@ -54,24 +54,18 @@ void sunxi_lcd_tcon_enable(u32 screen_id)
 }
 
 /**
- * sunxi_lcd_dsi_close - stop dsi transition(will take care of dual dsi)
+ * sunxi_lcd_dsi_mode_switch
  * @screen_id: The index of screen.
+ * @cmd_en : enable command mode
+ * @lp_en : enable low power mode for video mode
  */
-void sunxi_lcd_dsi_close(u32 screen_id)
+void sunxi_lcd_dsi_mode_switch(u32 screen_id, u32 cmd_en, u32 lp_en)
 {
-	if (g_lcd_drv.src_ops.sunxi_lcd_dsi_close)
-		g_lcd_drv.src_ops.sunxi_lcd_dsi_close(screen_id);
+	if (g_lcd_drv.src_ops.sunxi_lcd_dsi_mode_switch)
+		g_lcd_drv.src_ops.sunxi_lcd_dsi_mode_switch(screen_id, cmd_en,
+							    lp_en);
 }
 
-/**
- * sunxi_lcd_dsi_open - start dsi transition(will take care of dual dsi)
- * @screen_id: The index of screen.
- */
-void sunxi_lcd_dsi_open(u32 screen_id)
-{
-	if (g_lcd_drv.src_ops.sunxi_lcd_dsi_open)
-		g_lcd_drv.src_ops.sunxi_lcd_dsi_open(screen_id);
-}
 /**
  * sunxi_lcd_tcon_disable - disable timing controller.
  * @screen_id: The index of screen.
@@ -456,6 +450,98 @@ s32 sunxi_lcd_dsi_clk_disable(u32 screen_id)
 	}
 
 	return -1;
+}
+
+/**
+ * sunxi_lcd_dsi_gen_read - generic short read
+ * @screen_id: The index of screen.
+ * @result: pointer that store the result
+ */
+static s32 sunxi_lcd_dsi_gen_short_read(u32 screen_id, u8 *para, u8 para_num,
+					u8 *result)
+{
+	if (g_lcd_drv.src_ops.sunxi_lcd_dsi_gen_short_read)
+		return g_lcd_drv.src_ops.sunxi_lcd_dsi_gen_short_read(screen_id,
+								 para, para_num,
+								 result);
+	return -1;
+}
+
+/**
+ * @name       :sunxi_lcd_dsi_set_max_ret_size
+ * @brief      :set max ret size of dsi read
+ * @param[IN]  :sel:index of dsi
+ * @param[IN]  :size:number of byte of max size
+ * @return     :0
+ */
+s32 sunxi_lcd_dsi_set_max_ret_size(u32 sel, u32 size)
+{
+	if (g_lcd_drv.src_ops.sunxi_lcd_dsi_dcs_read)
+		return g_lcd_drv.src_ops.sunxi_lcd_dsi_set_max_ret_size(sel,
+									size);
+	return 0;
+}
+
+/**
+ * @name       :sunxi_lcd_dsi_dcs_read
+ * @brief      :dcs read
+ * @param[IN]  :sel:index of dsi
+ * @param[IN]  :cmd: dcs command
+ * @param[OUT] :result: pointer of read result,larger then max ret size
+ * @param[OUT] :num_p: number of bytes have been readed
+ * @return     :number of bytes have been readed
+ */
+s32 sunxi_lcd_dsi_dcs_read(u32 sel, u8 cmd, u8 *result, u32 *num_p)
+{
+	if (g_lcd_drv.src_ops.sunxi_lcd_dsi_dcs_read)
+		return g_lcd_drv.src_ops.sunxi_lcd_dsi_dcs_read(sel, cmd,
+								result, num_p);
+	return 0;
+}
+
+/**
+ * sunxi_lcd_dsi_gen_short_read0p - generic read without param
+ * @screen_id: The index of screen.
+ * @paran: Para to be transfer.
+ * @result: pointer that store the result
+ */
+s32 sunxi_lcd_dsi_gen_short_read0p(u32 screen_id, u8 *result)
+{
+	u8 tmp[2];
+
+	return sunxi_lcd_dsi_gen_short_read(screen_id, tmp, 0, result);
+}
+
+/**
+ * sunxi_lcd_dsi_gen_short_read1p - generic read with 1 param
+ * @screen_id: The index of screen.
+ * @paran: Para to be transfer.
+ * @result: pointer that store the result
+ */
+s32 sunxi_lcd_dsi_gen_short_read1p(u32 screen_id, u8 para0, u8 *result)
+{
+	u8 tmp[2];
+
+	tmp[0] = para0;
+	sunxi_lcd_dsi_gen_short_read(screen_id,  tmp, 1, result);
+
+	return -1;
+}
+
+/**
+ * sunxi_lcd_dsi_gen_short_read2p - generic read with 2 param
+ * @screen_id: The index of screen.
+ * @paran: Para to be transfer.
+ * @result: pointer that store the result
+ */
+s32 sunxi_lcd_dsi_gen_short_read2p(u32 screen_id, u8 para0, u8 para1,
+				   u8 *result)
+{
+	u8 tmp[2];
+
+	tmp[0] = para0;
+	tmp[1] = para1;
+	return sunxi_lcd_dsi_gen_short_read(screen_id, tmp, 2, result);
 }
 
 /**

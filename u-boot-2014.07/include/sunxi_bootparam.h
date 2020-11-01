@@ -1,3 +1,12 @@
+/*
+ * (C) Copyright 2018-2028
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * lianpengcai <lianpengcai@allwinnertech.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
 
 #ifndef __BOOT_PARAM_H__
 #define __BOOT_PARAM_H__

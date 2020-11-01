@@ -48,9 +48,10 @@
 #define SUNXI_PWM_BASE                   (0x0300A000L)
 #define SUNXI_PIO_BASE                   (0x0300B000L)
 #define SUNXI_PSI_BASE                   (0x0300C000L)
-#define SUNXI_IOMMU_BASE                 (0x0300D000L)
 #define SUNXI_DCU_BASE                   (0x03010000L)
 #define SUNXI_GIC_BASE                   (0x03020000L)
+#define SUNXI_IOMMU_BASE                 (0x030F0000L)
+
 
 //storage
 #define SUNXI_DRAMCTL0_BASE              (0x04002000L)
@@ -76,8 +77,8 @@
 #define SUNXI_SPI1_BASE                   (0x05011000L)
 #define SUNXI_GMAC_BASE                   (0x05020000L)
 
-#define SUNXI_LRADC_BASE                  (0x05070000L)
-#define SUNXI_GPADC_BASE                  (0x05070800L)
+#define SUNXI_GPADC_BASE                  (0x05070000L)
+#define SUNXI_LRADC_BASE                  (0x05070800L)
 #define SUNXI_KEYADC_BASE                 SUNXI_LRADC_BASE
 
 #define SUNXI_USBOTG_BASE                 (0x05100000L)
@@ -97,7 +98,7 @@
 #define SUNXI_RTWI_BASE                     (0x07081400L)
 #define SUNXI_RRSB_BASE                     (0x07083000L)
 
-#define RES_CAL_CTRL_REG					(SUNXI_RPRCM_BASE + 0X310)
+#define RES_CAL_CTRL_REG                    (SUNXI_RPRCM_BASE + 0X310)
 
 #define RVBARADDR0_L             (SUNXI_CPUXCFG_BASE+0x40)
 #define RVBARADDR0_H             (SUNXI_CPUXCFG_BASE+0x44)
@@ -111,7 +112,8 @@
 #define GPIO_3_3V_MODE 0
 #define GPIO_1_8V_MODE 1
 
-#define SCP_DRAM_PARA_OFFSET                 (sizeof(u32) * 2)
-#define SCP_DARM_PARA_NUM	             (32)
+/*dram_para_offset is the numbers of u32 before dram data sturcture(dram_para) in struct arisc_para*/
+#define SCP_DRAM_PARA_OFFSET  (sizeof(u32) * 13 + sizeof(u32) + sizeof(u32) * 2 * 64)
+#define SCP_DARM_PARA_NUM     (24)
 
 #endif

@@ -25,7 +25,7 @@ s32 tve_low_set_sid_base(void __iomem *address)
 	return 0;
 }
 
-s32 tve_low_init(u32 sel, u32 *dac_no, u32 *cali, u32 *offset,
+s32 tve_low_init(u32 sel, u32 *dac_no, u32 *cali, s32 *offset,
 		 u32 *dac_type, u32 num)
 {
 	u32 val = (*cali) ? (*cali) : 0x285;
@@ -148,12 +148,7 @@ s32 tve_low_dac_autocheck_enable(u32 sel)
 	/* 20ms x 10 */
 	TVE_WUINT32(sel, TVE_0FC, 0x028F00FF);
 	/* 1.0v refer for 0.71v/1.43v detect */
-#if defined(__UBOOT_PLAT__)
-	/* 20ms x 5 */
-	TVE_WUINT32(sel, TVE_03C, 0x00000004);
-#else
 	TVE_WUINT32(sel, TVE_03C, 0x00000009);
-#endif
 	/* detect enable */
 	TVE_WUINT32(sel, TVE_030, 0x00000001);
 
@@ -263,10 +258,6 @@ u32 tve_low_get_sid(u32 index)
 {
 	u32 cali_value = 0;
 
-	if (sid_reg_base) {
-		cali_value = readl(sid_reg_base + index);
-		cali_value &= 0x000003ff;
-	}
-
+	cali_value = sid_read_key(0x10);
 	return cali_value;
 }

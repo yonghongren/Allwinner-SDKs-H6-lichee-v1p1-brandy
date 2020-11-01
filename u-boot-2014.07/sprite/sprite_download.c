@@ -74,7 +74,14 @@ int __attribute__((weak)) spinor_download_boot0(uint length, void *buffer)
 {
 	return -1;
 }
-
+int __attribute__((weak)) card_download_standard_mbr(void *buffer)
+{
+       return -1;
+}
+int __attribute__((weak)) mmc_write_info(int dev_num, void *buffer, u32 buffer_size)
+{
+       return -1;
+}
 /*
 ************************************************************************************************************
 *
@@ -98,7 +105,7 @@ void dump_dram_para(void* dram, uint size)
 
 	for(i=0;i<size;i++)
 	{
-		printf("dram para[%d] = %x\n", i, addr[i]);
+		pr_msg("dram para[%d] = %x\n", i, addr[i]);
 	}
 }
 
@@ -182,7 +189,10 @@ int sunxi_sprite_download_mbr(void *buffer, uint buffer_size)
 		printf("successed to write standard mbr\n");
 	}
 #endif
-
+	if (sunxi_sprite_verify_mbr_from_flash(buffer_size / 512, mbr_num) < 0) {
+		printf("sunxi_sprite_verify_mbr_from_flash fail\n");
+		ret = -1;
+	}
 	if(sunxi_sprite_exit(0))
 	{
 		printf("sunxi sprite exit fail when downlaod mbr\n");
@@ -439,14 +449,8 @@ int sunxi_sprite_download_boot0(void *buffer, int production_media)
 		}
 
 		//update dram param
-		if(uboot_spare_head.boot_data.work_mode == WORK_MODE_CARD_PRODUCT)
-		{
-			memcpy((void *)toc0_config->dram_para, (void *)(uboot_spare_head.boot_data.dram_para), 32 * 4);
-			//toc0_config->dram_para[4] += toc0_config->secure_dram_mbytes;
-			/*update dram flag*/
-			set_boot_dram_update_flag(toc0_config->dram_para);
-		}
-		else if(uboot_spare_head.boot_data.work_mode == WORK_MODE_BOOT) //for secure mode fastboot
+		if (uboot_spare_head.boot_data.work_mode == WORK_MODE_CARD_PRODUCT ||
+			uboot_spare_head.boot_data.work_mode == WORK_MODE_UDISK_UPDATE)
 		{
 			memcpy((void *)toc0_config->dram_para, (void *)(uboot_spare_head.boot_data.dram_para), 32 * 4);
 			//toc0_config->dram_para[4] += toc0_config->secure_dram_mbytes;
@@ -497,6 +501,7 @@ int sunxi_sprite_download_boot0(void *buffer, int production_media)
 		{
 			sunxi_set_secure_mode();
 		}
+
 		return ret;
 	}
 }
@@ -578,10 +583,10 @@ int sunxi_download_boot0_atfter_ota(void *buffer, int production_media)
 		toc0_private_head_t  *toc0   = (toc0_private_head_t *)buffer;
 		sbrom_toc0_config_t  *toc0_config = NULL;
 
-                if (toc0->items_nr == 3)
-                        toc0_config = (sbrom_toc0_config_t *)(buffer + 0xa0);
-                else
-                        toc0_config = (sbrom_toc0_config_t *)(buffer + 0x80);
+		if (toc0->items_nr == 3)
+			toc0_config = (sbrom_toc0_config_t *)(buffer + 0xa0);
+		else
+			toc0_config = (sbrom_toc0_config_t *)(buffer + 0x80);
 
 		printf("secure mode\n");
 		if(strncmp((const char *)toc0->name, TOC0_MAGIC, MAGIC_SIZE))

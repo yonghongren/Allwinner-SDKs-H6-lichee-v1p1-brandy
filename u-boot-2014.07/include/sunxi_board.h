@@ -30,7 +30,8 @@
 #include <spare_head.h>
 #include <boot_gui.h>
 
-extern int sunxi_oem_op_lock(int lock_flag, char *info, int force);
+extern int sunxi_oem_op_lock(int lock_flag, char *info);
+extern int sunxi_fastboot_status_read(void);
 
 extern void sunxi_board_close_source(void);
 extern int sunxi_board_restart(int next_mode);
@@ -46,6 +47,7 @@ extern int board_late_init(void);
 
 extern int check_uart_input(void);
 extern int check_update_key(void);
+extern int gpio_control(void);
 
 extern int battery_charge_cartoon_init(int rate);
 extern int battery_charge_cartoon_exit(void);
@@ -67,6 +69,8 @@ extern int board_display_framebuffer_set(int width, int height, int bitcount, vo
 extern int board_display_framebuffer_change(void *buffer);
 extern void board_display_set_alpha_mode(int mode);
 extern int board_display_device_open(void);
+extern int board_display_eink_update(char *name, __u32 update_mode);
+/* extern int board_display_eink_panel_release(void); */
 extern int borad_display_get_screen_width(void);
 extern int borad_display_get_screen_height(void);
 extern void board_display_setenv(char *data);
@@ -85,14 +89,7 @@ extern void usb_detect_for_charge(int detect_time);
 extern int sunxi_flash_handle_init(void);
 
 extern int sunxi_bmp_display(char *name);
-#ifdef CONFIG_SUN8IW12P1_NOR
-extern int read_bmp_to_kernel(char *partition_name);
-#endif
-
-
-extern int sunxi_bmp_load(char *name);
-
-extern int sunxi_load_jpeg(const char *filename);
+extern int sunxi_Eink_Get_bmp_buffer(char *name, char *bmp_gray_buf);
 
 extern int drv_disp_init(void);
 extern int drv_disp_exit(void);
@@ -102,6 +99,7 @@ extern long disp_ioctl(void *hd, unsigned int cmd, void *arg);
 extern int board_init(void);
 extern void dram_init_banksize(void);
 extern int dram_init(void);
+extern int sunxi_bmp_load(char *name);
 
 extern int change_to_debug_mode(void);
 #ifdef CONFIG_GENERIC_MMC
@@ -112,14 +110,15 @@ extern void board_mmc_set_num(int num);
 //extern int mmc_get_env_addr(struct mmc *mmc, u32 *env_addr);
 #endif
 
+#ifdef	TIMESTAMP
+extern void clean_timestamp_counter(void);
+#endif
 #ifdef CONFIG_DISPLAY_BOARDINFO
 extern int checkboard(void);
 #endif
 
 extern int sprite_uichar_init(int char_size);
 extern void sprite_uichar_printf(const char * str, ...);
-extern void sprite_uichar_printf_ex(const char * str, int row ,int column);
-
 
 #if defined(CONFIG_USE_NEON_SIMD)
 extern int  arm_neon_init(void);
@@ -128,8 +127,6 @@ extern uint add_sum_neon(void *buffer, uint length);
 
 extern void respond_physical_key_action(void);
 extern int check_physical_key_early(void);
-
-extern int update_user_data(void);
 
 extern void sunxi_set_fel_flag(void);
 extern void sunxi_clear_fel_flag(void);
@@ -140,10 +137,20 @@ extern int sunxi_verify_signature(void *buff, uint len, const char *cert_name);
 extern int sunxi_verify_rotpk_hash(void *input_hash_buf, int len);
 
 extern void sunxi_dump(void *addr, unsigned int size);
-extern char* board_hardware_info(void);
+extern char *board_hardware_info(void);
+
+#ifdef CONFIG_DETECT_RTC_BOOT_MODE
+extern int set_bootcmd_from_rtc(int mode, char *bootcmd);
+extern int sunxi_get_bootmode_flag(void);
+extern int sunxi_set_bootmode_flag(u8 flag);
+#endif
+extern char *set_bootcmd_from_misc(int mode, char *bootcmd);
+
 extern int get_boot_work_mode(void);
 extern int get_boot_storage_type_ext(void);
 extern int get_boot_storage_type(void);
+extern void set_boot_storage_type(int);
+
 extern u32 get_boot_dram_para_addr(void);
 extern u32 get_boot_dram_para_size(void);
 extern u32 get_boot_dram_update_flag(void);
@@ -159,6 +166,8 @@ extern int get_debugmode_flag(void);
 extern int sunxi_probe_securemode(void);
 extern int sunxi_get_securemode(void);
 extern int sunxi_probe_secure_monitor(void);
+extern int sunxi_probe_secure_os(void);
+
 extern int smc_init(void);
 
 
@@ -181,7 +190,6 @@ void sunxi_dump(void *addr, unsigned int size);
 
 extern uint sunxi_generate_checksum(void *buffer, uint length, uint src_sum);
 extern int sunxi_verify_checksum(void *buffer, uint length, uint src_sum);
-extern void sunxi_auto_sel_pio_mode(void);
 
 #define BIT(x)				(1<<(x))
 #define sunxi_set_bit(addr, val) writel((readl(addr) | val), addr)

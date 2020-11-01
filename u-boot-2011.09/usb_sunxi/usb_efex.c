@@ -32,7 +32,7 @@
 #include <pmu.h>
 #include <asm/io.h>
 #include "efex_queue.h"
-
+#include <asm/arch/timer.h>
 #ifndef CONFIG_SUNXI_SPINOR
 #define _EFEX_USE_BUF_QUEUE_
 #endif
@@ -137,8 +137,10 @@ static int __usb_set_interface(struct usb_device_request *req)
 static int __usb_set_address(struct usb_device_request *req)
 {
 	uchar address;
+
 	address = req->wValue & 0x7f;
 	printf("set address 0x%x\n", address);
+      __usdelay(10);
 	sunxi_udc_set_address(address);
 
 	return SUNXI_USB_REQ_SUCCESSED;
@@ -1880,7 +1882,7 @@ static int sunxi_efex_state_loop(void  *buffer)
                         printf("sunxi usb efex err: write flash from 0x%x, sectors 0x%x failed\n", trans_data.flash_start, trans_data.flash_sectors);
                         trans_data.last_err = -1;
                     }
-			
+
 #ifdef CONFIG_SUNXI_SPINOR
 					if((uboot_spare_head.boot_data.storage_type == 3)&&(trans_data.type & SUNXI_EFEX_TRANS_FINISH_TAG)&&(fullimg_size == total_write_bytes))
 					{

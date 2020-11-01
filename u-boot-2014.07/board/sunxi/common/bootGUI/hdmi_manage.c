@@ -1,3 +1,14 @@
+/*
+ * (C) Copyright 2018-2028
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * lianpengcai <lianpengcai@allwinnertech.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+
 #include <common.h>
 #include "dev_manage.h"
 #include "hdmi_manage.h"
@@ -63,14 +74,14 @@ static int is_same_vendor(unsigned char *edid_buf,
 	char *pdata = (char *)edid_buf + ID_VENDOR;
 	for (i = 0; i < num; ++i) {
 		if (pdata[i] != vendor[i]) {
-			printf("different vendor[current <-> saved]\n");
+			pr_msg("different vendor[current <-> saved]\n");
 			for (i = 0; i < num; ++i) {
-				printf("[%x <-> %x]\n", pdata[i], vendor[i]);
+				pr_msg("[%x <-> %x]\n", pdata[i], vendor[i]);
 			}
 			return 0;
 		}
 	}
-	printf("same vendor\n");
+	pr_msg("same vendor\n");
 	return !0;
 }
 
@@ -89,10 +100,10 @@ static int edid_checksum(char const *edid_buf)
 	/* checksum passed, everything's good */
 		return 0;
 	} else if (all_null) {
-		printf("edid all null\n");
+		pr_error("edid all null\n");
 		return -2;
 	} else {
-		printf("edid checksum err\n");
+		pr_error("edid checksum err\n");
 		return -1;
 	}
 }
@@ -110,8 +121,9 @@ int hdmi_verify_mode(int channel, int mode, int *vid)
 		check = ALWAYS_NOT_CHECK_MODE;
 	else
 		check = get_mode_check_policy(ALWAYS_CHECK_MODE);
-
 	vendor_size = get_saved_vendor_id(saved_vendor_id, VENDOR_INFO_SIZE);
+	debug("***** check=%d, vendorid=%s *****\n", check, (char *)(edid_buf+ID_VENDOR));
+
 	if (CHECK_MODE_ONLY_IF_SAME_TV == check) {
 		/* if vendor id change , check mode: check = 1 */
 		if ((0 == vendor_size)
@@ -141,7 +153,7 @@ int hdmi_verify_mode(int channel, int mode, int *vid)
 		for (i = 0; i < sizeof(HDMI_MODES) / sizeof(HDMI_MODES[0]); i++) {
 			if (1 == hal_is_support_mode(channel,
 				DISP_OUTPUT_TYPE_HDMI, HDMI_MODES[i])) {
-				printf("find mode[%d] in HDMI_MODES\n", HDMI_MODES[i]);
+				pr_msg("find mode[%d] in HDMI_MODES\n", HDMI_MODES[i]);
 				mode = HDMI_MODES[i];
 				break;
 			}
@@ -149,6 +161,5 @@ int hdmi_verify_mode(int channel, int mode, int *vid)
 	}
 
 	hal_save_int_to_kernel("tv_vdid", *vid);
-
 	return mode;
 }

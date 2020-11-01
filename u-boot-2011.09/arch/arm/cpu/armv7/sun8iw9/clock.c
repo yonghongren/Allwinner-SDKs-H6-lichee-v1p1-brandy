@@ -401,16 +401,17 @@ int sunxi_clock_get_corepll(void)
 {
 	unsigned int reg_val;
 	int 	div_m, div_p;
-	int 	factor_k, factor_n;
+//	int 	factor_k,
+        int factor_n;
 	int 	clock;
 
-	reg_val  = readl(CCM_PLL1_CPUX_CTRL);
+	reg_val  = readl(CCM_PLL1_C0CPUX_CTRL);
 	div_p    = ((reg_val >>16) & 0x3);
-	factor_n = ((reg_val >> 8) & 0x1f) + 1;
-	factor_k = ((reg_val >> 4) & 0x3) + 1;
+	factor_n = ((reg_val >> 8) & 0x7f) + 1;
+	//factor_k = ((reg_val >> 4) & 0x3) + 1;
 	div_m    = ((reg_val >> 0) & 0x3) + 1;
 
-	clock = 24 * factor_n * factor_k/div_m/(1<<div_p);
+	clock = 24 * factor_n/div_m/(1<<div_p);
 
 	return clock;
 }
@@ -439,7 +440,7 @@ int sunxi_clock_get_axi(void)
 	int clock_src, factor;
 
 	reg_val   = readl(CCM_CPU_L2_AXI_CTRL);
-	clock_src = (reg_val >> 16) & 0x03;
+	clock_src = (reg_val >> 12) & 0x01;
 	factor    = (reg_val >> 0) & 0x03;
 
 	if(factor >= 3)
@@ -454,12 +455,9 @@ int sunxi_clock_get_axi(void)
 	switch(clock_src)
 	{
 		case 0:
-			clock = 32000;
-			break;
-		case 1:
 			clock = 24;
 			break;
-		case 2:
+		case 1:
 			clock =  sunxi_clock_get_corepll();
 			break;
 		default:
@@ -675,23 +673,24 @@ int sunxi_clock_set_corepll(int frequency, int core_vol)
     }
     //切换到24M
     reg_val = readl(CCM_CPU_L2_AXI_CTRL);
-    reg_val &= ~(0x03 << 16);
-    reg_val |=  (0x01 << 16);
+    reg_val &= ~(0x01 << 12);
+    reg_val |=  (0x00 << 12);
     writel(reg_val, CCM_CPU_L2_AXI_CTRL);
     //延时，等待时钟稳定
     for(i=0; i<0x400; i++);
     //调整时钟频率
 	clk_get_pll_para(&pll_factor, frequency);
 	//回写PLL1
-    reg_val = readl(CCM_PLL1_CPUX_CTRL);
+    reg_val = readl(CCM_PLL1_C0CPUX_CTRL);
     reg_val &= ~((0x03 << 16) | (0x1f << 8) | (0x03 << 4) | (0x03 << 0));
-	reg_val |=  (pll_factor.FactorP << 16) | (pll_factor.FactorN<<8) | (pll_factor.FactorK<<4) | (0 << 0) ;
-    writel(reg_val, CCM_PLL1_CPUX_CTRL);
+//	reg_val |=  (pll_factor.FactorP << 16) | (pll_factor.FactorN<<8) | (pll_factor.FactorK<<4) | (0 << 0) ;
+        reg_val |= (41 << 8);
+    writel(reg_val, CCM_PLL1_C0CPUX_CTRL);
     //延时，等待时钟稳定
 #ifndef CONFIG_FPGA
 	do
 	{
-		reg_val = readl(CCM_PLL1_CPUX_CTRL);
+		reg_val = readl(CCM_PLL1_C0CPUX_CTRL);
 	}
 	while(!(reg_val & (0x1 << 28)));
 #endif
@@ -699,8 +698,8 @@ int sunxi_clock_set_corepll(int frequency, int core_vol)
     clk_set_divd();
     //切换时钟到COREPLL上
     reg_val = readl(CCM_CPU_L2_AXI_CTRL);
-    reg_val &= ~(0x03 << 16);
-    reg_val |=  (0x02 << 16);
+    reg_val &= ~(0x01 << 12);
+    reg_val |=  (0x01 << 12);
     writel(reg_val, CCM_CPU_L2_AXI_CTRL);
 
     return  0;

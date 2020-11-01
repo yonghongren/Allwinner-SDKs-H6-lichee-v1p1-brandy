@@ -16,7 +16,6 @@
 #define SUB_TOC_PKG_NAME				"BOOTPKG-00000000"
 #define SUB_DTB_NAME					"DTB_CONFIG000000"
 #define SUB_BOARD_CONFIG_NAME		"BOARD_CONFIG_BIN"
-#define SUB_TOC1_NAME				"TOC1_00000000000"
 
 static void *imghd = NULL;
 static void *imgitemhd = NULL;
@@ -331,12 +330,7 @@ static char* update_board_config(char * config_file_name, uint *bd_len)
 
 }
 
-static char *update_bd_cfg_fex(char *bd_file_name, uint *bd_fex_len)
-{
-	return probe_file_data(bd_file_name, bd_fex_len, 4);
-}
-
-static int update_bootpkg(char *new_dtb_buffer, uint dtb_len, char *bd_buffer, uint bd_len, char *bd_fex_buffer, uint bd_fex_len)
+static int update_bootpkg(char *new_dtb_buffer, uint dtb_len, char *bd_buffer, uint bd_len)
 {
 	IMAGE_HANDLE* pImage = (IMAGE_HANDLE *)imghd;
 	HIMAGEITEM itemhd;
@@ -351,9 +345,7 @@ static int update_bootpkg(char *new_dtb_buffer, uint dtb_len, char *bd_buffer, u
 	struct sbrom_toc1_item_info  *item_head = NULL;
 	struct sbrom_toc1_item_info  *toc1_item = NULL;
 
-	if ((new_dtb_buffer == NULL) || (bd_buffer == NULL) ||
-			(dtb_len < 0) || (bd_len < 0) ||
-			(bd_fex_buffer == NULL) || bd_fex_len == NULL)
+	if ((new_dtb_buffer == NULL) || (bd_buffer == NULL) || (dtb_len < 0) || (bd_len < 0))
 	{
 		printf("update_bootpkg:input para error\n");
 		goto _out;
@@ -401,14 +393,13 @@ static int update_bootpkg(char *new_dtb_buffer, uint dtb_len, char *bd_buffer, u
 	offset = sizeof(struct sbrom_toc1_head_info) + toc1_head->items_nr * sizeof(struct sbrom_toc1_item_info);
 	memcpy(new_bootpkg_buffer, bootpkg_buffer, offset);
 
-	toc1_item = (struct sbrom_toc1_item_info *)(new_bootpkg_buffer + sizeof(struct sbrom_toc1_head_info));
+	toc1_item =  (struct sbrom_toc1_item_info *)(new_bootpkg_buffer + sizeof(struct sbrom_toc1_head_info));
 
 	for (i = 0; i < toc1_head->items_nr; i++, toc1_item++)
 	{
 		/* copy other item */
 		if ((strncmp(toc1_item->name, ITEM_DTB_NAME, sizeof(ITEM_DTB_NAME))) &&
-		    (strncmp(toc1_item->name, ITEM_BDCFG_NAME, sizeof(ITEM_BDCFG_NAME))) &&
-		    (strncmp(toc1_item->name, ITEM_BDCFG_FEX_NAME, sizeof(ITEM_BDCFG_FEX_NAME))))
+		    (strncmp(toc1_item->name, ITEM_BDCFG_NAME, sizeof(ITEM_BDCFG_NAME))))
 		{
 			offset = randto1k(offset);
 			memcpy(new_bootpkg_buffer + offset, (bootpkg_buffer + toc1_item->data_offset), toc1_item->data_len);
@@ -420,7 +411,7 @@ static int update_bootpkg(char *new_dtb_buffer, uint dtb_len, char *bd_buffer, u
 			/* copy dtb item */
 			offset = randto1k(offset);
 			memcpy(new_bootpkg_buffer + offset, new_dtb_buffer, dtb_len);
-			toc1_item->data_offset = offset;
+			toc1_item->data_offset  = offset;
 			offset += dtb_len;
 			offset = randto1k(offset);
 			toc1_item->data_len = randto1k(dtb_len);
@@ -435,17 +426,6 @@ static int update_bootpkg(char *new_dtb_buffer, uint dtb_len, char *bd_buffer, u
 			offset = randto1k(offset);
 			toc1_item->data_len = randto1k(bd_len);
 		}
-		else if (strncmp(toc1_item->name, ITEM_BDCFG_FEX_NAME, sizeof(ITEM_BDCFG_FEX_NAME)) == 0)
-		{
-			/* copy board fex item */
-			offset = randto1k(offset);
-			memcpy(new_bootpkg_buffer + offset, bd_fex_buffer, bd_fex_len);
-			toc1_item->data_offset  = offset;
-			offset += bd_fex_len;
-			offset = randto1k(offset);
-			toc1_item->data_len = randto1k(bd_fex_len);
-		}
-
 	}
 
 	toc1_head = (struct sbrom_toc1_head_info *)new_bootpkg_buffer;
@@ -508,16 +488,8 @@ static int update_img(char *config_file_name)
 {
 	char *dtb_buffer = NULL;
 	char *bd_buffer = NULL;
-	char *bd_fex_buffer = NULL;
-	uint dtb_len = 0, bd_len = 0, bd_fex_len = 0;
+	uint dtb_len = 0, bd_len = 0;
 	int ret = -1;
-
-	bd_fex_buffer = update_bd_cfg_fex(config_file_name, &bd_fex_len);
-	if (!bd_fex_buffer)
-	{
-		printf("***update board config fex fail***\n");
-		goto _out;
-	}
 
 	dtb_buffer  = update_dtb(config_file_name, &dtb_len);
 	if (!dtb_buffer)
@@ -533,7 +505,7 @@ static int update_img(char *config_file_name)
 		goto _out;
 	}
 
-	if (!update_bootpkg(dtb_buffer, dtb_len, bd_buffer, bd_len, bd_fex_buffer, bd_fex_len))
+	if (!update_bootpkg(dtb_buffer, dtb_len, bd_buffer, bd_len))
 	{
 		printf("***update bootpkg fail***\n");
 		goto _out;
@@ -542,9 +514,6 @@ static int update_img(char *config_file_name)
 	ret = 0;
 
 _out:
-
-	if (bd_fex_buffer)
-		free(bd_fex_buffer);
 
 	if (dtb_buffer)
 		free(dtb_buffer);

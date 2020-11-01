@@ -22,8 +22,9 @@
 #define DMA_CFG_DST_DRQ_SPI1 		(DMA_TYPE_SPI1      << 16)
 #define DMA_CFG_SRC_DRQ_SPI0 		(DMA_TYPE_SPI0      << 0)
 #define DMA_CFG_SRC_DRQ_SPI1 		(DMA_TYPE_SPI1      << 0)
-
 #define SPI_TRANS_MODE 0
+#define SPI_CLK_SRC		(1)	//0-24M, 1-PLL6
+#define SPI_MCLK		(40000000)
 #define MAX_SPI_NUM 2
 
 #define set_wbit(addr, v)   (*((volatile unsigned long  *)(addr)) |=  (unsigned long)(v))

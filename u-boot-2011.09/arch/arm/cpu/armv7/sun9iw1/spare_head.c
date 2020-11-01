@@ -57,8 +57,8 @@ struct spare_boot_head_t  uboot_spare_head = {
 							 	      	  { 0 },		//nand spare data
 							 	      	  { {0} },		//sdcard gpio
 							 	      	  { 0 }, 		//sdcard spare data
-											-1,
-											UBOOT_START_SECTOR_IN_SDMMC,
+							 	      	  -1,
+                                                                          UBOOT_START_SECTOR_IN_SDMMC,
 							 	      	  { 0 }			//reserved data
 							 	      }
 							 	  };

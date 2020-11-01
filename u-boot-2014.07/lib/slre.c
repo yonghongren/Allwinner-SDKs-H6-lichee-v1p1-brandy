@@ -686,7 +686,6 @@ int main(int argc, char *argv[])
 
 	if (!slre_compile(&slre, argv[1])) {
 		fprintf(stderr, "Error compiling slre: %s\n", slre.err_str);
-	        fclose(fp);
 		return 1;
 	}
 

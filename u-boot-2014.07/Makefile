@@ -10,7 +10,7 @@ PATCHLEVEL = 07
 SUBLEVEL =
 EXTRAVERSION =
 NAME =
-OTA_TEST_NAME=ota_test
+
 
 #check gcc tools chain
 #arm_toolchain_check=$(strip $(shell if [  -d ../toolchain/gcc-arm -a -d ../toolchain/gcc-aarch64 ];  then  echo yes;  fi ) )
@@ -207,7 +207,7 @@ HOSTARCH := $(shell uname -m | \
 HOSTOS := $(shell uname -s | tr '[:upper:]' '[:lower:]' | \
 	    sed -e 's/\(cygwin\).*/cygwin/')
 
-export	HOSTARCH HOSTOS OTA_TEST_NAME
+export	HOSTARCH HOSTOS
 
 # Deal with colliding definitions from tcsh etc.
 VENDOR=
@@ -658,6 +658,7 @@ libs-y += drivers/sunxi_usb/
 libs-y += drivers/sunxi_crypto/
 libs-y += common/
 libs-y += lib/libfdt/
+libs-$(CONFIG_OF_LIBUFDT) += lib/libufdt/
 libs-$(CONFIG_API) += api/
 libs-$(CONFIG_HAS_POST) += post/
 libs-y += test/
@@ -854,12 +855,11 @@ u-boot.bin: u-boot FORCE
 
 u-boot-$(CONFIG_TARGET_NAME).bin:   u-boot.bin
 	@cp -v $<    $@
+ifdef CONFIG_SUN8IW15P1_AXP2231
+	@cp -v $@ $(objtree)/../../tools/pack/chips/$(CONFIG_SYS_BOARD)/axp2231/bin/$@
+else
 	@cp -v $@ $(objtree)/../../tools/pack/chips/$(CONFIG_SYS_BOARD)/bin/$@
-	if [ -z "$(findstring $(OTA_TEST_NAME), $(SUNXI_MODE))" ]; then \
-		cp -v u-boot-$(CONFIG_TARGET_NAME).bin $(objtree)/../../tools/pack/chips/$(subst  spinor-,,$(CONFIG_TARGET_NAME))/bin/u-boot-$(CONFIG_TARGET_NAME).bin; \
-	else \
-		cp -v u-boot-$(CONFIG_TARGET_NAME).bin $(objtree)/../../tools/pack/chips/$(subst  spinor-,,$(CONFIG_TARGET_NAME))/bin/u-boot-$(CONFIG_TARGET_NAME)-$(SUNXI_MODE).bin; \
-	fi
+endif
 	@if [ -d nand_sunxi/$(SOC)/lib-nand ];  then \
 		cp -v  nand_sunxi/$(SOC)/lib-nand/built-in.o nand_sunxi/$(SOC)/libnand-$(SOC); \
 	fi
@@ -887,6 +887,8 @@ spl:
 	make -f spl_make spl
 endif
 
+dump:
+	make -f dump_make
 #
 # U-Boot entry point, needed for booting of full-blown U-Boot
 # from the SPL U-Boot version.
@@ -1213,7 +1215,6 @@ TAG_SUBDIRS := $(u-boot-dirs) include $(SPLDIR)
 
 FIND := find
 FINDFLAGS := -L
--R --c++-kinds=+p --fields=+iaS --extra=+q
 tags ctags:
 		ctags -w -o ctags `$(FIND) $(FINDFLAGS) $(TAG_SUBDIRS) \
 						-name '*.[chS]' -print`
@@ -1335,6 +1336,7 @@ ifeq ($(SPLSUPPORT), y)
 		-o -name '*.o'	-o -name '*.exe' -o -name '*.axf' \
 		-o -name '*.depend' \
 		-o -name '*.bin' \
+		-o -name '*.log' \
 		-o -name '*.map' \) -print \
 		| xargs rm -f
 	@rm -f $(SPLDIR)/boot0/boot0.lds

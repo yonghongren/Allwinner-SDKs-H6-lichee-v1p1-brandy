@@ -37,7 +37,7 @@ struct clk *clk_register_fixed_rate(void *dev, const char *name,
 	if (fixed)
 		memset(fixed,0,sizeof(struct clk_fixed_rate));
     else {
-        printf("%s: could not allocate fixed rate clk\n", __func__);
+        pr_msg("%s: could not allocate fixed rate clk\n", __func__);
         return NULL;
     }
 

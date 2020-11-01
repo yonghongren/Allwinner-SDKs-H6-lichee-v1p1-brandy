@@ -54,9 +54,6 @@ extern void boot_standby_new_relocate(int addr, int reloc_off);
 extern void sunxi_flush_allcaches(void);
 extern int disable_interrupts(void);
 
-extern unsigned int _standby_new_start__;
-extern unsigned int _standby_new_end__;
-extern unsigned int _start;
 /*
 ************************************************************************************************************
 *
@@ -307,8 +304,6 @@ void do_box_standby(void)
 	int ret;
 	int standby_status = 0;
 	
-	int binary_len = 0;
-	int arisc_addr = 0;
 	if(uboot_spare_head.boot_data.work_mode != WORK_MODE_BOOT)
 	{
 		return ;
@@ -380,26 +375,13 @@ void do_box_standby(void)
 	if (standby_status)
 	{
 		disable_interrupts();
-
+		clear_bss_for_boot_standby(BOOT_STANDBY_RUN_ADDR, SRAM_A2_SIZE);
 		printf("BOOT_STANDBY_RUN_ADDR:0x%x\n", BOOT_STANDBY_RUN_ADDR);
 		printf("SRAM_A2_SIZE:0x%x\n", SRAM_A2_SIZE);
 		printf("SCRIPT_ADDR:0x%x\n", SCRIPT_ADDR);
-
-		if(gd->securemode == SUNXI_SECURE_MODE_WITH_SECUREOS)
-		{
-			binary_len = _standby_new_end__ - _standby_new_start__;
-			arisc_addr = _standby_new_start__ + ((int)(&_start)) - gd->reloc_off;
-			printf("arisc_addr:0x%x\n", arisc_addr);
-			printf("binary_len:0x%x\n", binary_len);
-			copy_script_to_sram(SCRIPT_ADDR);
-			smc_load_arisc(arisc_addr, binary_len, 0, 0, 0);
-		}
-		else
-		{
-			clear_bss_for_boot_standby(BOOT_STANDBY_RUN_ADDR, SRAM_A2_SIZE);
-			copy_script_to_sram(SCRIPT_ADDR);
-			boot_standby_new_relocate(BOOT_STANDBY_RUN_ADDR, gd->reloc_off);
-		}
+		copy_script_to_sram(SCRIPT_ADDR);
+		printf("BOOT_STANDBY_RUN_ADDR:0x%x\n", BOOT_STANDBY_RUN_ADDR);
+		boot_standby_new_relocate(BOOT_STANDBY_RUN_ADDR, gd->reloc_off);
 		sunxi_flush_allcaches();
 		init_cpus();
 		aw_suspend_cpu_die();

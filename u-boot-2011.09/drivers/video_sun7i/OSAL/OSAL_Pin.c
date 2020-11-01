@@ -34,9 +34,11 @@ __hdle OSAL_GPIO_Request(disp_gpio_set_t *gpio_list, __u32 group_count_max)
 	if(gpio_list->port == 0xffff) {
 		__u32 on_off;
 		on_off = gpio_list->data;
-		//axp_set_dc1sw(on_off);
+		#ifdef CONFIG_ARCH_SUN7I
 		axp_set_supply_status(0, PMU_SUPPLY_DC1SW, 0, on_off);
-
+		#else
+		axp_set_supply_status(0, PMU_SUPPLY_GPIO0LDO, 0, on_off);
+		#endif
 		return 0xffff;
 	}
 

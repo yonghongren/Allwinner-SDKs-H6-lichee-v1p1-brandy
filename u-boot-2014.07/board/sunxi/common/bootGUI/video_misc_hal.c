@@ -1,3 +1,13 @@
+/*
+ * Allwinner SoCs bootGUI.
+ *
+ * Copyright (C) 2017 Allwinner.
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
 #include <common.h>
 #include <malloc.h>
 #include <sys_config.h>
@@ -27,7 +37,7 @@ void disp_getprop_by_name(int node, const char *name,
 	unsigned int *value, unsigned int defval)
 {
 	if (fdt_getprop_u32(working_fdt, node, name, value) < 0) {
-		printf("set disp.%s fail. using defval=%d\n", name, defval);
+		pr_msg("set disp.%s fail. using defval=%u\n", name, defval);
 		*value = defval;
 	}
 }
@@ -43,7 +53,7 @@ int hal_save_int_to_kernel(char *name, int value)
 	ret = sunxi_fdt_getprop_store(working_fdt,
 		DISP_FDT_NODE, name, (uint32_t)value);
 #endif
-	printf("save_int_to_kernel %s.%s(0x%x) code:%s\n",
+	debug("save_int_to_kernel %s.%s(0x%x) code:%s\n",
 		DISP_FDT_NODE, name, value, fdt_strerror(ret));
 	return ret;
 }
@@ -59,7 +69,7 @@ int hal_save_string_to_kernel(char *name, char *str)
 	ret = sunxi_fdt_getprop_store_string(working_fdt,
 		DISP_FDT_NODE, name, str);
 #endif
-	printf("save_string_to_kernel %s.%s(%s). ret-code:%s\n",
+	debug("save_string_to_kernel %s.%s(%s). ret-code:%s\n",
 		DISP_FDT_NODE, name, str, fdt_strerror(ret));
 	return ret;
 }
@@ -68,7 +78,7 @@ int hal_get_disp_device_config(int type, void *config)
 {
 
 #ifdef CONFIG_BOOT_PARAMETER
-	int tmp[4] = {0}; /* format, depth, cs, eotf */
+	int tmp[6] = {0}; /* format, depth, cs, eotf */
 	struct disp_device_config *out = config;
 
 	if (!out)
@@ -76,11 +86,11 @@ int hal_get_disp_device_config(int type, void *config)
 	memset(out, 0, sizeof(*out));
 
 	if (bootparam_get_disp_device_config(type, tmp)) {
-		printf("Can't get display(type:%d) config from boot\n", type);
+		pr_error("Can't get display(type:%d) config from boot\n", type);
 		return -1;
 	}
 	if (tmp[2] == 0 || tmp[3] == 0) {
-		printf("invalid display config\n");
+		pr_error("invalid display config\n");
 		return -1;
 	}
 	out->type   = type;
@@ -88,6 +98,8 @@ int hal_get_disp_device_config(int type, void *config)
 	out->bits   = tmp[1];
 	out->cs     = tmp[2];
 	out->eotf   = tmp[3];
+	out->type   = tmp[4];
+	out->mode   = tmp[5];
 	return 0;
 #else
 	return -1;
@@ -107,13 +119,13 @@ int hal_save_disp_device_config_to_kernel(int disp, void *from)
 		return -1;
 
 	if (!config && !hal_get_disp_device_config(DISP_OUTPUT_TYPE_HDMI, &saved)) {
-		printf("get hdmi config from bootparam success.\n");
+		pr_msg("get hdmi config from bootparam success.\n");
 		config = &saved;
 	}
 	if (!config)
 		return -1;
 
-	printf("hdmi config: format-%d bits-%d cs-%d eotf-%d\n",
+	pr_msg("hdmi config: format-%d bits-%d cs-%d eotf-%d\n",
 			config->format, config->bits, config->cs, config->eotf);
 
 #ifndef CONFIG_SUNXI_MULITCORE_BOOT
@@ -125,6 +137,7 @@ int hal_save_disp_device_config_to_kernel(int disp, void *from)
 	fdt_appendprop_u32(working_fdt, node, tag[disp], config->cs);
 	fdt_appendprop_u32(working_fdt, node, tag[disp], config->eotf);
 #else
+/*
 	uint32_t array[6];
 	array[0] = config->type;
 	array[1] = config->mode;
@@ -135,6 +148,9 @@ int hal_save_disp_device_config_to_kernel(int disp, void *from)
 
 	sunxi_fdt_getprop_store_array(working_fdt,
 			DISP_FDT_NODE, tag[disp], array, 6);
+*/
+	/* We have already save the config on hal_switch_device() */
+	pr_msg("bootGUI save config: %s\n", tag[disp]);
 #endif
 	return 0;
 }

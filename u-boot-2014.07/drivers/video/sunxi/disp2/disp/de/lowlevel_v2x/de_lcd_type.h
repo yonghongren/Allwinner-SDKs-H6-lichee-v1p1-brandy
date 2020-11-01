@@ -675,7 +675,8 @@ union tcon_clk_gate_reg_t {
 	struct {
 		u32 res4:16;
 		u32 dsi_clk_gate:1;
-		u32 res3:3;
+		u32 lcd1_dsi_clk_gate:1;
+		u32 res3:2;
 		u32 tv0_clk_gate:1;
 		u32 res2:3;
 		u32 tv1_clk_gate:1;
@@ -711,6 +712,18 @@ struct __de_lcd_top_dev_t {
 };
 /* edit by lrx---end */
 #endif
+
+enum cpu_mode {
+	MODE_18BIT = 0,
+	MODE0_16BIT = 2,
+	MODE1_16BIT = 4,
+	MODE2_16BIT = 6,
+	MODE3_16BIT = 8,
+	MODE_9BIT = 10,
+	MODE_8BIT_256K = 12,
+	MODE_8BIT_65K = 14,
+	MODE_DSI = 1,
+};
 
 struct __de_lcd_dev_t {
 	/* 0x00 - 0x0c */

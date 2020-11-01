@@ -48,14 +48,14 @@ static int clk_set_divd(void)
 	reg_val = readl(CCM_CPU_L2_AXI_CTRL);
 	reg_val &= ~(0x03 << 8);
 	reg_val |=  (0x01 << 8);
-	reg_val |=  (1 << 0);
+	reg_val |=  (0x01 << 0);
 	writel(reg_val, CCM_CPU_L2_AXI_CTRL);
-	
+
 	//config ahb
 	reg_val = readl(CCM_AHB1_APB1_CTRL);;
 	reg_val &= ~((0x03 << 12) | (0x03 << 8) |(0x03 << 4));
 	reg_val |=  (0x02 << 12);
-	reg_val |=  (2 << 6);
+	reg_val |=  (1 << 4);
 	reg_val |=  (1 << 8);
 
 	writel(reg_val, CCM_AHB1_APB1_CTRL);
@@ -78,7 +78,7 @@ void set_pll( void )
 
     //切换到24M
     __msdelay(300);
-	reg_val = readl(CCM_CPU_L2_AXI_CTRL);
+    reg_val = readl(CCM_CPU_L2_AXI_CTRL);
     reg_val &= ~(0x01 << 16);
     reg_val |=  (0x01 << 16);
 	reg_val |=  (0x01 << 0);
@@ -86,7 +86,7 @@ void set_pll( void )
     //延时，等待时钟稳定
     for(i=0; i<0x400; i++);
 	//回写PLL1
-    reg_val = (0x01<<12)|(0x01<<31);
+    reg_val = (0x10 << 8) |(0x01 << 4)|(0x01<<31);
     writel(reg_val, CCM_PLL1_CPUX_CTRL);
     //延时，等待时钟稳定
 #ifndef CONFIG_FPGA

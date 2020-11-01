@@ -1524,9 +1524,8 @@ void mem_malloc_init(ulong start, ulong size)
 	mem_malloc_start = start;
 	mem_malloc_end = start + size;
 	mem_malloc_brk = start;
-#if (defined(CONFIG_ARCH_SUN9IW1P1) || defined(CONFIG_ARCH_SUN8IW8P1))
+
 	memset((void *)mem_malloc_start, 0, size);
-#endif
 }
 
 /* field-extraction macros */

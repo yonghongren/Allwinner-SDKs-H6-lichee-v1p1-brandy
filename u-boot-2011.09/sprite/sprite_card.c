@@ -683,11 +683,7 @@ int sunxi_sprite_deal_part(sunxi_download_info *dl_map)
 		return -1;
 	}
  	//…Í«Îƒ⁄¥Ê
-#ifdef CONFIG_ARCH_SUN8IW8P1
-    down_buff = (uchar *)malloc_noncache(SPRITE_CARD_ONCE_DATA_DEAL + SPRITE_CARD_HEAD_BUFF);
-#else
     down_buff = (uchar *)malloc(SPRITE_CARD_ONCE_DATA_DEAL + SPRITE_CARD_HEAD_BUFF);
-#endif
     if(!down_buff)
     {
     	printf("sunxi sprite err: unable to malloc memory for sunxi_sprite_deal_part\n");
@@ -914,13 +910,28 @@ int sunxi_sprite_deal_boot0(int production_media)
 int card_download_uboot(uint length, void *buffer)
 {
 	int ret;
-
 	ret = sunxi_sprite_phywrite(UBOOT_START_SECTOR_IN_SDMMC, length/512, buffer);
 	if(!ret)
 	{
 		return -1;
 	}
 
+#ifdef CONFIG_TOC1_BACKUP_MODE
+
+	ret = sunxi_sprite_phywrite(UBOOT_START_SECTOR_BACKUP_IN_SDMMC, length/512, buffer);
+	if(!ret)
+	{
+		return -1;
+	}
+#endif
+
+#ifdef CONFIG_UBOOT_BACKUP_MODE
+        ret = sunxi_sprite_phywrite(UBOOT_START_BACKUP_IN_SDMMC,length/512 ,buffer);
+        if(!ret)
+        {
+                return -1;
+        }
+#endif
 	return 0;
 }
 /*
@@ -1555,7 +1566,6 @@ int __imagehd(HIMAGE tmp_himage)
 */
 #ifdef CONFIG_SUNXI_SPINOR
 extern int sunxi_sprite_setdata_finish(void);
-extern int sunxi_sprite_setdata_card_finish(void);
 static int __download_fullimg_part(uchar *source_buff)
 {
     uint tmp_partstart_by_sector;
@@ -1669,7 +1679,7 @@ __download_fullimg_part_err1:
 int sunxi_sprite_deal_fullimg(void)
 {
     int  ret  = -1;
-    int  ret1,full;
+    int  ret1;
     uchar  *down_buff         = NULL;
 
     if(sunxi_sprite_init(1))
@@ -1677,8 +1687,7 @@ int sunxi_sprite_deal_fullimg(void)
         printf("sunxi sprite err: init flash err\n");
         return -1;
     }
-
-    down_buff = (uchar *)malloc(SPRITE_CARD_ONCE_DATA_DEAL + SPRITE_CARD_HEAD_BUFF);
+    down_buff = (uchar *)malloc_noncache(SPRITE_CARD_ONCE_DATA_DEAL + SPRITE_CARD_HEAD_BUFF);
     if(!down_buff)
     {
         printf("sunxi sprite err: unable to malloc memory for sunxi_sprite_deal_part\n");
@@ -1693,18 +1702,9 @@ int sunxi_sprite_deal_fullimg(void)
 
         goto __sunxi_sprite_deal_fullimg_err2;
     }
-	ret = script_parser_fetch("disp_init", "disp_init_enable", &full, 1);
-	if(full == 0)
-	{
-		printf("IPC card product\n");
-		sunxi_sprite_setdata_finish();
-	}
-	else
-	{
-		printf("CDR card product\n");
-		sunxi_sprite_setdata_card_finish();
-	}
-	
+	//while(*(volatile uint *)0 != 0x12);
+    sunxi_sprite_setdata_finish();
+
     printf("sunxi card sprite trans finish\n");
 
     ret = 0;
@@ -1714,7 +1714,7 @@ __sunxi_sprite_deal_fullimg_err1:
 __sunxi_sprite_deal_fullimg_err2:
     if(down_buff)
     {
-        free(down_buff);
+        free_noncache(down_buff);
     }
     return ret;
 }

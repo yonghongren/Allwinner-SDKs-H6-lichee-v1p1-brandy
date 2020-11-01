@@ -46,9 +46,6 @@
 #define CONFIG_A39
 #undef  CONFIG_A39_FPGA
 #define CONFIG_ARCH_SUN9IW1P1
-
-#define CONFIG_ARCH_HOMELET
-
 #define CONFIG_BOOT_A15
 #define CONFIG_NO_BOOT_STANDBY
 #define CONFIG_VECTOR_BY_CP15
@@ -178,6 +175,7 @@
 *
 ***************************************************************/
 #define CONFIG_SUNXI_RSB
+#define CONFIG_PMU_USE_RSB
 #define CONFIG_USE_IRQ
 #define CONFIG_CMD_IRQ
 #define CONFIG_CMD_ELF
@@ -190,27 +188,8 @@
 #define SUNXI_DMA_LINK_NULL       (0x1ffff800)
 
 #define CONFIG_SUNXI_AXP
-
 #if defined(CONFIG_ARCH_HOMELET)
-
-	#define CONFIG_SUNXI_BURN_SECURE_STORAGE_AND_PRIVATE
-
-	#define CONFIG_SUNXI_AXP808
-	#define CONFIG_SUNXI_POWEROZ
-	#define CONFIG_SUNXI_POWERRICH
-
-	#define CONFIG_SUNXI_I2C			//power rich used and cvbs used
-	#define CONFIG_SYS_I2C_SPEED 400000
-	#define CONFIG_SYS_I2C_SLAVE 0x68
-
-	#define CONFIG_CPUS_STANDBY		//cpus standby for box
-
-	#define USE_AW_FAT
-	#define CONFIG_SUNXI_ADVERT
-	#define CONFIG_ARCH_TV
 #endif
-
-#define POWER_CONFIG_SUNXI_RSB	//axp communication bus
 #define CONFIG_SUNXI_AXP809
 #define CONFIG_SUNXI_AXP806
 #define CONFIG_SUNXI_AXP_MAIN        PMU_TYPE_809
@@ -220,6 +199,7 @@
 #define SUNXI_USB_30
 
 #define BOARD_LATE_INIT				/* init the fastboot partitions */
+//#define CONFIG_DETECT_RTC_BOOT_MODE
 
 #define CONFIG_USE_ARCH_MEMCPY       (1)
 #define CONFIG_USE_ARCH_MEMSET       (1)
@@ -235,11 +215,7 @@
 #define CONFIG_SYS_NS16550
 #define CONFIG_SYS_NS16550_SERIAL
 #define CONFIG_SYS_NS16550_REG_SIZE	(-4)		/* ns16550 reg in the low bits of cpu reg */
-#ifdef CONFIG_ARCH_HOMELET
-#define CONFIG_SYS_NS16550_CLK		(64000000)
-#else
 #define CONFIG_SYS_NS16550_CLK		(24000000)
-#endif
 #define CONFIG_SYS_NS16550_COM1		SUNXI_UART0_BASE
 #define CONFIG_SYS_NS16550_COM2		SUNXI_UART1_BASE
 #define CONFIG_SYS_NS16550_COM3		SUNXI_UART2_BASE

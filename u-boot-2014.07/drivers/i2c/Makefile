@@ -30,10 +30,10 @@ obj-$(CONFIG_SYS_I2C_SH) += sh_i2c.o
 obj-$(CONFIG_SYS_I2C_SOFT) += soft_i2c.o
 obj-$(CONFIG_SYS_I2C_TEGRA) += tegra_i2c.o
 obj-$(CONFIG_SYS_I2C_ZYNQ) += zynq_i2c.o
-obj-$(CONFIG_SUNXI_I2C_NULL) += sunxi_i2c_null.o
-
 ifdef CONFIG_SYS_I2C
 	obj-$(CONFIG_SUNXI_I2C) += sunxi_i2c_common.o
 else
 	obj-$(CONFIG_SUNXI_I2C) += sunxi_i2c.o
 endif
+
+subdir-ccflags-$(CONFIG_SUNXI_FINS_FUNC_DRIVER_I2C_DIR) += -finstrument-functions

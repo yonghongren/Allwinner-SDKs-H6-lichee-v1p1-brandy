@@ -37,9 +37,7 @@
 
 #define SUNXI_DRAM_PARA_MAX             32
 
-#define MAGIC_SIZE						8
 #define BOOT0_MAGIC                     "eGON.BT0"
-#define EXTEND_CONFIG_MAGIC				"Extend"
 #define STAMP_VALUE                     0x5F0A6C39
 
 #define BOOT_PUB_HEAD_VERSION           "1100"    // X.X.XX
@@ -64,15 +62,15 @@ typedef struct standard_Boot_file_head
 typedef struct _boot0_private_head_t
 {
 	__u32                       prvt_head_size;
-	__u8                        debug_mode;             //debug_mode = 0 : do not print any message,debug_mode = 1 ,print debug message
-	__u8                        power_mode;      	    //power_mode = 0: dummy pmu , 1: axp
+	__u8                        debug_mode;       //debug_mode = 0 : do not print any message,debug_mode = 1 ,print debug message
+	__u8                        power_mode;      	 /*0:dummy pmu , 1: axp  */
 	__u8                        reserve[2];
 	unsigned int                dram_para[32];          // DRAM patameters for initialising dram. Original values is arbitrary,
-	__s32						uart_port;              // UART控制器编号
+	__s32                       uart_port;              // UART控制器编号
 	normal_gpio_cfg             uart_ctrl[2];           // UART控制器(调试打印口)数据信息
 	__s32                       enable_jtag;            // 1 : enable,  0 : disable
-    normal_gpio_cfg	            jtag_gpio[5];           // 保存JTAG的全部GPIO信息
-    normal_gpio_cfg             storage_gpio[32];       // 存储设备 GPIO信息
+	normal_gpio_cfg	            jtag_gpio[5];           // 保存JTAG的全部GPIO信息
+	normal_gpio_cfg             storage_gpio[32];       // 存储设备 GPIO信息
     char                        storage_data[512 - sizeof(normal_gpio_cfg) * 32];      // 用户保留数据信息
     //boot_nand_connect_info_t    nand_connect_info;
 }boot0_private_head_t;
@@ -84,26 +82,9 @@ typedef struct _boot0_file_head_t
 	boot0_private_head_t  		prvt_head;
 }boot0_file_head_t;
 
-/******************************************************************************/
-/*                              extend head of Boot0                          */
-/******************************************************************************/
-typedef struct _boot0_extend_config
-{
-	__u8   						magic[MAGIC_SIZE];			//="Extend"
-	__s32						if_reduce_power_waste;		//1: reduce power waste, 0: do nothing
-	char 						reserved[500];
-}boot0_extend_config;
 
 
-/******************************************************************************/
-/*                              extend head of fes 		                      */
-/******************************************************************************/
-typedef struct _fes_extend_config
-{
-	__u8   						magic[MAGIC_SIZE];			//="Extend"
-	__s32						if_reduce_power_waste;		//1: reduce power waste, 0: do nothing
-	char 						reserved[500];
-}fes_extend_config;
+
 
 
 #endif     //  ifndef __boot0_h

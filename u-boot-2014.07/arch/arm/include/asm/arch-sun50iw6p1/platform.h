@@ -53,7 +53,7 @@
 #define SUNXI_PSI_BASE                      (0x0300C000L)
 #define SUNXI_DCU_BASE                      (0x03010000L)
 #define SUNXI_GIC_BASE                      (0x03020000L)
-#define SUNXI_IOMMU_BASE                    (0x0303D000L)
+#define SUNXI_IOMMU_BASE                    (0x030F0000L)
 
 /*storage*/
 #define SUNXI_DRAMCTL0_BASE                 (0x04002000L)

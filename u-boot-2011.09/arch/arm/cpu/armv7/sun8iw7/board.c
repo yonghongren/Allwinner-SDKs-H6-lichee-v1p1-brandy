@@ -111,100 +111,17 @@ int display_inner(void)
 	return 0;
 }
 
-int script_probe_by_gpio(void)
-{
-	int multi_config_exist = 0;
-	multi_config_exist = uboot_spare_head.boot_data.multi_config_exist;
-	if(multi_config_exist != 1)
-	{
-		printf("not using multi config\n");
-		return -1;
-	}
-
-	//SUNXI_PIO_BASE = 0X01C20800
-	volatile __u32 value = 0;
-	volatile __u32 value_temp = 0;
-	//设置gpio为输入属性
-	value_temp = *((volatile unsigned int *)(SUNXI_PIO_BASE + 0x6C));
-	value_temp &= (~(0x0f << 0));											//PD00
-	value_temp &= (~(0x0f << 4));											//PD01
-	value_temp &= (~(0x0f << 8));											//PD02
-	*((volatile unsigned int *)(SUNXI_PIO_BASE + 0x6C)) = value_temp;
-	__usdelay(10);
-
-	//设置gpio为上拉模式
-	value_temp = *((volatile unsigned int *)(SUNXI_PIO_BASE + 0x88));
-	value_temp &= (~(0x03 << 0));											//PD00
-	value_temp &= (~(0x03 << 2));											//PD01
-	value_temp &= (~(0x03 << 4));											//PD02
-	value_temp |= ((0x01 << 0) | (0x01 << 2) | (0x01 << 4));
-	*((volatile unsigned int *)(SUNXI_PIO_BASE + 0x88)) = value_temp;
-	__usdelay(10);
-
-	//读取gpio数据
-	value_temp = *((volatile unsigned int *)(SUNXI_PIO_BASE + 0x7c));
-
-	__usdelay(10);
-	value  = value_temp & 0x07;
-
-	return value;
-}
-
-
 int script_init(void)
 {
-    int i;
     uint offset, length;
 	char *addr;
-	multi_script_head *multi_head = NULL;
-	script_head_t *script_head = NULL;
-	int hardware_type = 0;
-	hardware_type = script_probe_by_gpio();
-	if(hardware_type == -1)
-	{
-		offset = uboot_spare_head.boot_head.uboot_length;
-		length = uboot_spare_head.boot_head.length - uboot_spare_head.boot_head.uboot_length;
-		addr   = (char *)CONFIG_SYS_TEXT_BASE + offset;
-	}
-	else
-	{
-		addr   = (char *)CONFIG_SYS_TEXT_BASE + uboot_spare_head.boot_head.uboot_length;
-		script_head = (script_head_t *)addr;
-		printf("hardware_type=0x%x\n", hardware_type);
-		offset = uboot_spare_head.boot_head.uboot_length + script_head->length;
-		addr   = (char *)CONFIG_SYS_TEXT_BASE + offset;
-		multi_head = (multi_script_head *)addr;
-		if(strcmp(multi_head->magic, MULTI_CONFIG_MAGIC))
-		{
-			printf("multi magic=%s err, use default\n", multi_head->magic);
-			offset = uboot_spare_head.boot_head.uboot_length;
-			length = uboot_spare_head.boot_head.length - uboot_spare_head.boot_head.uboot_length;
-			addr   = (char *)CONFIG_SYS_TEXT_BASE + offset;
-		}
-		else
-		{
-			printf("toltal hardware type count=%d\n", multi_head->multi_count);
-			for(i = 0; i < multi_head->multi_count; i++)
-			{
-				debug("i=0x%x, coding=%d\n",i, multi_head->array[i].coding);
-				if(multi_head->array[i].coding == hardware_type)
-				{
-					printf("use config name=%s\n", multi_head->array[i].name);
-					offset = uboot_spare_head.boot_head.uboot_length + script_head->length + multi_head->config_length + multi_head->array[i].addr;
-					length = multi_head->array[i].length;
-					addr   = (char *)CONFIG_SYS_TEXT_BASE + offset;
-					break;
-				}
-			}
-			if(i >= multi_head->multi_count)
-			{
-				printf("no find config=0x%x\n", hardware_type);
-				return 0;
-			}
-		}
-	}
 
-	debug("script offset=%x, length = %x\n", offset, length);
+	offset = uboot_spare_head.boot_head.uboot_length;
+	length = uboot_spare_head.boot_head.length - uboot_spare_head.boot_head.uboot_length;
+	addr   = (char *)CONFIG_SYS_TEXT_BASE + offset;
+
+    debug("script offset=%x, length = %x\n", offset, length);
+
 	if(length)
 	{
 		memcpy((void *)SYS_CONFIG_MEMBASE, addr, length);
@@ -222,7 +139,6 @@ int script_init(void)
 		memcpy(tmp_target_buffer, (void *)CONFIG_SYS_TEXT_BASE, uboot_spare_head.boot_head.length);
 	}
 #endif
-	
 	return 0;
 }
 
@@ -437,7 +353,11 @@ int sunxi_probe_securemode(void)
 */
 int sunxi_set_secure_mode(void)
 {
-	if(gd->securemode == SUNXI_NORMAL_MODE)
+	if(gd->securemode != SUNXI_NORMAL_MODE)
+	{
+		return 0;
+	}
+	if(gd->bootfile_mode == SUNXI_BOOT_FILE_TOC)
 	{
 		sid_set_security_mode();
 		printf("burn secure bit success \n");
@@ -478,89 +398,38 @@ int sunxi_probe_enable_securebit(void)
 
 	return 0;
 }
+/*
+************************************************************************************************************
+*
+*                                             function
+*   sunxi_get_securemode has two meanings
+*   boot mode   : indicates secure bit is burned
+*   product mode: secure bit is burned or will burn secure bit(fisrt time normal to secure)
+*
+*
+************************************************************************************************************
+*/
 
 int sunxi_get_securemode(void)
 {
-	return gd->securemode;
+	int workmode =	uboot_spare_head.boot_data.work_mode;
+	if( WORK_MODE_BOOT	== workmode || WORK_MODE_SPRITE_RECOVERY == workmode)
+		return gd->securemode;
+	else if( WORK_MODE_USB_PRODUCT	== workmode || WORK_MODE_CARD_PRODUCT == workmode)
+		return (gd->securemode || (gd->bootfile_mode == SUNXI_BOOT_FILE_TOC));
+	return -1;
 }
 #endif
 
 #define VOL2REG(v) (u8)(((v - 680) / 10) | 0x80)
 #define PMU_ADDR 		0x65
 #define VOL_REG_ADDR	0x01
-extern int i2c_write(uint bus_id, uchar chip, uint addr, int alen, uchar *buffer, int len);
-/*
-************************************************************************************************************
-*
-*                                             function
-*
-*    name          :cpux_freq_detect
-*
-*    parmeters     :void
-*
-*    return        :void
-*
-*    note          :
-*
-*
-************************************************************************************************************
-*/
-int cpux_freq_gpio_probe(void)
-{
-	int ret;
-	int vid_used = 0;
-	volatile __u32 value = 0;
-	volatile __u32 value_temp = 0;
-
-	ret = script_parser_fetch("board_vendor", "vid_used", (int *)&vid_used, sizeof(int) / 4);
-	if (ret || !vid_used)
-	{
-		printf("[board_vendor] vid_used not used\n");
-		return -1;
-	}
-	//设置gpio输入属性
-	value_temp = *((volatile unsigned int *)(SUNXI_PIO_BASE + 0x74));
-	value_temp &= (~(0x0f << 4));											//PD17
-	*((volatile unsigned int *)(SUNXI_PIO_BASE + 0x74)) = value_temp;
-	__usdelay(10);
-
-	//设置gpio为上拉模式
-	value_temp = *((volatile unsigned int *)(SUNXI_PIO_BASE + 0x8C));		//PD17
-	value_temp &= (~(0x03 << 2));
-	value_temp |= (0x01 << 2);
-	*((volatile unsigned int *)(SUNXI_PIO_BASE + 0x8C)) = value_temp;
-	__usdelay(10);
-
-	//读取gpio数据
-	value_temp = *((volatile unsigned int *)(SUNXI_PIO_BASE + 0x7c));
-	__usdelay(10);
-	printf("gpio value=0x%x\n", value_temp);
-	value = (value_temp >> 17) & 0x01;
-
-	return value;
-}
-
-/*
-************************************************************************************************************
-*
-*                                             function
-*
-*    name          :sunxi_set_cpux_voltage_by_i2c
-*
-*    parmeters     :void
-*
-*    return        :void
-*
-*    note          :
-*
-*
-************************************************************************************************************
-*/
+extern int i2c_write(uchar chip, uint addr, int alen, uchar *buffer, int len);
 void sunxi_set_cpux_voltage_by_i2c(uint volt)
 {
 	u8 change = VOL2REG(volt);
 	debug("=== volt %d = %x ===\n",volt,change);
-	if(i2c_write(CPUS_TWI_HOST_ID, PMU_ADDR, VOL_REG_ADDR, 1, (uchar *)&change, 1))
+	if(i2c_write(PMU_ADDR, VOL_REG_ADDR, 1, (uchar *)&change, 1))
 	{
 		printf("sunxi_set_cpux_voltage_by_i2c error \n");
 	}
@@ -654,12 +523,6 @@ void sunxi_set_cpux_voltage(void)
 		printf("can not find pmuic_type form script  \n");
 		return ;
    }
-
-	if(cpux_freq_gpio_probe() == 0)
-	{
-		printf("cpux freq run low\n");
-		return ;
-	}
 
 //type 8016 i2c or gpio or none
 	if(pmuic_type == 2)

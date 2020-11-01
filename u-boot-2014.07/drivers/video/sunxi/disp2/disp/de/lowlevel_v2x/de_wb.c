@@ -116,7 +116,7 @@ s32 wb_ebios_writeback_enable(u32 sel, bool en)
  */
 s32 wb_ebios_apply(u32 sel, struct disp_capture_config *cfg)
 {
-	memcpy((void *)&wb_config, cfg, sizeof(struct disp_capture_config));
+	memcpy(&wb_config, cfg, sizeof(struct disp_capture_config));
 	return 0;
 }
 
